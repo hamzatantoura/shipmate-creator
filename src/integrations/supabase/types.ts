@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      shipments: {
+        Row: {
+          city: Database["public"]["Enums"]["shipment_city"]
+          cod_amount: number
+          created_at: string
+          detailed_address: string
+          id: string
+          merchant_id: string
+          phone_number: string
+          receiver_name: string
+          status: string
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          city: Database["public"]["Enums"]["shipment_city"]
+          cod_amount?: number
+          created_at?: string
+          detailed_address: string
+          id?: string
+          merchant_id: string
+          phone_number: string
+          receiver_name: string
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: Database["public"]["Enums"]["shipment_city"]
+          cod_amount?: number
+          created_at?: string
+          detailed_address?: string
+          id?: string
+          merchant_id?: string
+          phone_number?: string
+          receiver_name?: string
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +64,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      shipment_city:
+        | "Damascus"
+        | "Aleppo"
+        | "Homs"
+        | "Lattakia"
+        | "Hama"
+        | "Tartous"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +197,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      shipment_city: [
+        "Damascus",
+        "Aleppo",
+        "Homs",
+        "Lattakia",
+        "Hama",
+        "Tartous",
+      ],
+    },
   },
 } as const
