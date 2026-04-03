@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Package, Truck, DollarSign } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Package, Truck, DollarSign, Search } from "lucide-react";
 import ShipmentForm from "@/components/ShipmentForm";
 import ShipmentTable from "@/components/ShipmentTable";
 import type { Database } from "@/integrations/supabase/types";
