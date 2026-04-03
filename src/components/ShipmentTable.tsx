@@ -2,6 +2,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
+import QRCode from "qrcode";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
@@ -31,29 +32,63 @@ const statusColor = (s: string) => {
   }
 };
 
-function generateLabel(s: Shipment) {
-  const w = window.open("", "_blank", "width=400,height=600");
+async function generateLabel(s: Shipment) {
+  const qrDataUrl = await QRCode.toDataURL(s.tracking_number || s.id, { width: 120, margin: 1 });
+  const w = window.open("", "_blank", "width=450,height=650");
   if (!w) return;
   w.document.write(`
-    <html dir="rtl"><head><title>بطاقة الشحن</title>
+    <html dir="rtl"><head><title>بطاقة شحن - ${s.tracking_number}</title>
     <style>
-      body{font-family:sans-serif;padding:24px;background:#fff;color:#000}
-      .box{border:2px solid #000;padding:16px;margin-bottom:12px}
-      h2{margin:0 0 8px}
-      .track{font-size:20px;font-weight:bold;letter-spacing:2px}
+      @page { size: 105mm 148mm; margin: 0; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Segoe UI', Tahoma, sans-serif; width: 105mm; min-height: 148mm; padding: 6mm; background: #fff; color: #000; }
+      .label { border: 2.5px solid #000; height: 100%; display: flex; flex-direction: column; }
+      .header { background: #111; color: #fff; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; }
+      .header h1 { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+      .header span { font-size: 10px; opacity: 0.7; }
+      .tracking { background: #f5f5f5; padding: 8px 12px; text-align: center; border-bottom: 2px dashed #000; }
+      .tracking p { font-size: 9px; color: #666; margin-bottom: 2px; }
+      .tracking h2 { font-size: 18px; font-weight: 900; letter-spacing: 3px; font-family: monospace; }
+      .details { padding: 10px 12px; flex: 1; }
+      .row { display: flex; border-bottom: 1px solid #ddd; padding: 5px 0; }
+      .row:last-child { border-bottom: none; }
+      .row .lbl { font-size: 10px; color: #666; min-width: 70px; font-weight: 600; }
+      .row .val { font-size: 12px; font-weight: 700; }
+      .cod-box { background: #111; color: #fff; margin: 6px 12px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 800; }
+      .codes { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-top: 2px dashed #000; }
+      .codes .qr img { width: 80px; height: 80px; }
+      .codes .barcode { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .barcode-placeholder { width: 140px; height: 40px; border: 1.5px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999; margin-bottom: 2px; background: repeating-linear-gradient(90deg, #000 0px, #000 2px, #fff 2px, #fff 4px, #000 4px, #000 5px, #fff 5px, #fff 9px); background-size: 9px 100%; }
+      .barcode-text { font-size: 8px; font-family: monospace; color: #333; }
+      .footer { text-align: center; font-size: 7px; color: #aaa; padding: 4px; border-top: 1px solid #eee; }
     </style></head><body>
-    <div class="box">
-      <h2>بطاقة الشحن</h2>
-      <p class="track">${s.tracking_number}</p>
-    </div>
-    <div class="box">
-      <strong>إلى:</strong> ${s.receiver_name}<br/>
-      <strong>الهاتف:</strong> ${s.phone_number}<br/>
-      <strong>المدينة:</strong> ${CITY_AR[s.city] || s.city}<br/>
-      <strong>العنوان:</strong> ${s.detailed_address}
-    </div>
-    <div class="box">
-      <strong>الدفع عند الاستلام:</strong> ${Number(s.cod_amount).toLocaleString()} ل.س
+    <div class="label">
+      <div class="header">
+        <h1>ShipDash</h1>
+        <span>خدمات الشحن والتوصيل</span>
+      </div>
+      <div class="tracking">
+        <p>رقم التتبع</p>
+        <h2>${s.tracking_number || '—'}</h2>
+      </div>
+      <div class="details">
+        <div class="row"><span class="lbl">المستلم</span><span class="val">${s.receiver_name}</span></div>
+        <div class="row"><span class="lbl">الهاتف</span><span class="val" style="direction:ltr;text-align:right">${s.phone_number}</span></div>
+        <div class="row"><span class="lbl">المدينة</span><span class="val">${CITY_AR[s.city] || s.city}</span></div>
+        <div class="row"><span class="lbl">العنوان</span><span class="val">${s.detailed_address}</span></div>
+      </div>
+      <div class="cod-box">
+        <span>الدفع عند الاستلام</span>
+        <span>${Number(s.cod_amount).toLocaleString()} ل.س</span>
+      </div>
+      <div class="codes">
+        <div class="qr"><img src="${qrDataUrl}" alt="QR" /></div>
+        <div class="barcode">
+          <div class="barcode-placeholder"></div>
+          <span class="barcode-text">${s.tracking_number || ''}</span>
+        </div>
+      </div>
+      <div class="footer">ShipDash © ${new Date().getFullYear()} — هذه البطاقة مولّدة تلقائياً</div>
     </div>
     <script>window.print()</script>
     </body></html>
