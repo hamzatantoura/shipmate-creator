@@ -1,0 +1,1 @@
+ALTER TABLE public.shipments DROP CONSTRAINT IF EXISTS shipments_merchant_id_fkey;
