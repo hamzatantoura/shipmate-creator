@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Package, Truck, DollarSign, Search } from "lucide-react";
+import { Link } from "react-router-dom";
 import ShipmentForm from "@/components/ShipmentForm";
 import ShipmentTable from "@/components/ShipmentTable";
 import type { Database } from "@/integrations/supabase/types";
@@ -29,11 +31,17 @@ export default function Index() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-primary" />
             <span className="font-display font-bold text-lg text-foreground">ShipDash</span>
           </div>
+          <Link to="/driver">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <Truck className="h-3.5 w-3.5" />
+              لوحة السائق
+            </Button>
+          </Link>
         </div>
       </header>
 
