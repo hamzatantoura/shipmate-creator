@@ -11,6 +11,7 @@ type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
 export default function Index() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [search, setSearch] = useState("");
 
   const fetchShipments = async () => {
     const { data } = await supabase.from("shipments").select("*").order("created_at", { ascending: false });
