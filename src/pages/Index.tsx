@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Package, Truck, DollarSign } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Package, Truck, DollarSign, Search } from "lucide-react";
 import ShipmentForm from "@/components/ShipmentForm";
 import ShipmentTable from "@/components/ShipmentTable";
 import type { Database } from "@/integrations/supabase/types";
@@ -10,6 +11,7 @@ type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
 export default function Index() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [search, setSearch] = useState("");
 
   const fetchShipments = async () => {
     const { data } = await supabase.from("shipments").select("*").order("created_at", { ascending: false });
@@ -64,10 +66,30 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        {/* Table */}
+        {/* Search + Table */}
         <div>
-          <h2 className="font-display font-semibold text-lg text-foreground mb-4">الشحنات الأخيرة</h2>
-          <ShipmentTable shipments={shipments} />
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display font-semibold text-lg text-foreground">الشحنات الأخيرة</h2>
+            <div className="relative w-64">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="بحث بالاسم أو رقم الهاتف..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pr-9"
+              />
+            </div>
+          </div>
+          <ShipmentTable
+            shipments={shipments.filter((s) => {
+              if (!search.trim()) return true;
+              const q = search.trim().toLowerCase();
+              return (
+                s.receiver_name.toLowerCase().includes(q) ||
+                s.phone_number.includes(q)
+              );
+            })}
+          />
         </div>
       </main>
     </div>
