@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Package, Truck, DollarSign, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import ShipmentForm from "@/components/ShipmentForm";
-import ShipmentForm from "@/components/ShipmentForm";
 import ShipmentTable from "@/components/ShipmentTable";
 import type { Database } from "@/integrations/supabase/types";
 
