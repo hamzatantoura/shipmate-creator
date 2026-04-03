@@ -6,6 +6,22 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
+const CITY_AR: Record<string, string> = {
+  Damascus: "دمشق",
+  Aleppo: "حلب",
+  Homs: "حمص",
+  Lattakia: "اللاذقية",
+  Hama: "حماة",
+  Tartous: "طرطوس",
+};
+
+const STATUS_AR: Record<string, string> = {
+  pending: "قيد الانتظار",
+  in_transit: "قيد التوصيل",
+  delivered: "تم التسليم",
+  cancelled: "ملغاة",
+};
+
 const statusColor = (s: string) => {
   switch (s) {
     case "delivered": return "bg-primary/20 text-primary border-primary/30";
@@ -19,25 +35,25 @@ function generateLabel(s: Shipment) {
   const w = window.open("", "_blank", "width=400,height=600");
   if (!w) return;
   w.document.write(`
-    <html><head><title>Shipping Label</title>
+    <html dir="rtl"><head><title>بطاقة الشحن</title>
     <style>
-      body{font-family:monospace;padding:24px;background:#fff;color:#000}
+      body{font-family:sans-serif;padding:24px;background:#fff;color:#000}
       .box{border:2px solid #000;padding:16px;margin-bottom:12px}
       h2{margin:0 0 8px}
       .track{font-size:20px;font-weight:bold;letter-spacing:2px}
     </style></head><body>
     <div class="box">
-      <h2>SHIPPING LABEL</h2>
+      <h2>بطاقة الشحن</h2>
       <p class="track">${s.tracking_number}</p>
     </div>
     <div class="box">
-      <strong>To:</strong> ${s.receiver_name}<br/>
-      <strong>Phone:</strong> ${s.phone_number}<br/>
-      <strong>City:</strong> ${s.city}<br/>
-      <strong>Address:</strong> ${s.detailed_address}
+      <strong>إلى:</strong> ${s.receiver_name}<br/>
+      <strong>الهاتف:</strong> ${s.phone_number}<br/>
+      <strong>المدينة:</strong> ${CITY_AR[s.city] || s.city}<br/>
+      <strong>العنوان:</strong> ${s.detailed_address}
     </div>
     <div class="box">
-      <strong>COD:</strong> ${Number(s.cod_amount).toLocaleString()} SYP
+      <strong>الدفع عند الاستلام:</strong> ${Number(s.cod_amount).toLocaleString()} ل.س
     </div>
     <script>window.print()</script>
     </body></html>
@@ -49,7 +65,7 @@ export default function ShipmentTable({ shipments }: { shipments: Shipment[] }) 
   if (!shipments.length) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        No shipments yet. Create your first one above.
+        لا توجد شحنات بعد. أنشئ أول شحنة أعلاه.
       </div>
     );
   }
@@ -59,12 +75,12 @@ export default function ShipmentTable({ shipments }: { shipments: Shipment[] }) 
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead>Tracking</TableHead>
-            <TableHead>Receiver</TableHead>
-            <TableHead>City</TableHead>
-            <TableHead>COD</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Label</TableHead>
+            <TableHead>رقم التتبع</TableHead>
+            <TableHead>المستلم</TableHead>
+            <TableHead>المدينة</TableHead>
+            <TableHead>المبلغ</TableHead>
+            <TableHead>الحالة</TableHead>
+            <TableHead>بطاقة</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -72,14 +88,14 @@ export default function ShipmentTable({ shipments }: { shipments: Shipment[] }) 
             <TableRow key={s.id} className="hover:bg-muted/30 transition-colors">
               <TableCell className="font-mono text-xs">{s.tracking_number}</TableCell>
               <TableCell>{s.receiver_name}</TableCell>
-              <TableCell>{s.city}</TableCell>
-              <TableCell>{Number(s.cod_amount).toLocaleString()} SYP</TableCell>
+              <TableCell>{CITY_AR[s.city] || s.city}</TableCell>
+              <TableCell>{Number(s.cod_amount).toLocaleString()} ل.س</TableCell>
               <TableCell>
                 <Badge variant="outline" className={statusColor(s.status)}>
-                  {s.status}
+                  {STATUS_AR[s.status] || s.status}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right">
+              <TableCell>
                 <Button variant="ghost" size="icon" onClick={() => generateLabel(s)}>
                   <Printer className="h-4 w-4" />
                 </Button>

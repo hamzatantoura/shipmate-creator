@@ -16,7 +16,15 @@ import { Package, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type City = Database["public"]["Enums"]["shipment_city"];
-const CITIES: City[] = ["Damascus", "Aleppo", "Homs", "Lattakia", "Hama", "Tartous"];
+
+const CITIES: { value: City; label: string }[] = [
+  { value: "Damascus", label: "دمشق" },
+  { value: "Aleppo", label: "حلب" },
+  { value: "Homs", label: "حمص" },
+  { value: "Lattakia", label: "اللاذقية" },
+  { value: "Hama", label: "حماة" },
+  { value: "Tartous", label: "طرطوس" },
+];
 
 interface ShipmentFormProps {
   onCreated: () => void;
@@ -35,22 +43,15 @@ export default function ShipmentForm({ onCreated }: ShipmentFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.city) {
-      toast.error("Please select a city");
+      toast.error("الرجاء اختيار المدينة");
       return;
     }
 
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("You must be logged in");
-      setLoading(false);
-      return;
-    }
-
     const tracking = `SHP-${Date.now().toString(36).toUpperCase()}`;
 
     const { error } = await supabase.from("shipments").insert({
-      merchant_id: user.id,
+      merchant_id: "00000000-0000-0000-0000-000000000000",
       receiver_name: form.receiver_name.trim(),
       phone_number: form.phone_number.trim(),
       city: form.city as City,
@@ -63,7 +64,7 @@ export default function ShipmentForm({ onCreated }: ShipmentFormProps) {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Shipment created!");
+      toast.success("تم إنشاء الشحنة بنجاح!");
       setForm({ receiver_name: "", phone_number: "", city: "", detailed_address: "", cod_amount: "" });
       onCreated();
     }
@@ -73,15 +74,15 @@ export default function ShipmentForm({ onCreated }: ShipmentFormProps) {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="flex items-center gap-2 mb-6">
         <Package className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-display font-semibold text-foreground">New Shipment</h2>
+        <h2 className="text-lg font-display font-semibold text-foreground">شحنة جديدة</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="receiver_name">Receiver Name</Label>
+          <Label htmlFor="receiver_name">اسم المستلم</Label>
           <Input
             id="receiver_name"
-            placeholder="Full name"
+            placeholder="الاسم الكامل"
             value={form.receiver_name}
             onChange={(e) => setForm({ ...form, receiver_name: e.target.value })}
             required
@@ -89,7 +90,7 @@ export default function ShipmentForm({ onCreated }: ShipmentFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="phone_number">Phone Number</Label>
+          <Label htmlFor="phone_number">رقم الهاتف</Label>
           <Input
             id="phone_number"
             placeholder="+963 9XX XXX XXX"
@@ -100,21 +101,21 @@ export default function ShipmentForm({ onCreated }: ShipmentFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label>City</Label>
+          <Label>المدينة</Label>
           <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v as City })}>
             <SelectTrigger>
-              <SelectValue placeholder="Select city" />
+              <SelectValue placeholder="اختر المدينة" />
             </SelectTrigger>
             <SelectContent>
               {CITIES.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
+                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="cod_amount">COD Amount (SYP)</Label>
+          <Label htmlFor="cod_amount">مبلغ الدفع عند الاستلام (ل.س)</Label>
           <Input
             id="cod_amount"
             type="number"
@@ -128,10 +129,10 @@ export default function ShipmentForm({ onCreated }: ShipmentFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="detailed_address">Detailed Address</Label>
+        <Label htmlFor="detailed_address">العنوان التفصيلي</Label>
         <Textarea
           id="detailed_address"
-          placeholder="Street, building, floor..."
+          placeholder="الشارع، البناء، الطابق..."
           value={form.detailed_address}
           onChange={(e) => setForm({ ...form, detailed_address: e.target.value })}
           required
@@ -140,8 +141,8 @@ export default function ShipmentForm({ onCreated }: ShipmentFormProps) {
       </div>
 
       <Button type="submit" disabled={loading} className="w-full">
-        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
-        Create Shipment
+        {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
+        إنشاء شحنة
       </Button>
     </form>
   );
