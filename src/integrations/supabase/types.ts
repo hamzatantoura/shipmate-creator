@@ -14,44 +14,288 @@ export type Database = {
   }
   public: {
     Tables: {
-      shipments: {
+      carriers: {
         Row: {
-          city: Database["public"]["Enums"]["shipment_city"]
-          cod_amount: number
+          base_rate: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          name_ar: string
+          per_kg_rate: number
+        }
+        Insert: {
+          base_rate?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          name_ar: string
+          per_kg_rate?: number
+        }
+        Update: {
+          base_rate?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          name_ar?: string
+          per_kg_rate?: number
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          city: string
           created_at: string
           detailed_address: string
           id: string
           merchant_id: string
           phone_number: string
+          product_id: string | null
+          quantity: number
           receiver_name: string
+          shipment_id: string | null
           status: string
-          tracking_number: string | null
+          total_amount: number
           updated_at: string
         }
         Insert: {
-          city: Database["public"]["Enums"]["shipment_city"]
-          cod_amount?: number
+          city: string
           created_at?: string
           detailed_address: string
           id?: string
           merchant_id: string
           phone_number: string
+          product_id?: string | null
+          quantity?: number
           receiver_name: string
+          shipment_id?: string | null
           status?: string
-          tracking_number?: string | null
+          total_amount?: number
           updated_at?: string
         }
         Update: {
-          city?: Database["public"]["Enums"]["shipment_city"]
-          cod_amount?: number
+          city?: string
           created_at?: string
           detailed_address?: string
           id?: string
           merchant_id?: string
           phone_number?: string
+          product_id?: string | null
+          quantity?: number
           receiver_name?: string
+          shipment_id?: string | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          merchant_id: string
+          name: string
+          price: number
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          merchant_id: string
+          name: string
+          price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          merchant_id?: string
+          name?: string
+          price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shipments: {
+        Row: {
+          carrier_id: string | null
+          city: Database["public"]["Enums"]["shipment_city"]
+          cod_amount: number
+          created_at: string
+          detailed_address: string
+          final_weight: number | null
+          id: string
+          merchant_id: string
+          order_id: string | null
+          phone_number: string
+          receiver_name: string
+          shipping_fee: number | null
+          status: string
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          carrier_id?: string | null
+          city: Database["public"]["Enums"]["shipment_city"]
+          cod_amount?: number
+          created_at?: string
+          detailed_address: string
+          final_weight?: number | null
+          id?: string
+          merchant_id: string
+          order_id?: string | null
+          phone_number: string
+          receiver_name: string
+          shipping_fee?: number | null
           status?: string
           tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          carrier_id?: string | null
+          city?: Database["public"]["Enums"]["shipment_city"]
+          cod_amount?: number
+          created_at?: string
+          detailed_address?: string
+          final_weight?: number | null
+          id?: string
+          merchant_id?: string
+          order_id?: string | null
+          phone_number?: string
+          receiver_name?: string
+          shipping_fee?: number | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipments_carrier_id_fkey"
+            columns: ["carrier_id"]
+            isOneToOne: false
+            referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      top_up_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          merchant_id: string
+          method: string
+          receipt_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          merchant_id: string
+          method: string
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          merchant_id?: string
+          method?: string
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          type: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          merchant_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          merchant_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          merchant_id?: string
           updated_at?: string
         }
         Relationships: []
