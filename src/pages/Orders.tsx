@@ -64,7 +64,7 @@ export default function Orders() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      <NavLink />
+      <AppHeader />
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         <h1 className="text-2xl font-display font-bold text-foreground">الطلبات</h1>
 
