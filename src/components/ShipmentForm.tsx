@@ -155,10 +155,13 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     : 0;
 
   // Total shipping fee = location rate + per_kg surcharge
+  // The 2,000 SYP platform markup is added internally but NOT shown to merchant
+  const PLATFORM_MARKUP = 2000;
   const carrier = carriers.find((c) => c.id === selectedCarrier);
-  const shippingFee = carrier
+  const visibleShippingFee = carrier
     ? locationRate + carrier.per_kg_rate * (parseFloat(weight) || 1)
     : 0;
+  const shippingFee = visibleShippingFee; // actual deduction; markup applied at settlement
 
   const selectedProvinceName = provinces.find((p) => p.id === selectedProvince);
 
