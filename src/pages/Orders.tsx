@@ -50,7 +50,6 @@ export default function Orders() {
   useEffect(() => { fetchOrders(); }, []);
 
   const createShipmentFromOrder = (order: Order) => {
-    // Navigate to dashboard with prefilled data via query params
     const params = new URLSearchParams({
       order_id: order.id,
       receiver_name: order.receiver_name,
