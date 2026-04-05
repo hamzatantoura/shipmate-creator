@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      carrier_coverage: {
+        Row: {
+          carrier_id: string
+          created_at: string
+          id: string
+          inter_city_rate: number
+          intra_city_rate: number
+          is_available: boolean
+          province_id: string
+        }
+        Insert: {
+          carrier_id: string
+          created_at?: string
+          id?: string
+          inter_city_rate?: number
+          intra_city_rate?: number
+          is_available?: boolean
+          province_id: string
+        }
+        Update: {
+          carrier_id?: string
+          created_at?: string
+          id?: string
+          inter_city_rate?: number
+          intra_city_rate?: number
+          is_available?: boolean
+          province_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carrier_coverage_carrier_id_fkey"
+            columns: ["carrier_id"]
+            isOneToOne: false
+            referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carrier_coverage_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carriers: {
         Row: {
           base_rate: number
@@ -143,6 +188,27 @@ export type Database = {
         }
         Relationships: []
       }
+      provinces: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          name_ar: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          name_ar: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          name_ar?: string
+        }
+        Relationships: []
+      }
       shipments: {
         Row: {
           carrier_id: string | null
@@ -201,6 +267,38 @@ export type Database = {
             columns: ["carrier_id"]
             isOneToOne: false
             referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_regions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          name_ar: string
+          province_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          name_ar: string
+          province_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          name_ar?: string
+          province_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_regions_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
             referencedColumns: ["id"]
           },
         ]
