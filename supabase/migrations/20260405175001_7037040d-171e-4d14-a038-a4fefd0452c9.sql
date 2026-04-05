@@ -1,0 +1,1 @@
+ALTER TABLE public.top_up_requests ADD COLUMN reference_number text;
