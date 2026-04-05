@@ -8,8 +8,7 @@ import { toast } from "sonner";
 import { ArrowRight, Loader2, Smartphone, Upload, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
-
-const MERCHANT_ID = "00000000-0000-0000-0000-000000000000";
+import { useMerchantId } from "@/hooks/use-merchant-id";
 
 const METHODS = [
   { value: "shamcash", label: "ShamCash", icon: CreditCard, desc: "الدفع عبر تطبيق شام كاش" },
@@ -18,39 +17,37 @@ const METHODS = [
 ];
 
 export default function TopUp() {
+  const merchantId = useMerchantId();
   const [method, setMethod] = useState("");
   const [amount, setAmount] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!method) { toast.error("اختر طريقة الدفع"); return; }
+    if (!receiptFile) { toast.error("يرجى رفع صورة وصل التحويل"); return; }
     setLoading(true);
 
-    let receipt_url: string | null = null;
-    if (receiptFile) {
-      const ext = receiptFile.name.split(".").pop();
-      const path = `receipts/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("uploads").upload(path, receiptFile);
-      if (upErr) { toast.error("فشل رفع الإيصال"); setLoading(false); return; }
-      const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
-      receipt_url = pub.publicUrl;
-    }
+    const ext = receiptFile.name.split(".").pop();
+    const path = `receipts/${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("uploads").upload(path, receiptFile);
+    if (upErr) { toast.error("فشل رفع الإيصال"); setLoading(false); return; }
+    const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
 
     const { error } = await supabase.from("top_up_requests").insert({
-      merchant_id: MERCHANT_ID,
+      merchant_id: merchantId,
       amount: parseFloat(amount) || 0,
       method,
-      receipt_url,
+      receipt_url: pub.publicUrl,
+      reference_number: referenceNumber.trim() || null,
     } as any);
 
     setLoading(false);
     if (error) { toast.error(error.message); return; }
     toast.success("تم إرسال طلب شحن الرصيد! سيتم مراجعته قريباً.");
-    setMethod("");
-    setAmount("");
-    setReceiptFile(null);
+    setMethod(""); setAmount(""); setReferenceNumber(""); setReceiptFile(null);
   };
 
   return (
@@ -67,7 +64,7 @@ export default function TopUp() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
             <Label>المبلغ (ل.س)</Label>
-            <Input type="number" min="0" placeholder="أدخل المبلغ" value={amount} onChange={e => setAmount(e.target.value)} required />
+            <Input type="number" min="1" placeholder="أدخل المبلغ" value={amount} onChange={e => setAmount(e.target.value)} required />
           </div>
 
           <div className="space-y-3">
@@ -91,12 +88,16 @@ export default function TopUp() {
             ))}
           </div>
 
-          {method === "manual_transfer" && (
-            <div className="space-y-2">
-              <Label>صورة الإيصال</Label>
-              <Input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} required />
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label>رقم المرجع / رقم العملية</Label>
+            <Input placeholder="أدخل رقم العملية أو المرجع" value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)} />
+          </div>
+
+          <div className="space-y-2">
+            <Label>صورة وصل التحويل <span className="text-destructive">*</span></Label>
+            <Input type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} required />
+            {receiptFile && <p className="text-xs text-muted-foreground">✓ {receiptFile.name}</p>}
+          </div>
 
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : null}

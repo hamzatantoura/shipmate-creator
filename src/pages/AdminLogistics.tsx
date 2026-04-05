@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, DollarSign, Truck, Settings } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Settings, Bell, ArrowDownCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 
@@ -19,8 +20,13 @@ interface PayoutRequest {
   account_details: string; status: string; receipt_url: string | null;
   admin_note: string | null; created_at: string;
 }
+interface TopUpRequest {
+  id: string; merchant_id: string; amount: number; method: string;
+  receipt_url: string | null; reference_number: string | null;
+  status: string; created_at: string;
+}
 
-const METHOD_AR: Record<string, string> = { shamcash: "ShamCash", syriatel_cash: "سيريتل كاش", cash_office: "نقداً من المكتب", bank_transfer: "حوالة بنكية" };
+const METHOD_AR: Record<string, string> = { shamcash: "ShamCash", syriatel_cash: "سيريتل كاش", cash_office: "نقداً من المكتب", bank_transfer: "حوالة بنكية", manual_transfer: "حوالة يدوية" };
 const STATUS_AR: Record<string, string> = { pending: "بانتظار المعالجة", processing: "قيد المعالجة", completed: "مكتملة" };
 const statusColor = (s: string) => {
   switch (s) {
@@ -32,19 +38,26 @@ const statusColor = (s: string) => {
 
 export default function AdminLogistics() {
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
+  const [topups, setTopups] = useState<TopUpRequest[]>([]);
   const [selectedPayout, setSelectedPayout] = useState<PayoutRequest | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [newStatus, setNewStatus] = useState("");
   const [uploading, setUploading] = useState(false);
   const [totalProfit, setTotalProfit] = useState(0);
   const [deliveredCount, setDeliveredCount] = useState(0);
   const [totalShipments, setTotalShipments] = useState(0);
 
+  const pendingTopups = topups.filter(t => t.status === "pending").length;
+  const pendingPayouts = payouts.filter(p => p.status === "pending").length;
+  const totalPending = pendingTopups + pendingPayouts;
+
   const fetchData = async () => {
-    // Payouts
     const { data: p } = await supabase.from("payout_requests").select("*").order("created_at", { ascending: false });
     if (p) setPayouts(p as PayoutRequest[]);
 
-    // Profit calculation: markup per delivered shipment
+    const { data: t } = await supabase.from("top_up_requests").select("*").order("created_at", { ascending: false });
+    if (t) setTopups(t as TopUpRequest[]);
+
     const { data: shipments } = await supabase.from("shipments").select("status");
     if (shipments) {
       setTotalShipments(shipments.length);
@@ -87,14 +100,47 @@ export default function AdminLogistics() {
     setSelectedPayout({ ...selectedPayout, receipt_url: urlData.publicUrl });
   };
 
+  const approveTopUp = async (topup: TopUpRequest) => {
+    // 1. Update status to completed
+    await supabase.from("top_up_requests").update({ status: "completed" } as any).eq("id", topup.id);
+
+    // 2. Get or create wallet
+    let { data: wallet } = await supabase.from("wallets").select("*").eq("merchant_id", topup.merchant_id).single();
+    if (!wallet) {
+      const { data: newWallet } = await supabase.from("wallets").insert({ merchant_id: topup.merchant_id, balance: 0 } as any).select().single();
+      wallet = newWallet;
+    }
+    if (!wallet) { toast.error("خطأ في المحفظة"); return; }
+
+    // 3. Add balance
+    const newBalance = Number(wallet.balance) + topup.amount;
+    await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
+
+    // 4. Log transaction
+    await supabase.from("wallet_transactions").insert({
+      wallet_id: wallet.id, type: "topup", amount: topup.amount,
+      description: `شحن رصيد - ${METHOD_AR[topup.method] || topup.method}`, reference_id: topup.id,
+    } as any);
+
+    toast.success(`تم شحن ${topup.amount.toLocaleString()} ل.س للتاجر`);
+    fetchData();
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <AppHeader />
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        <h1 className="text-2xl font-display font-bold text-foreground">لوحة الإدارة</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-display font-bold text-foreground">لوحة الإدارة</h1>
+          {totalPending > 0 && (
+            <Badge className="bg-destructive text-destructive-foreground gap-1 text-sm px-3 py-1">
+              <Bell className="h-4 w-4" /> {totalPending} طلب بانتظار المعالجة
+            </Badge>
+          )}
+        </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card className="bg-card border-border">
             <CardContent className="p-5 flex items-center gap-4">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><TrendingUp className="h-5 w-5 text-primary" /></div>
@@ -109,16 +155,77 @@ export default function AdminLogistics() {
           </Card>
           <Card className="bg-card border-border">
             <CardContent className="p-5 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><Settings className="h-5 w-5 text-primary" /></div>
-              <div><p className="text-sm text-muted-foreground">هامش الربح الخفي</p><p className="text-xl font-display font-bold text-foreground">{PLATFORM_MARKUP.toLocaleString()} ل.س / شحنة</p></div>
+              <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center"><ArrowDownCircle className="h-5 w-5 text-destructive" /></div>
+              <div><p className="text-sm text-muted-foreground">طلبات شحن معلقة</p><p className="text-xl font-display font-bold text-destructive">{pendingTopups}</p></div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-border">
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center"><CreditCard className="h-5 w-5 text-warning" /></div>
+              <div><p className="text-sm text-muted-foreground">طلبات تسوية معلقة</p><p className="text-xl font-display font-bold text-warning">{pendingPayouts}</p></div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="payouts" dir="rtl">
+        <Tabs defaultValue="topups" dir="rtl">
           <TabsList>
-            <TabsTrigger value="payouts" className="gap-1.5"><CreditCard className="h-3.5 w-3.5" /> طلبات التسوية</TabsTrigger>
+            <TabsTrigger value="topups" className="gap-1.5">
+              <ArrowDownCircle className="h-3.5 w-3.5" /> طلبات شحن الرصيد
+              {pendingTopups > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingTopups}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="payouts" className="gap-1.5">
+              <CreditCard className="h-3.5 w-3.5" /> طلبات التسوية
+              {pendingPayouts > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingPayouts}</Badge>}
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="topups" className="mt-4">
+            {topups.length === 0 ? (
+              <p className="text-center py-12 text-muted-foreground">لا توجد طلبات شحن رصيد</p>
+            ) : (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-right">التاجر</TableHead>
+                      <TableHead className="text-right">المبلغ</TableHead>
+                      <TableHead className="text-right">الطريقة</TableHead>
+                      <TableHead className="text-right">رقم المرجع</TableHead>
+                      <TableHead className="text-right">التاريخ</TableHead>
+                      <TableHead className="text-right">الحالة</TableHead>
+                      <TableHead className="text-right">إجراءات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topups.map(t => (
+                      <TableRow key={t.id}>
+                        <TableCell className="font-mono text-xs">{t.merchant_id.slice(0, 8)}...</TableCell>
+                        <TableCell className="font-display font-bold">{t.amount.toLocaleString()} ل.س</TableCell>
+                        <TableCell>{METHOD_AR[t.method] || t.method}</TableCell>
+                        <TableCell>{(t as any).reference_number || "—"}</TableCell>
+                        <TableCell className="text-xs">{new Date(t.created_at).toLocaleDateString("ar")}</TableCell>
+                        <TableCell><Badge variant="outline" className={statusColor(t.status)}>{STATUS_AR[t.status] || t.status}</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            {t.receipt_url && (
+                              <Button variant="ghost" size="icon" onClick={() => setReceiptPreview(t.receipt_url)}>
+                                <ImageIcon className="h-4 w-4 text-primary" />
+                              </Button>
+                            )}
+                            {t.status === "pending" && (
+                              <Button size="sm" className="gap-1" onClick={() => approveTopUp(t)}>
+                                <CheckCircle className="h-3.5 w-3.5" /> موافقة
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
 
           <TabsContent value="payouts" className="mt-4">
             {payouts.length === 0 ? (
@@ -146,6 +253,7 @@ export default function AdminLogistics() {
           </TabsContent>
         </Tabs>
 
+        {/* Payout detail dialog */}
         <Dialog open={!!selectedPayout} onOpenChange={o => !o && setSelectedPayout(null)}>
           <DialogContent dir="rtl" className="max-w-md">
             <DialogHeader><DialogTitle>تفاصيل طلب التسوية</DialogTitle></DialogHeader>
@@ -182,6 +290,14 @@ export default function AdminLogistics() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Receipt preview dialog */}
+        <Dialog open={!!receiptPreview} onOpenChange={o => !o && setReceiptPreview(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>صورة الإيصال</DialogTitle></DialogHeader>
+            {receiptPreview && <img src={receiptPreview} alt="receipt" className="rounded-lg max-h-96 object-contain mx-auto" />}
           </DialogContent>
         </Dialog>
       </main>
