@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, TrendingDown, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import NavLink from "@/components/NavLink";
+import AppHeader from "@/components/AppHeader";
 
 const MERCHANT_ID = "00000000-0000-0000-0000-000000000000";
 

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowRight, Loader2, Smartphone, Upload, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
-import NavLink from "@/components/NavLink";
+import AppHeader from "@/components/AppHeader";
 
 const MERCHANT_ID = "00000000-0000-0000-0000-000000000000";
 

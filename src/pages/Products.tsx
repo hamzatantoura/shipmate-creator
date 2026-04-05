@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Pencil, Trash2 } from "lucide-react";
-import NavLink from "@/components/NavLink";
+import AppHeader from "@/components/AppHeader";
 
 const MERCHANT_ID = "00000000-0000-0000-0000-000000000000";
 
