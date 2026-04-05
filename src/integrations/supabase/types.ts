@@ -385,6 +385,7 @@ export type Database = {
           merchant_id: string
           method: string
           receipt_url: string | null
+          reference_number: string | null
           status: string
           updated_at: string
         }
@@ -395,6 +396,7 @@ export type Database = {
           merchant_id: string
           method: string
           receipt_url?: string | null
+          reference_number?: string | null
           status?: string
           updated_at?: string
         }
@@ -405,6 +407,7 @@ export type Database = {
           merchant_id?: string
           method?: string
           receipt_url?: string | null
+          reference_number?: string | null
           status?: string
           updated_at?: string
         }
