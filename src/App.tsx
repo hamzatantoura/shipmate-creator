@@ -4,14 +4,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "./pages/Landing.tsx";
-import Index from "./pages/Index.tsx";
-import Products from "./pages/Products.tsx";
-import Orders from "./pages/Orders.tsx";
-import WalletPage from "./pages/WalletPage.tsx";
+import MerchantPortal from "./pages/MerchantPortal.tsx";
 import TopUp from "./pages/TopUp.tsx";
 import DriverDashboard from "./pages/DriverDashboard.tsx";
 import CarrierPortal from "./pages/CarrierPortal.tsx";
-import AdminPayouts from "./pages/AdminPayouts.tsx";
+import AdminLogistics from "./pages/AdminLogistics.tsx";
 import TrackShipment from "./pages/TrackShipment.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -25,15 +22,18 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Index />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/wallet" element={<WalletPage />} />
+          <Route path="/merchant" element={<MerchantPortal />} />
           <Route path="/topup" element={<TopUp />} />
           <Route path="/driver" element={<DriverDashboard />} />
           <Route path="/carrier" element={<CarrierPortal />} />
-          <Route path="/admin/payouts" element={<AdminPayouts />} />
+          <Route path="/admin-logistics" element={<AdminLogistics />} />
           <Route path="/track" element={<TrackShipment />} />
+          {/* Legacy redirects */}
+          <Route path="/dashboard" element={<MerchantPortal />} />
+          <Route path="/products" element={<MerchantPortal />} />
+          <Route path="/orders" element={<MerchantPortal />} />
+          <Route path="/wallet" element={<MerchantPortal />} />
+          <Route path="/admin/payouts" element={<AdminLogistics />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

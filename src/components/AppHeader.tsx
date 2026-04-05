@@ -1,15 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Truck, Package, ShoppingCart, Wallet, LayoutDashboard, Building2, CreditCard, Search } from "lucide-react";
+import { Truck, ShoppingBag, Building2, Shield, Search } from "lucide-react";
 
 const NAV_ITEMS = [
-  { path: "/dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
-  { path: "/products", label: "المنتجات", icon: Package },
-  { path: "/orders", label: "الطلبات", icon: ShoppingCart },
-  { path: "/wallet", label: "المحفظة", icon: Wallet },
+  { path: "/merchant", label: "التاجر", icon: ShoppingBag },
   { path: "/carrier", label: "الناقل", icon: Building2 },
   { path: "/driver", label: "السائق", icon: Truck },
-  { path: "/admin/payouts", label: "التسويات", icon: CreditCard },
+  { path: "/admin-logistics", label: "الإدارة", icon: Shield },
   { path: "/track", label: "تتبع", icon: Search },
 ];
 
