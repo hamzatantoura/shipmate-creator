@@ -18,17 +18,28 @@ const CITY_AR: Record<string, string> = {
 
 const STATUS_AR: Record<string, string> = {
   pending: "قيد الانتظار",
+  pending_pickup: "بانتظار الاستلام",
+  at_warehouse: "في المستودع",
   in_transit: "قيد التوصيل",
+  in_transit_intercity: "بين المحافظات",
+  with_distributor: "مع مندوب التوزيع",
   delivered: "تم التسليم",
+  returned: "مرتجع",
   cancelled: "ملغاة",
+  failed: "فشل التسليم",
 };
 
 const statusColor = (s: string) => {
   switch (s) {
     case "delivered": return "bg-primary/20 text-primary border-primary/30";
-    case "in_transit": return "bg-info/20 text-info border-info/30";
-    case "cancelled": return "bg-destructive/20 text-destructive border-destructive/30";
-    default: return "bg-warning/20 text-warning border-warning/30";
+    case "in_transit":
+    case "in_transit_intercity":
+    case "with_distributor": return "bg-info/20 text-info border-info/30";
+    case "cancelled":
+    case "returned":
+    case "failed": return "bg-destructive/20 text-destructive border-destructive/30";
+    case "at_warehouse": return "bg-warning/20 text-warning border-warning/30";
+    default: return "bg-muted text-muted-foreground border-border";
   }
 };
 

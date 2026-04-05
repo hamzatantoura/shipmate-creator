@@ -10,6 +10,9 @@ import Orders from "./pages/Orders.tsx";
 import WalletPage from "./pages/WalletPage.tsx";
 import TopUp from "./pages/TopUp.tsx";
 import DriverDashboard from "./pages/DriverDashboard.tsx";
+import CarrierPortal from "./pages/CarrierPortal.tsx";
+import AdminPayouts from "./pages/AdminPayouts.tsx";
+import TrackShipment from "./pages/TrackShipment.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -28,6 +31,9 @@ const App = () => (
           <Route path="/wallet" element={<WalletPage />} />
           <Route path="/topup" element={<TopUp />} />
           <Route path="/driver" element={<DriverDashboard />} />
+          <Route path="/carrier" element={<CarrierPortal />} />
+          <Route path="/admin/payouts" element={<AdminPayouts />} />
+          <Route path="/track" element={<TrackShipment />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
