@@ -55,13 +55,37 @@ export default function DriverDashboard() {
   const updateStatus = async (id: string, status: string) => {
     setUpdatingId(id);
     const { error } = await supabase.from("shipments").update({ status }).eq("id", id);
-    setUpdatingId(null);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success(status === "delivered" ? "تم تسليم الشحنة بنجاح!" : "تم تسجيل فشل التسليم");
-      fetchShipments();
+    if (error) { toast.error(error.message); setUpdatingId(null); return; }
+
+    // COD settlement on delivery
+    if (status === "delivered") {
+      const shipment = shipments.find(s => s.id === id);
+      if (shipment) {
+        const codAmount = Number(shipment.cod_amount);
+        const shippingFee = Number((shipment as any).shipping_fee || 0);
+        const commission = codAmount * 0.05; // 5% platform commission
+        const netSettlement = codAmount - commission;
+
+        const { data: wallet } = await supabase
+          .from("wallets")
+          .select("*")
+          .eq("merchant_id", shipment.merchant_id)
+          .single();
+
+        if (wallet) {
+          const newBalance = Number(wallet.balance) + netSettlement;
+          await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
+          await supabase.from("wallet_transactions").insert([
+            { wallet_id: wallet.id, type: "cod_settlement", amount: codAmount, description: `تسوية COD - ${shipment.tracking_number}`, reference_id: id },
+            { wallet_id: wallet.id, type: "commission", amount: -commission, description: `عمولة المنصة 5% - ${shipment.tracking_number}`, reference_id: id },
+          ] as any);
+        }
+      }
     }
+
+    setUpdatingId(null);
+    toast.success(status === "delivered" ? "تم تسليم الشحنة وتسوية المبلغ!" : "تم تسجيل فشل التسليم");
+    fetchShipments();
   };
 
   return (
