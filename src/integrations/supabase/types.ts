@@ -152,6 +152,45 @@ export type Database = {
           },
         ]
       }
+      payout_requests: {
+        Row: {
+          account_details: string
+          admin_note: string | null
+          amount: number
+          created_at: string
+          id: string
+          merchant_id: string
+          method: string
+          receipt_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_details?: string
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          merchant_id: string
+          method: string
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_details?: string
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          merchant_id?: string
+          method?: string
+          receipt_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           created_at: string
@@ -208,6 +247,41 @@ export type Database = {
           name_ar?: string
         }
         Relationships: []
+      }
+      shipment_status_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_status: string
+          old_status: string | null
+          shipment_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_status: string
+          old_status?: string | null
+          shipment_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_status?: string
+          old_status?: string | null
+          shipment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_status_history_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shipments: {
         Row: {
