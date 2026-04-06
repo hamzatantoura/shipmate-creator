@@ -85,8 +85,10 @@ export default function TrackShipment() {
       {/* Simple header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-2">
-          <Truck className="h-5 w-5 text-primary" />
-          <span className="font-display font-bold text-lg text-foreground">ShipDash - تتبع الشحنة</span>
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+            <Truck className="h-4 w-4 text-primary-foreground" />
+          </div>
+          <span className="font-display font-bold text-lg text-foreground">صلة - تتبع الشحنة</span>
         </div>
       </header>
 

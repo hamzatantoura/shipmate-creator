@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const STORAGE_KEY = "shipdash_merchant_id";
+const STORAGE_KEY = "sila_merchant_id";
 const DEFAULT_ID = "00000000-0000-0000-0000-000000000000";
 
 function getOrCreateMerchantId(): string {

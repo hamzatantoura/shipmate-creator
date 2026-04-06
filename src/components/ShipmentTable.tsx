@@ -75,7 +75,7 @@ async function generateLabel(s: Shipment) {
     </style></head><body>
     <div class="label">
       <div class="header">
-        <h1>ShipDash</h1>
+        <h1>Sila — صلة</h1>
         <span>خدمات الشحن والتوصيل</span>
       </div>
       <div class="tracking">
@@ -99,7 +99,7 @@ async function generateLabel(s: Shipment) {
           <span class="barcode-text">${s.tracking_number || ''}</span>
         </div>
       </div>
-      <div class="footer">ShipDash © ${new Date().getFullYear()} — هذه البطاقة مولّدة تلقائياً</div>
+      <div class="footer">Sila © ${new Date().getFullYear()} — هذه البطاقة مولّدة تلقائياً</div>
     </div>
     <script>window.print()</script>
     </body></html>

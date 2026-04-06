@@ -94,8 +94,10 @@ export default function DriverDashboard() {
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Truck className="h-5 w-5 text-primary" />
-            <span className="font-display font-bold text-lg text-foreground">لوحة السائق</span>
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Truck className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-display font-bold text-lg text-foreground">صلة — لوحة السائق</span>
           </div>
           <Link to="/">
             <Button variant="ghost" size="sm" className="gap-1 text-xs">
