@@ -1,10 +1,9 @@
 # Project Memory
 
 ## Core
-Shipping dashboard for merchants. Dark theme, green primary (#10B981). Space Grotesk headings, Inter body.
-Lovable Cloud enabled. Shipments table with RLS per merchant_id.
-No auth — anonymous testing mode. MERCHANT_ID = 00000000-0000-0000-0000-000000000000.
+Shipping/logistics SaaS "Sila — صلة". Deep navy + electric turquoise smart tech palette. Readex Pro for Arabic, Inter for English.
+Lovable Cloud enabled. All UI in Arabic RTL. Currency: SYP (ل.س).
 
 ## Memories
-- [Design tokens](mem://design/tokens) — Dark theme palette with green accent, font setup
-- [Platform features](mem://features/platform) — Full shipment lifecycle, carrier portal, payout system, public tracking, hidden 2K markup
+- [Design tokens](mem://design/tokens) — Deep navy + electric turquoise palette, glassmorphism cards, Readex Pro + Inter fonts
+- [Platform features](mem://features/platform) — Multi-store SaaS with products, orders, carriers, wallet engine, location-based pricing, and top-up system

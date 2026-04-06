@@ -1,16 +1,19 @@
 ---
 name: Design tokens
-description: Dark navy + Syrian green + refined gold palette, Readex Pro Arabic + Inter English fonts
+description: Deep navy + electric turquoise smart tech palette, Readex Pro Arabic + Inter English fonts
 type: design
 ---
-Background: Deep Navy (#1A2B3C) — HSL 210 38% 10%
-Primary/Gold: Refined Gold (#D4AF37) — HSL 43 56% 52% — logo text, truck icon, primary buttons, ring
-Secondary/Accent: Deep Green (#166534) — HSL 150 64% 15% — accent icons, pattern lines, secondary borders, feature card icons
-Foreground: warm off-white HSL 45 30% 92%
-Border: green-tinted HSL 150 30% 18%
+Background: Deep Navy (#0F172A) — HSL 222 47% 11%
+Primary/Accent: Electric Turquoise (#00E5FF) — HSL 187 100% 50% — logo, primary buttons, icons, ring
+Secondary: Lighter Navy (#1E293B) — HSL 217 33% 17%
+Foreground: near-white HSL 210 40% 98%
+Muted-foreground: Light Grey (#94A3B8) — HSL 215 20% 65%
+Border: HSL 217 33% 20%
 
-Primary buttons: navy bg + gold border + gold text, hover inverts to gold bg + navy text
-Secondary buttons: stone/muted bg + green text
+Primary buttons: turquoise bg + navy text, hover darkens
+Secondary buttons: outline with turquoise border + white text
+Cards: glassmorphism — card bg with thin turquoise borders
 
-Logo: Gold "صلة" text + gold truck icon in green-tinted container
+Logo: "Sila" in turquoise + turquoise truck icon
 Fonts: Readex Pro (Arabic headings + body), Inter (English/monospace)
+No gold, green, or orange anywhere.

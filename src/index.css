@@ -6,48 +6,48 @@
 
 @layer base {
   :root {
-    --background: 210 38% 10%;
-    --foreground: 45 30% 92%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 210 36% 13%;
-    --card-foreground: 45 30% 92%;
+    --card: 222 47% 14%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 210 36% 15%;
-    --popover-foreground: 45 30% 92%;
+    --popover: 222 47% 16%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 43 56% 52%;
-    --primary-foreground: 210 38% 10%;
+    --primary: 187 100% 50%;
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 150 64% 15%;
-    --secondary-foreground: 45 30% 92%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 20% 16%;
-    --muted-foreground: 210 14% 55%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 150 64% 15%;
-    --accent-foreground: 45 30% 92%;
+    --accent: 217 33% 20%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 45 30% 98%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 150 30% 18%;
-    --input: 210 20% 20%;
-    --ring: 43 56% 52%;
+    --border: 217 33% 20%;
+    --input: 217 33% 22%;
+    --ring: 187 100% 50%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 210 38% 11%;
-    --sidebar-foreground: 45 20% 80%;
-    --sidebar-primary: 43 56% 52%;
-    --sidebar-primary-foreground: 210 38% 10%;
-    --sidebar-accent: 150 64% 15%;
-    --sidebar-accent-foreground: 45 30% 92%;
-    --sidebar-border: 150 30% 18%;
-    --sidebar-ring: 43 56% 52%;
+    --sidebar-background: 222 47% 12%;
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-primary: 187 100% 50%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 20%;
+    --sidebar-ring: 187 100% 50%;
 
-    --success: 150 64% 24%;
-    --warning: 43 56% 52%;
-    --info: 210 100% 56%;
+    --success: 160 60% 45%;
+    --warning: 38 92% 50%;
+    --info: 187 100% 50%;
   }
 }
 
