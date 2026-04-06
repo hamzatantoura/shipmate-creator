@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Landing from "./pages/Landing.tsx";
 import MerchantPortal from "./pages/MerchantPortal.tsx";
 import TopUp from "./pages/TopUp.tsx";
-import CarrierPortal from "./pages/CarrierPortal.tsx";
 import AdminLogistics from "./pages/AdminLogistics.tsx";
 import TrackShipment from "./pages/TrackShipment.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -23,7 +22,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/merchant" element={<MerchantPortal />} />
           <Route path="/topup" element={<TopUp />} />
-          <Route path="/carrier" element={<CarrierPortal />} />
+          {/* Carrier merged into admin */}
           <Route path="/admin-logistics" element={<AdminLogistics />} />
           <Route path="/track" element={<TrackShipment />} />
           {/* Legacy redirects */}
