@@ -1,19 +1,20 @@
 ---
 name: Design tokens
-description: Deep navy + electric turquoise smart tech palette, Readex Pro Arabic + Inter English fonts
+description: Clean white light theme with professional blue accent, Readex Pro Arabic + Inter English fonts
 type: design
 ---
-Background: Deep Navy (#0F172A) — HSL 222 47% 11%
-Primary/Accent: Electric Turquoise (#00E5FF) — HSL 187 100% 50% — logo, primary buttons, icons, ring
-Secondary: Lighter Navy (#1E293B) — HSL 217 33% 17%
-Foreground: near-white HSL 210 40% 98%
-Muted-foreground: Light Grey (#94A3B8) — HSL 215 20% 65%
-Border: HSL 217 33% 20%
+Background: White (#FCFCFD) — HSL 0 0% 99%
+Primary/Accent: Professional Blue (#4B8BF5) — HSL 217 91% 60% — buttons, icons, links, ring
+Secondary: Light Grey (#F4F4F5) — HSL 220 14% 96%
+Foreground: Deep Navy (#0F172A) — HSL 222 47% 11%
+Muted-foreground: Medium Grey (#6B7280) — HSL 220 9% 46%
+Card: Pure White (#FFFFFF) — HSL 0 0% 100%
+Border: Light (#E5E7EB) — HSL 220 13% 91%
 
-Primary buttons: turquoise bg + navy text, hover darkens
-Secondary buttons: outline with turquoise border + white text
-Cards: glassmorphism — card bg with thin turquoise borders
+Primary buttons: blue bg + white text, subtle blue shadow
+Secondary buttons: outline with light border
+Cards: white bg with light borders, hover shadow
 
-Logo: "Sila" in turquoise + turquoise truck icon
+Logo: "Sila" in blue + blue truck icon
 Fonts: Readex Pro (Arabic headings + body), Inter (English/monospace)
-No gold, green, or orange anywhere.
+Theme: LIGHT/WHITE. No dark mode. No gold, green, orange, or turquoise.
