@@ -6,47 +6,47 @@
 
 @layer base {
   :root {
-    --background: 210 30% 8%;
-    --foreground: 210 20% 94%;
+    --background: 210 38% 10%;
+    --foreground: 45 30% 92%;
 
-    --card: 210 28% 11%;
-    --card-foreground: 210 20% 94%;
+    --card: 210 36% 13%;
+    --card-foreground: 45 30% 92%;
 
-    --popover: 210 28% 13%;
-    --popover-foreground: 210 20% 94%;
+    --popover: 210 36% 15%;
+    --popover-foreground: 45 30% 92%;
 
-    --primary: 28 100% 50%;
-    --primary-foreground: 210 30% 8%;
+    --primary: 43 56% 52%;
+    --primary-foreground: 210 38% 10%;
 
-    --secondary: 210 22% 16%;
-    --secondary-foreground: 210 20% 82%;
+    --secondary: 150 64% 15%;
+    --secondary-foreground: 45 30% 92%;
 
-    --muted: 210 20% 14%;
-    --muted-foreground: 210 14% 50%;
+    --muted: 210 20% 16%;
+    --muted-foreground: 210 14% 55%;
 
-    --accent: 210 35% 20%;
-    --accent-foreground: 210 20% 94%;
+    --accent: 150 64% 15%;
+    --accent-foreground: 45 30% 92%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 45 30% 98%;
 
-    --border: 210 20% 18%;
-    --input: 210 20% 18%;
-    --ring: 28 100% 50%;
+    --border: 150 30% 18%;
+    --input: 210 20% 20%;
+    --ring: 43 56% 52%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 210 30% 9%;
-    --sidebar-foreground: 210 20% 82%;
-    --sidebar-primary: 28 100% 50%;
-    --sidebar-primary-foreground: 210 30% 8%;
-    --sidebar-accent: 210 20% 14%;
-    --sidebar-accent-foreground: 210 20% 82%;
-    --sidebar-border: 210 20% 18%;
-    --sidebar-ring: 28 100% 50%;
+    --sidebar-background: 210 38% 11%;
+    --sidebar-foreground: 45 20% 80%;
+    --sidebar-primary: 43 56% 52%;
+    --sidebar-primary-foreground: 210 38% 10%;
+    --sidebar-accent: 150 64% 15%;
+    --sidebar-accent-foreground: 45 30% 92%;
+    --sidebar-border: 150 30% 18%;
+    --sidebar-ring: 43 56% 52%;
 
-    --success: 160 84% 39%;
-    --warning: 38 92% 50%;
+    --success: 150 64% 24%;
+    --warning: 43 56% 52%;
     --info: 210 100% 56%;
   }
 }
@@ -65,7 +65,6 @@
     font-family: 'Readex Pro', sans-serif;
   }
 
-  /* Ensure English text uses Inter */
   [dir="ltr"], .font-mono, code {
     font-family: 'Inter', monospace, sans-serif;
   }

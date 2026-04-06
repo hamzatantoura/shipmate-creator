@@ -17,10 +17,10 @@ export default function AppHeader() {
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between" dir="rtl">
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <Truck className="h-4 w-4 text-primary-foreground" />
+          <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center">
+            <Truck className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-display font-bold text-lg text-foreground">صلة</span>
+          <span className="font-display font-bold text-lg text-primary">صلة</span>
         </Link>
         <nav className="flex items-center gap-1 overflow-x-auto">
           {NAV_ITEMS.map((item) => (

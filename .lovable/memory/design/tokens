@@ -1,0 +1,16 @@
+---
+name: Design tokens
+description: Dark navy + Syrian green + refined gold palette, Readex Pro Arabic + Inter English fonts
+type: design
+---
+Background: Deep Navy (#1A2B3C) — HSL 210 38% 10%
+Primary/Gold: Refined Gold (#D4AF37) — HSL 43 56% 52% — logo text, truck icon, primary buttons, ring
+Secondary/Accent: Deep Green (#166534) — HSL 150 64% 15% — accent icons, pattern lines, secondary borders, feature card icons
+Foreground: warm off-white HSL 45 30% 92%
+Border: green-tinted HSL 150 30% 18%
+
+Primary buttons: navy bg + gold border + gold text, hover inverts to gold bg + navy text
+Secondary buttons: stone/muted bg + green text
+
+Logo: Gold "صلة" text + gold truck icon in green-tinted container
+Fonts: Readex Pro (Arabic headings + body), Inter (English/monospace)
