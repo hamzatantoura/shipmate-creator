@@ -3,12 +3,16 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Landing from "./pages/Landing.tsx";
-import MerchantPortal from "./pages/MerchantPortal.tsx";
-import TopUp from "./pages/TopUp.tsx";
-import AdminLogistics from "./pages/AdminLogistics.tsx";
-import TrackShipment from "./pages/TrackShipment.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import AuthGuard from "@/components/AuthGuard";
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import MerchantPortal from "./pages/MerchantPortal";
+import VendorDashboard from "./pages/VendorDashboard";
+import TopUp from "./pages/TopUp";
+import AdminLogistics from "./pages/AdminLogistics";
+import TrackShipment from "./pages/TrackShipment";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -20,17 +24,58 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/merchant" element={<MerchantPortal />} />
-          <Route path="/topup" element={<TopUp />} />
-          {/* Carrier merged into admin */}
-          <Route path="/admin-logistics" element={<AdminLogistics />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/track" element={<TrackShipment />} />
+
+          {/* Protected: Merchant */}
+          <Route path="/merchant" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantPortal />
+            </AuthGuard>
+          } />
+          <Route path="/topup" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <TopUp />
+            </AuthGuard>
+          } />
+
+          {/* Protected: Vendor */}
+          <Route path="/vendor" element={
+            <AuthGuard allowedRoles={["vendor"]}>
+              <VendorDashboard />
+            </AuthGuard>
+          } />
+
+          {/* Protected: Admin */}
+          <Route path="/admin" element={
+            <AuthGuard allowedRoles={["admin"]}>
+              <AdminLogistics />
+            </AuthGuard>
+          } />
+
           {/* Legacy redirects */}
-          <Route path="/dashboard" element={<MerchantPortal />} />
-          <Route path="/products" element={<MerchantPortal />} />
-          <Route path="/orders" element={<MerchantPortal />} />
-          <Route path="/wallet" element={<MerchantPortal />} />
-          <Route path="/admin/payouts" element={<AdminLogistics />} />
+          <Route path="/dashboard" element={<Login />} />
+          <Route path="/admin-logistics" element={
+            <AuthGuard allowedRoles={["admin"]}>
+              <AdminLogistics />
+            </AuthGuard>
+          } />
+          <Route path="/products" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantPortal />
+            </AuthGuard>
+          } />
+          <Route path="/orders" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantPortal />
+            </AuthGuard>
+          } />
+          <Route path="/wallet" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantPortal />
+            </AuthGuard>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

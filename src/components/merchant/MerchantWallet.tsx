@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Wallet, ArrowDownCircle, TrendingDown, TrendingUp, CreditCard, Image as ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { useMerchantId } from "@/hooks/use-merchant-id";
+import { useAuth } from "@/hooks/use-auth";
 
 const TYPE_AR: Record<string, string> = {
   topup: "شحن رصيد", shipping_fee: "رسوم شحن", cod_settlement: "تسوية COD",
@@ -26,7 +26,7 @@ interface WalletTx { id: string; type: string; amount: number; description: stri
 interface PayoutReq { id: string; amount: number; method: string; account_details: string; status: string; receipt_url: string | null; created_at: string; }
 
 export default function MerchantWallet() {
-  const merchantId = useMerchantId();
+  const { user } = useAuth();
   const [balance, setBalance] = useState(0);
   const [txns, setTxns] = useState<WalletTx[]>([]);
   const [payouts, setPayouts] = useState<PayoutReq[]>([]);
@@ -38,20 +38,22 @@ export default function MerchantWallet() {
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
 
   const fetchData = async () => {
-    const { data: w } = await supabase.from("wallets").select("*").eq("merchant_id", merchantId).single();
+    if (!user) return;
+    const { data: w } = await supabase.from("wallets").select("*").eq("merchant_id", user.id).single();
     if (w) setBalance(Number(w.balance));
-    const { data: wData } = await supabase.from("wallets").select("id").eq("merchant_id", merchantId).single();
+    const { data: wData } = await supabase.from("wallets").select("id").eq("merchant_id", user.id).single();
     if (wData) {
       const { data: t } = await supabase.from("wallet_transactions").select("*").eq("wallet_id", wData.id).order("created_at", { ascending: false }).limit(50);
       if (t) setTxns(t as WalletTx[]);
     }
-    const { data: p } = await supabase.from("payout_requests").select("*").eq("merchant_id", merchantId).order("created_at", { ascending: false });
+    const { data: p } = await supabase.from("payout_requests").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false });
     if (p) setPayouts(p as PayoutReq[]);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [user]);
 
   const submitPayout = async () => {
+    if (!user) return;
     const amount = parseFloat(payoutAmount);
     if (!amount || amount <= 0) { toast.error("أدخل مبلغاً صحيحاً"); return; }
     if (amount > balance) { toast.error("المبلغ يتجاوز الرصيد المتاح"); return; }
@@ -59,7 +61,7 @@ export default function MerchantWallet() {
     if (!payoutDetails.trim()) { toast.error("أدخل تفاصيل الحساب"); return; }
     setSubmitting(true);
     const { error } = await supabase.from("payout_requests").insert({
-      merchant_id: merchantId, amount, method: payoutMethod, account_details: payoutDetails.trim(),
+      merchant_id: user.id, amount, method: payoutMethod, account_details: payoutDetails.trim(),
     } as any);
     if (error) { toast.error(error.message); } else {
       toast.success("تم إرسال طلب التسوية بنجاح");
@@ -84,11 +86,11 @@ export default function MerchantWallet() {
                 <div className="space-y-2"><Label>المبلغ (ل.س)</Label><Input type="number" min="1" max={balance} value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} placeholder={`الحد الأقصى: ${balance.toLocaleString()}`} /></div>
                 <div className="space-y-2"><Label>طريقة التسوية</Label><Select value={payoutMethod} onValueChange={setPayoutMethod}><SelectTrigger><SelectValue placeholder="اختر الطريقة" /></SelectTrigger><SelectContent>{PAYOUT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><Label>تفاصيل الحساب</Label><Input value={payoutDetails} onChange={e => setPayoutDetails(e.target.value)} placeholder="رقم الهاتف أو اسم الحساب" /></div>
-                <Button className="w-full" disabled={submitting} onClick={submitPayout}>{submitting ? "جاري الإرسال..." : "إرسال طلب التسوية"}</Button>
+                <Button className="w-full glow-btn" disabled={submitting} onClick={submitPayout}>{submitting ? "جاري الإرسال..." : "إرسال طلب التسوية"}</Button>
               </div>
             </DialogContent>
           </Dialog>
-          <Link to="/topup"><Button className="gap-2"><ArrowDownCircle className="h-4 w-4" /> شحن الرصيد</Button></Link>
+          <Link to="/topup"><Button className="gap-2 glow-btn"><ArrowDownCircle className="h-4 w-4" /> شحن الرصيد</Button></Link>
         </div>
       </div>
 

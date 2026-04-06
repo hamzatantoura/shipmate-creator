@@ -1,15 +1,26 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Truck, ShoppingBag, Shield, Search } from "lucide-react";
-
-const NAV_ITEMS = [
-  { path: "/merchant", label: "التاجر", icon: ShoppingBag },
-  { path: "/admin-logistics", label: "الإدارة", icon: Shield },
-  { path: "/track", label: "تتبع", icon: Search },
-];
+import { Truck, ShoppingBag, Shield, Search, Package, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function AppHeader() {
   const { pathname } = useLocation();
+  const { user, role, profile, signOut } = useAuth();
+
+  const NAV_ITEMS = role === "admin"
+    ? [
+        { path: "/admin", label: "الإدارة", icon: Shield },
+        { path: "/track", label: "تتبع", icon: Search },
+      ]
+    : role === "vendor"
+    ? [
+        { path: "/vendor", label: "لوحة الشحن", icon: Package },
+        { path: "/track", label: "تتبع", icon: Search },
+      ]
+    : [
+        { path: "/merchant", label: "التاجر", icon: ShoppingBag },
+        { path: "/track", label: "تتبع", icon: Search },
+      ];
 
   return (
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -18,7 +29,7 @@ export default function AppHeader() {
           <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
             <Truck className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-display font-bold text-lg text-primary">Sila</span>
+          <span className="font-display font-bold text-lg text-primary tracking-tight">Sila</span>
         </Link>
         <nav className="flex items-center gap-1 overflow-x-auto">
           {NAV_ITEMS.map((item) => (
@@ -33,6 +44,17 @@ export default function AppHeader() {
               </Button>
             </Link>
           ))}
+          {user && (
+            <div className="flex items-center gap-2 mr-2 border-r border-border pr-2">
+              {profile?.store_name && (
+                <span className="text-xs text-muted-foreground hidden md:inline">{profile.store_name}</span>
+              )}
+              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={signOut}>
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">خروج</span>
+              </Button>
+            </div>
+          )}
         </nav>
       </div>
     </header>

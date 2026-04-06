@@ -7,20 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Trash2 } from "lucide-react";
-import { useMerchantId } from "@/hooks/use-merchant-id";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Product {
-  id: string;
-  name: string;
-  image_url: string | null;
-  price: number;
-  stock: number;
-  is_active: boolean;
-  created_at: string;
+  id: string; name: string; image_url: string | null; price: number; stock: number; is_active: boolean; created_at: string;
 }
 
 export default function MerchantProducts() {
-  const merchantId = useMerchantId();
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,18 +22,16 @@ export default function MerchantProducts() {
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const fetchProducts = async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .eq("merchant_id", merchantId)
-      .order("created_at", { ascending: false });
+    if (!user) return;
+    const { data } = await supabase.from("products").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false });
     if (data) setProducts(data as Product[]);
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => { fetchProducts(); }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setLoading(true);
     let image_url: string | null = null;
     if (imageFile) {
@@ -51,7 +43,7 @@ export default function MerchantProducts() {
       image_url = pub.publicUrl;
     }
     const { error } = await supabase.from("products").insert({
-      merchant_id: merchantId, name: form.name.trim(),
+      merchant_id: user.id, name: form.name.trim(),
       price: parseFloat(form.price) || 0, stock: parseInt(form.stock) || 0, image_url,
     } as any);
     setLoading(false);
@@ -73,7 +65,7 @@ export default function MerchantProducts() {
         <h2 className="font-display font-semibold text-lg text-foreground">المنتجات</h2>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" /> إضافة منتج</Button>
+            <Button className="gap-2 glow-btn"><Plus className="h-4 w-4" /> إضافة منتج</Button>
           </DialogTrigger>
           <DialogContent className="max-w-md" dir="rtl">
             <DialogHeader><DialogTitle>منتج جديد</DialogTitle></DialogHeader>
@@ -84,7 +76,7 @@ export default function MerchantProducts() {
                 <div className="space-y-2"><Label>المخزون</Label><Input type="number" min="0" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} /></div>
               </div>
               <div className="space-y-2"><Label>صورة المنتج</Label><Input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} /></div>
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button type="submit" disabled={loading} className="w-full glow-btn">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Plus className="h-4 w-4 ml-2" />} إضافة المنتج
               </Button>
             </form>

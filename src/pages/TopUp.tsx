@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ArrowRight, Loader2, Smartphone, Upload, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
-import { useMerchantId } from "@/hooks/use-merchant-id";
+import { useAuth } from "@/hooks/use-auth";
 
 const METHODS = [
   { value: "shamcash", label: "ShamCash", icon: CreditCard, desc: "الدفع عبر تطبيق شام كاش" },
@@ -17,7 +17,7 @@ const METHODS = [
 ];
 
 export default function TopUp() {
-  const merchantId = useMerchantId();
+  const { user } = useAuth();
   const [method, setMethod] = useState("");
   const [amount, setAmount] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
@@ -37,7 +37,7 @@ export default function TopUp() {
     const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
 
     const { error } = await supabase.from("top_up_requests").insert({
-      merchant_id: merchantId,
+      merchant_id: user?.id || "",
       amount: parseFloat(amount) || 0,
       method,
       receipt_url: pub.publicUrl,

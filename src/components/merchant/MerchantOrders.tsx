@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Truck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useMerchantId } from "@/hooks/use-merchant-id";
+import { useAuth } from "@/hooks/use-auth";
 
 const STATUS_AR: Record<string, string> = {
   pending: "جديد", shipped: "تم الشحن", delivered: "تم التسليم", cancelled: "ملغى",
@@ -19,19 +19,20 @@ interface Order {
 }
 
 export default function MerchantOrders() {
-  const merchantId = useMerchantId();
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!user) return;
     (async () => {
       const { data } = await supabase.from("orders").select("*, products(name)")
-        .eq("merchant_id", merchantId).order("created_at", { ascending: false });
+        .eq("merchant_id", user.id).order("created_at", { ascending: false });
       if (data) setOrders(data as any);
       setLoading(false);
     })();
-  }, []);
+  }, [user]);
 
   const createShipment = (o: Order) => {
     const params = new URLSearchParams({
@@ -59,7 +60,7 @@ export default function MerchantOrders() {
               <p className="text-sm font-display font-bold text-primary">{Number(o.total_amount).toLocaleString()} ل.س</p>
             </div>
             {!o.shipment_id && o.status === "pending" && (
-              <Button size="sm" className="gap-1.5 shrink-0" onClick={() => createShipment(o)}>
+              <Button size="sm" className="gap-1.5 shrink-0 glow-btn" onClick={() => createShipment(o)}>
                 <Truck className="h-3.5 w-3.5" /> إنشاء شحنة
               </Button>
             )}

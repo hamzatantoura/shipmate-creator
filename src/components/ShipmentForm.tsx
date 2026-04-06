@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { Package, Loader2, Truck, MapPin } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-const MERCHANT_ID = "00000000-0000-0000-0000-000000000000";
+import { useAuth } from "@/hooks/use-auth";
+
 const MERCHANT_PROVINCE = "Damascus"; // merchant's origin city for intra/inter calc
 
 interface Province {
@@ -61,6 +62,7 @@ interface ShipmentFormProps {
 }
 
 export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
@@ -186,7 +188,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     const { data: shipment, error } = await supabase
       .from("shipments")
       .insert({
-        merchant_id: MERCHANT_ID,
+        merchant_id: user?.id || "",
         receiver_name: form.receiver_name.trim(),
         phone_number: form.phone_number.trim(),
         city: mapProvinceToCity(provinceName),
@@ -211,7 +213,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     const { data: wallet } = await supabase
       .from("wallets")
       .select("*")
-      .eq("merchant_id", MERCHANT_ID)
+      .eq("merchant_id", user?.id || "")
       .single();
 
     if (wallet) {
