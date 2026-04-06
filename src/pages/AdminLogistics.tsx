@@ -9,11 +9,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Settings, Bell, ArrowDownCircle, CheckCircle } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
+import type { Database } from "@/integrations/supabase/types";
+
+type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
 const PLATFORM_MARKUP = 2000;
+const RETURN_FEE = 5000;
+
+const STATUS_OPTIONS = [
+  { value: "pending_pickup", label: "بانتظار الاستلام" },
+  { value: "at_warehouse", label: "تم الاستلام / في المستودع" },
+  { value: "in_transit_intercity", label: "قيد الشحن بين المحافظات" },
+  { value: "with_distributor", label: "مع مندوب التوزيع" },
+  { value: "delivered", label: "تم التسليم" },
+  { value: "returned", label: "مرتجع" },
+];
+const STATUS_AR: Record<string, string> = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s.label]));
+
+const CITY_AR: Record<string, string> = {
+  Damascus: "دمشق", Aleppo: "حلب", Homs: "حمص",
+  Lattakia: "اللاذقية", Hama: "حماة", Tartous: "طرطوس",
+};
 
 interface PayoutRequest {
   id: string; merchant_id: string; amount: number; method: string;
@@ -25,13 +44,27 @@ interface TopUpRequest {
   receipt_url: string | null; reference_number: string | null;
   status: string; created_at: string;
 }
+interface StatusLog {
+  id: string; old_status: string | null; new_status: string;
+  changed_by: string; created_at: string;
+}
 
 const METHOD_AR: Record<string, string> = { shamcash: "ShamCash", syriatel_cash: "سيريتل كاش", cash_office: "نقداً من المكتب", bank_transfer: "حوالة بنكية", manual_transfer: "حوالة يدوية" };
-const STATUS_AR: Record<string, string> = { pending: "بانتظار المعالجة", processing: "قيد المعالجة", completed: "مكتملة" };
-const statusColor = (s: string) => {
+const PAY_STATUS_AR: Record<string, string> = { pending: "بانتظار المعالجة", processing: "قيد المعالجة", completed: "مكتملة" };
+const payStatusColor = (s: string) => {
   switch (s) {
     case "completed": return "bg-primary/20 text-primary border-primary/30";
     case "processing": return "bg-warning/20 text-warning border-warning/30";
+    default: return "bg-muted text-muted-foreground border-border";
+  }
+};
+const shipStatusColor = (s: string) => {
+  switch (s) {
+    case "delivered": return "bg-primary/20 text-primary border-primary/30";
+    case "returned": return "bg-destructive/20 text-destructive border-destructive/30";
+    case "with_distributor": return "bg-info/20 text-info border-info/30";
+    case "in_transit_intercity": return "bg-accent/20 text-accent-foreground border-accent/30";
+    case "at_warehouse": return "bg-warning/20 text-warning border-warning/30";
     default: return "bg-muted text-muted-foreground border-border";
   }
 };
@@ -39,6 +72,7 @@ const statusColor = (s: string) => {
 export default function AdminLogistics() {
   const [payouts, setPayouts] = useState<PayoutRequest[]>([]);
   const [topups, setTopups] = useState<TopUpRequest[]>([]);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
   const [selectedPayout, setSelectedPayout] = useState<PayoutRequest | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [newStatus, setNewStatus] = useState("");
@@ -46,29 +80,36 @@ export default function AdminLogistics() {
   const [totalProfit, setTotalProfit] = useState(0);
   const [deliveredCount, setDeliveredCount] = useState(0);
   const [totalShipments, setTotalShipments] = useState(0);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+  const [historyMap, setHistoryMap] = useState<Record<string, StatusLog[]>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const pendingTopups = topups.filter(t => t.status === "pending").length;
   const pendingPayouts = payouts.filter(p => p.status === "pending").length;
   const totalPending = pendingTopups + pendingPayouts;
 
   const fetchData = async () => {
-    const { data: p } = await supabase.from("payout_requests").select("*").order("created_at", { ascending: false });
-    if (p) setPayouts(p as PayoutRequest[]);
-
-    const { data: t } = await supabase.from("top_up_requests").select("*").order("created_at", { ascending: false });
-    if (t) setTopups(t as TopUpRequest[]);
-
-    const { data: shipments } = await supabase.from("shipments").select("status");
-    if (shipments) {
-      setTotalShipments(shipments.length);
-      const delivered = shipments.filter(s => s.status === "delivered").length;
+    const [pRes, tRes, sAllRes, sActiveRes] = await Promise.all([
+      supabase.from("payout_requests").select("*").order("created_at", { ascending: false }),
+      supabase.from("top_up_requests").select("*").order("created_at", { ascending: false }),
+      supabase.from("shipments").select("status"),
+      supabase.from("shipments").select("*").not("status", "in", '("delivered","returned")').order("created_at", { ascending: false }),
+    ]);
+    if (pRes.data) setPayouts(pRes.data as PayoutRequest[]);
+    if (tRes.data) setTopups(tRes.data as TopUpRequest[]);
+    if (sAllRes.data) {
+      setTotalShipments(sAllRes.data.length);
+      const delivered = sAllRes.data.filter(s => s.status === "delivered").length;
       setDeliveredCount(delivered);
       setTotalProfit(delivered * PLATFORM_MARKUP);
     }
+    if (sActiveRes.data) setShipments(sActiveRes.data);
   };
 
   useEffect(() => { fetchData(); }, []);
 
+  // Payout handlers
   const updatePayoutStatus = async () => {
     if (!selectedPayout || !newStatus) return;
     await supabase.from("payout_requests").update({ status: newStatus } as any).eq("id", selectedPayout.id);
@@ -101,28 +142,68 @@ export default function AdminLogistics() {
   };
 
   const approveTopUp = async (topup: TopUpRequest) => {
-    // 1. Update status to completed
     await supabase.from("top_up_requests").update({ status: "completed" } as any).eq("id", topup.id);
-
-    // 2. Get or create wallet
     let { data: wallet } = await supabase.from("wallets").select("*").eq("merchant_id", topup.merchant_id).single();
     if (!wallet) {
       const { data: newWallet } = await supabase.from("wallets").insert({ merchant_id: topup.merchant_id, balance: 0 } as any).select().single();
       wallet = newWallet;
     }
     if (!wallet) { toast.error("خطأ في المحفظة"); return; }
-
-    // 3. Add balance
     const newBalance = Number(wallet.balance) + topup.amount;
     await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
-
-    // 4. Log transaction
     await supabase.from("wallet_transactions").insert({
       wallet_id: wallet.id, type: "topup", amount: topup.amount,
       description: `شحن رصيد - ${METHOD_AR[topup.method] || topup.method}`, reference_id: topup.id,
     } as any);
-
     toast.success(`تم شحن ${topup.amount.toLocaleString()} ل.س للتاجر`);
+    fetchData();
+  };
+
+  // Shipment status handlers (merged from carrier portal)
+  const loadHistory = async (shipmentId: string) => {
+    if (expandedId === shipmentId) { setExpandedId(null); return; }
+    const { data } = await supabase.from("shipment_status_history").select("*").eq("shipment_id", shipmentId).order("created_at", { ascending: false });
+    if (data) setHistoryMap(prev => ({ ...prev, [shipmentId]: data as StatusLog[] }));
+    setExpandedId(shipmentId);
+  };
+
+  const updateShipmentStatus = async (shipment: Shipment) => {
+    const ns = statusMap[shipment.id];
+    if (!ns || ns === shipment.status) return;
+    setUpdatingId(shipment.id);
+
+    await supabase.from("shipment_status_history").insert({
+      shipment_id: shipment.id, old_status: shipment.status, new_status: ns, changed_by: "admin",
+    } as any);
+    await supabase.from("shipments").update({ status: ns }).eq("id", shipment.id);
+
+    const { data: wallet } = await supabase.from("wallets").select("*").eq("merchant_id", shipment.merchant_id).single();
+    if (wallet) {
+      if (ns === "delivered") {
+        const codAmount = Number(shipment.cod_amount);
+        const shippingFee = Number(shipment.shipping_fee || 0) + PLATFORM_MARKUP;
+        const net = codAmount - shippingFee;
+        const newBalance = Number(wallet.balance) + net;
+        await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
+        await supabase.from("wallet_transactions").insert([
+          { wallet_id: wallet.id, type: "cod_settlement", amount: codAmount, description: `تسوية COD - ${shipment.tracking_number}`, reference_id: shipment.id },
+          { wallet_id: wallet.id, type: "shipping_fee", amount: -shippingFee, description: `رسوم شحن نهائية - ${shipment.tracking_number}`, reference_id: shipment.id },
+        ] as any);
+        toast.success("تم التسليم وتسوية المبلغ!");
+      } else if (ns === "returned") {
+        const newBalance = Number(wallet.balance) - RETURN_FEE;
+        await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
+        await supabase.from("wallet_transactions").insert({
+          wallet_id: wallet.id, type: "return_fee", amount: -RETURN_FEE,
+          description: `رسوم إرجاع - ${shipment.tracking_number}`, reference_id: shipment.id,
+        } as any);
+        toast.success("تم تسجيل المرتجع وخصم رسوم الإرجاع");
+      } else {
+        toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[ns] || ns}`);
+      }
+    }
+    setUpdatingId(null);
+    setStatusMap(prev => ({ ...prev, [shipment.id]: "" }));
     fetchData();
   };
 
@@ -167,8 +248,12 @@ export default function AdminLogistics() {
           </Card>
         </div>
 
-        <Tabs defaultValue="topups" dir="rtl">
+        <Tabs defaultValue="shipments" dir="rtl">
           <TabsList>
+            <TabsTrigger value="shipments" className="gap-1.5">
+              <Package className="h-3.5 w-3.5" /> إدارة الشحنات
+              {shipments.length > 0 && <Badge className="bg-primary/20 text-primary text-[10px] px-1.5 py-0 mr-1">{shipments.length}</Badge>}
+            </TabsTrigger>
             <TabsTrigger value="topups" className="gap-1.5">
               <ArrowDownCircle className="h-3.5 w-3.5" /> طلبات شحن الرصيد
               {pendingTopups > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingTopups}</Badge>}
@@ -178,6 +263,77 @@ export default function AdminLogistics() {
               {pendingPayouts > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingPayouts}</Badge>}
             </TabsTrigger>
           </TabsList>
+
+          {/* Shipments management tab */}
+          <TabsContent value="shipments" className="mt-4">
+            {shipments.length === 0 ? (
+              <p className="text-center py-12 text-muted-foreground">لا توجد شحنات نشطة</p>
+            ) : (
+              <div className="space-y-3">
+                {shipments.map(s => (
+                  <Card key={s.id} className="bg-card border-border overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="bg-muted/50 px-4 py-2.5 flex items-center justify-between border-b border-border">
+                        <span className="font-mono text-xs text-muted-foreground">{s.tracking_number}</span>
+                        <Badge variant="outline" className={shipStatusColor(s.status)}>{STATUS_AR[s.status] || s.status}</Badge>
+                      </div>
+                      <div className="px-4 py-3 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-semibold text-foreground">{s.receiver_name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-foreground" dir="ltr">{s.phone_number}</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+                          <div>
+                            <span className="text-sm font-medium text-foreground">{CITY_AR[s.city] || s.city}</span>
+                            <p className="text-xs text-muted-foreground">{s.detailed_address}</p>
+                          </div>
+                        </div>
+                        <div className="bg-muted/30 rounded-md px-3 py-2 flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">COD</span>
+                          <span className="font-display font-bold text-foreground">{Number(s.cod_amount).toLocaleString()} ل.س</span>
+                        </div>
+                      </div>
+                      <div className="px-4 pb-3 flex gap-2">
+                        <Select value={statusMap[s.id] || ""} onValueChange={v => setStatusMap(prev => ({ ...prev, [s.id]: v }))}>
+                          <SelectTrigger className="flex-1"><SelectValue placeholder="تغيير الحالة..." /></SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.filter(o => o.value !== s.status).map(o => (
+                              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button disabled={!statusMap[s.id] || updatingId === s.id} onClick={() => updateShipmentStatus(s)}>تحديث</Button>
+                      </div>
+                      <div className="border-t border-border">
+                        <button className="w-full px-4 py-2 flex items-center justify-center gap-1 text-xs text-muted-foreground hover:bg-muted/30 transition-colors" onClick={() => loadHistory(s.id)}>
+                          <Clock className="h-3 w-3" /> سجل الحالات
+                          {expandedId === s.id ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </button>
+                        {expandedId === s.id && (
+                          <div className="px-4 pb-3 space-y-1">
+                            {(historyMap[s.id] || []).length === 0 ? (
+                              <p className="text-xs text-muted-foreground text-center py-2">لا يوجد سجل بعد</p>
+                            ) : (historyMap[s.id] || []).map(h => (
+                              <div key={h.id} className="flex items-center gap-2 text-xs">
+                                <span className="text-muted-foreground w-16 shrink-0">{new Date(h.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}</span>
+                                <span className="text-muted-foreground">{new Date(h.created_at).toLocaleDateString("ar")}</span>
+                                <span className="text-foreground">{STATUS_AR[h.old_status || ""] || h.old_status || "—"} → {STATUS_AR[h.new_status] || h.new_status}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
           <TabsContent value="topups" className="mt-4">
             {topups.length === 0 ? (
@@ -202,9 +358,9 @@ export default function AdminLogistics() {
                         <TableCell className="font-mono text-xs">{t.merchant_id.slice(0, 8)}...</TableCell>
                         <TableCell className="font-display font-bold">{t.amount.toLocaleString()} ل.س</TableCell>
                         <TableCell>{METHOD_AR[t.method] || t.method}</TableCell>
-                        <TableCell>{(t as any).reference_number || "—"}</TableCell>
+                        <TableCell>{t.reference_number || "—"}</TableCell>
                         <TableCell className="text-xs">{new Date(t.created_at).toLocaleDateString("ar")}</TableCell>
-                        <TableCell><Badge variant="outline" className={statusColor(t.status)}>{STATUS_AR[t.status] || t.status}</Badge></TableCell>
+                        <TableCell><Badge variant="outline" className={payStatusColor(t.status)}>{PAY_STATUS_AR[t.status] || t.status}</Badge></TableCell>
                         <TableCell>
                           <div className="flex gap-2">
                             {t.receipt_url && (
@@ -243,7 +399,7 @@ export default function AdminLogistics() {
                       </div>
                       <div className="flex items-center gap-2">
                         {p.receipt_url && <ImageIcon className="h-4 w-4 text-primary" />}
-                        <Badge variant="outline" className={statusColor(p.status)}>{STATUS_AR[p.status] || p.status}</Badge>
+                        <Badge variant="outline" className={payStatusColor(p.status)}>{PAY_STATUS_AR[p.status] || p.status}</Badge>
                       </div>
                     </CardContent>
                   </Card>

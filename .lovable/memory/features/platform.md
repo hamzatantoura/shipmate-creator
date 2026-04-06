@@ -1,11 +1,15 @@
 ---
 name: Platform Features
-description: Multi-store SaaS with full shipment lifecycle, carrier portal, payout system, public tracking, hidden markup
+description: B2B logistics hub connecting merchants and shipping companies. Two roles only: Merchant and Admin.
 type: feature
 ---
+## Roles
+Only TWO roles: Merchant and Admin. No driver/courier role.
+
 ## Shipment Lifecycle
 Statuses: pending_pickup → at_warehouse → in_transit_intercity → with_distributor → delivered | returned
 Status history logged in shipment_status_history table.
+Admin manages all status updates (merged carrier functionality).
 
 ## Financial Engine
 - Shipment creation: deducts shipping_fee from merchant wallet
@@ -13,14 +17,8 @@ Status history logged in shipment_status_history table.
 - Returned: -5,000 SYP fixed return fee
 - Hidden platform markup: 2,000 SYP (not shown to merchant)
 
-## Payout Requests
-- Merchant submits via wallet page (amount ≤ balance, method, account_details)
-- Admin manages at /admin/payouts (pending → processing → completed)
-- Receipt upload by admin, viewable by merchant
-
 ## Pages
-- /carrier — Carrier Portal (status updates, history, financial triggers)
-- /track — Public tracking page (tracking number search, timeline)
-- /admin/payouts — Admin payout management
-- /wallet — Merchant wallet with payout request dialog
-- /driver — Driver delivery dashboard
+- /merchant — Merchant Portal (shipments, products, orders, wallet)
+- /admin-logistics — Admin Portal (shipment status updates, top-up approvals, payout management, platform stats)
+- /track — Public tracking page
+- /topup — Merchant top-up page

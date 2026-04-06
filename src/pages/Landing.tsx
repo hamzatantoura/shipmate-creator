@@ -71,12 +71,12 @@ export default function Landing() {
               منصة متكاملة للتجارة والشحن في سوريا
             </div>
             <h1 className="text-4xl md:text-6xl font-display font-bold text-foreground leading-tight mb-6">
-              صلة — منصة الوصل الذكية
+              صلة — مركز اللوجستيات الذكي
               <br />
-              <span className="text-primary">بين التاجر والزبون في سوريا</span>
+              <span className="text-primary">يربط التاجر بشركات الشحن في سوريا</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 max-w-lg">
-              متجرك الإلكتروني + شحن متكامل بلمسة احترافية واحدة
+              منصة B2B متكاملة لإدارة الطلبات والشحن والتسويات المالية بين التجار وشركات الشحن
             </p>
             <div className="flex gap-3 flex-wrap">
               <Link to="/dashboard">
