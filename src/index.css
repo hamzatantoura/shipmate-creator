@@ -6,51 +6,48 @@
 
 @layer base {
   :root {
-    --background: 220 40% 7%;
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
 
-    --card: 220 38% 10%;
+    --card: 222 47% 14%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 220 38% 12%;
+    --popover: 222 47% 16%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 152 62% 29%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 187 100% 50%;
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 216 50% 30%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 220 30% 14%;
-    --muted-foreground: 215 20% 62%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 152 50% 18%;
+    --accent: 217 33% 20%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 30% 16%;
-    --input: 220 30% 18%;
-    --ring: 152 62% 29%;
+    --border: 217 33% 20%;
+    --input: 217 33% 22%;
+    --ring: 187 100% 50%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 220 38% 8%;
-    --sidebar-foreground: 215 20% 70%;
-    --sidebar-primary: 152 62% 29%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 220 30% 14%;
+    --sidebar-background: 222 47% 12%;
+    --sidebar-foreground: 215 20% 75%;
+    --sidebar-primary: 187 100% 50%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 33% 20%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 30% 16%;
-    --sidebar-ring: 152 62% 29%;
+    --sidebar-border: 217 33% 20%;
+    --sidebar-ring: 187 100% 50%;
 
-    --success: 152 62% 35%;
+    --success: 160 60% 45%;
     --warning: 38 92% 50%;
-    --info: 216 50% 45%;
-
-    --color-blue: 216 50% 45%;
-    --color-green: 152 62% 35%;
+    --info: 187 100% 50%;
   }
 }
 
@@ -76,13 +73,10 @@
 @layer utilities {
   .glow-btn {
     @apply relative;
-    box-shadow: 0 0 20px -5px hsl(152 62% 29% / 0.4), 0 0 6px -1px hsl(152 62% 29% / 0.2);
+    box-shadow: 0 0 20px -5px hsl(187 100% 50% / 0.4), 0 0 6px -1px hsl(187 100% 50% / 0.2);
     transition: box-shadow 0.3s ease;
   }
   .glow-btn:hover {
-    box-shadow: 0 0 30px -3px hsl(152 62% 29% / 0.5), 0 0 10px -1px hsl(152 62% 29% / 0.3);
-  }
-  .glow-blue {
-    box-shadow: 0 0 20px -5px hsl(216 50% 45% / 0.3);
+    box-shadow: 0 0 30px -3px hsl(187 100% 50% / 0.6), 0 0 10px -1px hsl(187 100% 50% / 0.3);
   }
 }

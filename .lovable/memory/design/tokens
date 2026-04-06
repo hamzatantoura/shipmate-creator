@@ -1,20 +1,19 @@
 ---
 name: Design tokens
-description: Deep navy bg, green + blue dual-accent palette matching Sila orbital logo
+description: Deep navy + electric turquoise smart tech palette, Readex Pro Arabic + Inter English fonts
 type: design
 ---
-Background: Deep Navy HSL 220 40% 7%
-Primary/Accent: Green (#1A7A45) — HSL 152 62% 29% — logo, primary buttons, ring, glow
-Secondary: Blue (#3B6DB5) — HSL 216 50% 30% — secondary accent, alternating feature icons
-Card: HSL 220 38% 10%
+Background: Deep Navy (#0F172A) — HSL 222 47% 11%
+Primary/Accent: Electric Turquoise (#00E5FF) — HSL 187 100% 50% — logo, primary buttons, icons, ring
+Secondary: Lighter Navy (#1E293B) — HSL 217 33% 17%
 Foreground: near-white HSL 210 40% 98%
-Muted-foreground: Light Grey — HSL 215 20% 62%
-Border: HSL 220 30% 16%
+Muted-foreground: Light Grey (#94A3B8) — HSL 215 20% 65%
+Border: HSL 217 33% 20%
 
-Primary buttons: green bg + white text, glow effect
-Cards: glassmorphism — card bg with subtle borders
-Feature icons alternate green and blue
+Primary buttons: turquoise bg + navy text, hover darkens
+Secondary buttons: outline with turquoise border + white text
+Cards: glassmorphism — card bg with thin turquoise borders
 
-Logo: Uploaded PNG with orbital network graphic (src/assets/sila-logo.png)
+Logo: "Sila" in turquoise + turquoise truck icon
 Fonts: Readex Pro (Arabic headings + body), Inter (English/monospace)
-No gold, orange, or turquoise anywhere.
+No gold, green, or orange anywhere.
