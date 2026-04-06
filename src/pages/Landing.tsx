@@ -24,10 +24,10 @@ export default function Landing() {
             </div>
             <span className="font-display font-bold text-xl text-primary tracking-tight">Sila</span>
           </div>
-          <Link to="/dashboard">
-            <Button className="gap-2">
+          <Link to="/login">
+            <Button className="gap-2 glow-btn">
               <ArrowLeft className="h-4 w-4" />
-              ادخل للوحة التحكم
+              سجّل دخولك
             </Button>
           </Link>
         </div>
@@ -79,9 +79,9 @@ export default function Landing() {
               منصة B2B متكاملة لإدارة الطلبات والشحن والتسويات المالية بين التجار وشركات الشحن
             </p>
             <div className="flex gap-3 flex-wrap">
-              <Link to="/dashboard">
-                <Button size="lg" className="gap-2 text-base px-8 h-12 font-semibold">
-                  ابدأ الآن مجاناً
+              <Link to="/signup">
+                <Button size="lg" className="gap-2 text-base px-8 h-12 font-semibold glow-btn">
+                  سجّل كتاجر الآن
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </Link>
@@ -121,8 +121,8 @@ export default function Landing() {
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-display font-bold text-foreground mb-4">جاهز لبدء البيع أونلاين؟</h2>
           <p className="text-muted-foreground text-lg mb-8">انضم إلى مئات التجار الذين يستخدمون صلة لإدارة تجارتهم</p>
-          <Link to="/dashboard">
-            <Button size="lg" className="gap-2 text-base px-10 h-12 font-semibold">
+          <Link to="/signup">
+            <Button size="lg" className="gap-2 text-base px-10 h-12 font-semibold glow-btn">
               أنشئ متجرك الآن
               <ArrowLeft className="h-4 w-4" />
             </Button>
