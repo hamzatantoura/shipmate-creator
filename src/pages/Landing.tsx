@@ -266,9 +266,9 @@ export default function Landing() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
-                  <Truck className="h-4 w-4 text-primary" />
-                </div>
+                <img src={silaLogo} alt="Sila" className="h-7 w-7" />
+                <span className="font-display font-bold text-lg text-primary">Sila</span>
+              </div>
                 <span className="font-display font-bold text-lg text-primary">Sila</span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
