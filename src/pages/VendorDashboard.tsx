@@ -1,4 +1,4 @@
-import { Component, type ReactNode, useState } from "react";
+import { Component, type ReactNode, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Map, Package, Users } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
@@ -39,6 +39,19 @@ class VendorMapErrorBoundary extends Component<{ children: ReactNode }, { hasErr
 export default function VendorDashboard() {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("shipments");
+  const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(null);
+  const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
+
+  // When user clicks a row in the list, switch to map and highlight
+  const handleSelectFromList = useCallback((id: string) => {
+    setSelectedMerchantId(id);
+    setActiveTab("map");
+  }, []);
+
+  // When user clicks a pin on the map, highlight in list
+  const handleSelectFromMap = useCallback((id: string) => {
+    setSelectedMerchantId(id);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -66,10 +79,23 @@ export default function VendorDashboard() {
 
           <TabsContent value="map">
             <VendorMapErrorBoundary key={activeTab}>
-              {activeTab === "map" ? <VendorOperationsMap /> : null}
+              {activeTab === "map" ? (
+                <VendorOperationsMap
+                  selectedMerchantId={selectedMerchantId}
+                  onSelectMerchant={handleSelectFromMap}
+                  assignedIds={assignedIds}
+                  onAssign={setAssignedIds}
+                />
+              ) : null}
             </VendorMapErrorBoundary>
           </TabsContent>
-          <TabsContent value="shipments"><VendorShipments /></TabsContent>
+          <TabsContent value="shipments">
+            <VendorShipments
+              selectedMerchantId={selectedMerchantId}
+              onSelectMerchant={handleSelectFromList}
+              assignedIds={assignedIds}
+            />
+          </TabsContent>
           <TabsContent value="couriers"><VendorCouriers /></TabsContent>
         </Tabs>
       </main>
