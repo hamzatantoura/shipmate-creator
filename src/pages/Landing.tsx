@@ -35,22 +35,33 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        {/* Network grid background */}
+        {/* Radial gradient for depth */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(217_33%_16%)_0%,_hsl(222_47%_11%)_70%,_hsl(222_47%_8%)_100%)]" />
+        {/* Network grid + nodes */}
         <div className="absolute inset-0">
-          <svg className="w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="hsl(187 100% 50%)" strokeWidth="0.5" />
+              <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+                <path d="M 80 0 L 0 0 0 80" fill="none" stroke="hsl(187 100% 50%)" strokeWidth="0.4" opacity="0.06" />
               </pattern>
+              <radialGradient id="gridFade" cx="50%" cy="50%" r="60%">
+                <stop offset="0%" stopColor="white" stopOpacity="1" />
+                <stop offset="100%" stopColor="white" stopOpacity="0" />
+              </radialGradient>
+              <mask id="gridMask"><rect width="100%" height="100%" fill="url(#gridFade)" /></mask>
             </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-            <circle cx="20%" cy="30%" r="3" fill="hsl(187 100% 50%)" opacity="0.4" />
-            <circle cx="50%" cy="60%" r="2" fill="hsl(187 100% 50%)" opacity="0.3" />
-            <circle cx="75%" cy="25%" r="2.5" fill="hsl(187 100% 50%)" opacity="0.35" />
-            <circle cx="40%" cy="80%" r="2" fill="hsl(187 100% 50%)" opacity="0.25" />
-            <line x1="20%" y1="30%" x2="50%" y2="60%" stroke="hsl(187 100% 50%)" strokeWidth="0.5" opacity="0.15" />
-            <line x1="50%" y1="60%" x2="75%" y2="25%" stroke="hsl(187 100% 50%)" strokeWidth="0.5" opacity="0.15" />
-            <line x1="75%" y1="25%" x2="40%" y2="80%" stroke="hsl(187 100% 50%)" strokeWidth="0.5" opacity="0.12" />
+            <rect width="100%" height="100%" fill="url(#grid)" mask="url(#gridMask)" />
+            {/* Glowing nodes */}
+            <circle cx="18%" cy="28%" r="2.5" fill="hsl(187 100% 50%)" opacity="0.25" />
+            <circle cx="52%" cy="55%" r="2" fill="hsl(187 100% 50%)" opacity="0.2" />
+            <circle cx="78%" cy="22%" r="2" fill="hsl(187 100% 50%)" opacity="0.2" />
+            <circle cx="38%" cy="78%" r="1.8" fill="hsl(187 100% 50%)" opacity="0.15" />
+            <circle cx="65%" cy="70%" r="1.5" fill="hsl(187 100% 50%)" opacity="0.12" />
+            {/* Connection lines */}
+            <line x1="18%" y1="28%" x2="52%" y2="55%" stroke="hsl(187 100% 50%)" strokeWidth="0.5" opacity="0.08" />
+            <line x1="52%" y1="55%" x2="78%" y2="22%" stroke="hsl(187 100% 50%)" strokeWidth="0.5" opacity="0.08" />
+            <line x1="78%" y1="22%" x2="65%" y2="70%" stroke="hsl(187 100% 50%)" strokeWidth="0.4" opacity="0.06" />
+            <line x1="38%" y1="78%" x2="52%" y2="55%" stroke="hsl(187 100% 50%)" strokeWidth="0.4" opacity="0.06" />
           </svg>
         </div>
         <div className="max-w-6xl mx-auto px-4 py-24 md:py-36 relative">
