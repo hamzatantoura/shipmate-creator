@@ -89,6 +89,33 @@ export type Database = {
         }
         Relationships: []
       }
+      couriers: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string | null
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          vendor_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           city: string
@@ -233,6 +260,8 @@ export type Database = {
           contact_person: string | null
           created_at: string
           id: string
+          latitude: number | null
+          longitude: number | null
           phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           store_name: string | null
@@ -244,6 +273,8 @@ export type Database = {
           contact_person?: string | null
           created_at?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
@@ -255,6 +286,8 @@ export type Database = {
           contact_person?: string | null
           created_at?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
@@ -324,6 +357,7 @@ export type Database = {
           carrier_id: string | null
           city: Database["public"]["Enums"]["shipment_city"]
           cod_amount: number
+          courier_id: string | null
           created_at: string
           detailed_address: string
           final_weight: number | null
@@ -341,6 +375,7 @@ export type Database = {
           carrier_id?: string | null
           city: Database["public"]["Enums"]["shipment_city"]
           cod_amount?: number
+          courier_id?: string | null
           created_at?: string
           detailed_address: string
           final_weight?: number | null
@@ -358,6 +393,7 @@ export type Database = {
           carrier_id?: string | null
           city?: Database["public"]["Enums"]["shipment_city"]
           cod_amount?: number
+          courier_id?: string | null
           created_at?: string
           detailed_address?: string
           final_weight?: number | null
