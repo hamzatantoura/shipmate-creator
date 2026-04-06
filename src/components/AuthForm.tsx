@@ -36,7 +36,7 @@ export default function AuthForm() {
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <Truck className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="font-display text-2xl">ShipDash</CardTitle>
+          <CardTitle className="font-display text-2xl">صلة</CardTitle>
           <p className="text-sm text-muted-foreground">
             {isLogin ? "Sign in to your merchant account" : "Create your merchant account"}
           </p>
