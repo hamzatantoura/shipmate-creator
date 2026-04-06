@@ -269,8 +269,6 @@ export default function Landing() {
                 <img src={silaLogo} alt="Sila" className="h-7 w-7" />
                 <span className="font-display font-bold text-lg text-primary">Sila</span>
               </div>
-                <span className="font-display font-bold text-lg text-primary">Sila</span>
-              </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 بوابة التجارة الرقمية والشحن المتكامل في سوريا. نربط التجار بشركات الشحن الموثوقة.
               </p>
