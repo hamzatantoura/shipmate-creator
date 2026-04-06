@@ -23,10 +23,10 @@ export default function AppHeader() {
       ];
 
   return (
-    <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+    <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between" dir="rtl">
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <Truck className="h-4 w-4 text-primary" />
           </div>
           <span className="font-display font-bold text-lg text-primary tracking-tight">Sila</span>
