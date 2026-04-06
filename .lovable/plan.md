@@ -1,39 +1,43 @@
 
-## خطة التنفيذ — منصة ShipDash اللوجستية المتكاملة
+# Sila — 3-Tier Multi-Tenant Logistics Platform
 
-### 1. تغييرات قاعدة البيانات (Migration)
-- جدول `payout_requests` (merchant_id, amount, method, account_details, status, receipt_url)
-- جدول `shipment_status_history` (shipment_id, old_status, new_status, changed_at, changed_by)
-- تحديث enum حالات الشحنة لتشمل: `pending_pickup`, `at_warehouse`, `in_transit_intercity`, `with_distributor`, `delivered`, `returned`
-- سياسات RLS مناسبة
+## Phase 1: Database & Auth
+1. **Create `profiles` table** — store_name, contact_person, phone, city, role (admin/merchant/vendor)
+2. **Create `user_roles` table** with enum (admin, merchant, vendor)
+3. **Enable Supabase Auth** with email/password (no auto-confirm)
+4. **Update RLS policies** on all tables to use auth.uid() instead of anon access
+5. **Add trigger** to auto-create profile on signup
 
-### 2. بوابة الناقل (Carrier Portal)
-- صفحة `/carrier` بقائمة الشحنات مع dropdown للحالات الجديدة
-- سجل الحالات مع الطوابع الزمنية لكل شحنة
-- المنطق المالي:
-  - **تم التسليم**: إضافة سعر المنتج (COD) للمحفظة + خصم رسوم الشحن النهائية (base + 2,000 markup مخفي)
-  - **مرتجع**: خصم 5,000 ل.س رسوم إرجاع فقط
+## Phase 2: Auth Pages
+1. **Login page** (`/login`) — unified login, redirects based on role
+2. **Merchant signup** (`/signup`) — Store Name, Contact Person, Phone, City
+3. **Auth guard wrapper** — protects all dashboard routes
 
-### 3. طلبات التسوية المالية (Payout Requests)
-- زر "طلب تسوية مالية" في صفحة المحفظة
-- نموذج: المبلغ (مع validation)، الطريقة، تفاصيل الحساب
-- لوحة إدارة `/admin/payouts` لعرض وتحديث الحالة ورفع إيصال
+## Phase 3: Merchant Dashboard (`/merchant`)
+- Refactor existing MerchantPortal to use auth user_id instead of localStorage
+- Tabs: Shipments (form + table + print waybill), Wallet (pending/available)
+- Filter shipments by authenticated merchant_id
 
-### 4. صفحة تتبع عامة
-- صفحة `/track` تقبل رقم التتبع
-- تعرض حالة الشحنة وسجل الحالات
+## Phase 4: Vendor Dashboard (`/vendor`)
+- New page showing only shipments assigned to this vendor (via carrier_id)
+- Status dropdown: picked_up, out_for_delivery, delivered, rejected
+- Cash log: confirm COD collected per delivery
 
-### 5. تحديثات الواجهة
-- تحديث ShipmentTable لعرض الحالات الجديدة بالعربية
-- تحديث المحفظة لعرض زر التسوية
-- إضافة الـ markup المخفي (2,000 SYP) في حساب رسوم الشحن
+## Phase 5: Admin Dashboard (`/admin`)
+- Refactor existing AdminLogistics
+- Global stats: total orders, revenue, active vendors
+- Order routing: assign pending shipments to vendors
+- Pricing table: edit shipping rates per governorate
 
-### الملفات المتأثرة:
-- Migration جديد
-- `src/pages/CarrierPortal.tsx` (جديد)
-- `src/pages/AdminPayouts.tsx` (جديد)
-- `src/pages/TrackShipment.tsx` (جديد)
-- `src/pages/WalletPage.tsx` (تحديث)
-- `src/components/ShipmentForm.tsx` (تحديث - markup)
-- `src/components/ShipmentTable.tsx` (تحديث - حالات)
-- `src/App.tsx` (routes جديدة)
+## Phase 6: Visual Identity
+- Strict Navy (#0F172A) + Turquoise (#00E5FF) + White/Grey only
+- Remove any remaining gold/green/orange
+- High-tech glow effects on turquoise buttons
+- 100% RTL with Readex Pro
+- Grid line backgrounds on dashboards
+
+## Files to create/modify:
+- New: `/src/pages/Login.tsx`, `/src/pages/Signup.tsx`, `/src/pages/VendorDashboard.tsx`
+- New: `/src/components/AuthGuard.tsx`, `/src/hooks/use-auth.ts`
+- Modify: `App.tsx`, `MerchantPortal.tsx`, `AdminLogistics.tsx`, `Landing.tsx`, `index.css`
+- Modify: `use-merchant-id.ts` → replace with auth-based merchant ID
