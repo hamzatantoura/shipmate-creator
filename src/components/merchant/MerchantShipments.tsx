@@ -6,13 +6,13 @@ import { Package, Truck, DollarSign, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import ShipmentForm from "@/components/ShipmentForm";
 import ShipmentTable from "@/components/ShipmentTable";
-import { useMerchantId } from "@/hooks/use-merchant-id";
+import { useAuth } from "@/hooks/use-auth";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
 export default function MerchantShipments() {
-  const merchantId = useMerchantId();
+  const { user } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [search, setSearch] = useState("");
   const [searchParams] = useSearchParams();
@@ -27,15 +27,16 @@ export default function MerchantShipments() {
   } : undefined;
 
   const fetchShipments = async () => {
+    if (!user) return;
     const { data } = await supabase.from("shipments").select("*")
-      .eq("merchant_id", merchantId).order("created_at", { ascending: false });
+      .eq("merchant_id", user.id).order("created_at", { ascending: false });
     if (data) setShipments(data);
   };
 
-  useEffect(() => { fetchShipments(); }, []);
+  useEffect(() => { fetchShipments(); }, [user]);
 
   const totalCOD = shipments.reduce((s, i) => s + Number(i.cod_amount), 0);
-  const pending = shipments.filter(s => s.status === "pending").length;
+  const pending = shipments.filter(s => s.status === "pending" || s.status === "pending_pickup").length;
 
   return (
     <div className="space-y-8">
