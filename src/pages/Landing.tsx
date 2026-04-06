@@ -6,6 +6,7 @@ import {
   BarChart3, Globe, Link2, Users, CreditCard, LayoutDashboard
 } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.png";
+import silaLogo from "@/assets/sila-logo.png";
 
 const FEATURES = [
   { icon: Store, title: "أنشئ متجرك الرقمي", desc: "أطلق متجرك الإلكتروني في دقائق مع إدارة كاملة للمنتجات والمخزون" },
@@ -36,10 +37,8 @@ export default function Landing() {
       {/* Nav */}
       <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Truck className="h-5 w-5 text-primary" />
-            </div>
+          <div className="flex items-center gap-2">
+            <img src={silaLogo} alt="Sila" className="h-8 w-8" />
             <span className="font-display font-bold text-xl text-primary tracking-tight">Sila</span>
           </div>
           <div className="flex items-center gap-3">
