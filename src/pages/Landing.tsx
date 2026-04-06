@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Package, Truck, Store, Wallet, ShieldCheck, Zap, ArrowLeft } from "lucide-react";
+import heroIllustration from "@/assets/hero-illustration.png";
 
 const FEATURES = [
   { icon: Store, title: "متجرك الإلكتروني", desc: "أنشئ متجرك في دقائق وابدأ ببيع منتجاتك أونلاين بسهولة تامة" },
@@ -45,30 +46,46 @@ export default function Landing() {
             <rect width="100%" height="100%" fill="url(#grid)" />
           </svg>
         </div>
-        <div className="max-w-6xl mx-auto px-4 py-24 md:py-36 relative">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-sm font-medium px-4 py-1.5 rounded-full mb-6">
-              <Zap className="h-3.5 w-3.5" />
-              منصة متكاملة للتجارة والشحن في سوريا
-            </div>
-            <h1 className="text-4xl md:text-6xl font-display font-bold text-foreground leading-tight mb-6">
-              صلة — مركز اللوجستيات الذكي
-              <br />
-              <span className="text-primary">يربط التاجر بشركات الشحن في سوريا</span>
-            </h1>
-            <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8 max-w-lg">
-              منصة B2B متكاملة لإدارة الطلبات والشحن والتسويات المالية بين التجار وشركات الشحن
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              <Link to="/signup">
-                <Button size="lg" className="gap-2 text-base px-8 h-12 font-semibold glow-btn">
-                  سجّل كتاجر الآن
-                  <ArrowLeft className="h-4 w-4" />
+        <div className="max-w-6xl mx-auto px-4 py-16 md:py-24 relative">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            {/* Text Content */}
+            <div className="order-2 md:order-1">
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-sm font-medium px-4 py-1.5 rounded-full mb-5">
+                <Zap className="h-3.5 w-3.5" />
+                منصة متكاملة للتجارة والشحن في سوريا
+              </div>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground leading-snug mb-4">
+                صلة — مركز اللوجستيات الذكي
+              </h1>
+              <p className="text-lg md:text-xl font-display font-semibold text-primary mb-4 leading-relaxed">
+                يربط التاجر بشركات الشحن في سوريا
+              </p>
+              <p className="text-base text-muted-foreground leading-relaxed mb-7 max-w-md">
+                منصة B2B متكاملة لإدارة الطلبات والشحن والتسويات المالية بين التجار وشركات الشحن
+              </p>
+              <div className="flex gap-3 flex-wrap">
+                <Link to="/signup">
+                  <Button size="lg" className="gap-2 text-base px-7 h-12 font-semibold glow-btn">
+                    سجّل كتاجر الآن
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Button size="lg" variant="outline" className="text-base px-7 h-12 border-primary/30 text-foreground hover:bg-primary/5">
+                  شاهد العرض التوضيحي
                 </Button>
-              </Link>
-              <Button size="lg" variant="outline" className="text-base px-8 h-12 border-primary/30 text-foreground hover:bg-primary/5">
-                شاهد العرض التوضيحي
-              </Button>
+              </div>
+            </div>
+
+            {/* Hero Illustration */}
+            <div className="order-1 md:order-2 flex justify-center">
+              <div className="relative w-full max-w-md">
+                <div className="absolute inset-0 bg-primary/5 rounded-3xl blur-3xl scale-90" />
+                <img
+                  src={heroIllustration}
+                  alt="منصة صلة للوجستيات"
+                  className="relative w-full h-auto drop-shadow-lg"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -78,8 +95,8 @@ export default function Landing() {
       <section className="py-20">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-14">
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-3">كل ما تحتاجه في مكان واحد</h2>
-            <p className="text-muted-foreground text-lg">أدوات قوية لإدارة تجارتك الإلكترونية والشحن</p>
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-3">كل ما تحتاجه في مكان واحد</h2>
+            <p className="text-muted-foreground text-base md:text-lg">أدوات قوية لإدارة تجارتك الإلكترونية والشحن</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {FEATURES.map((f) => (
@@ -100,8 +117,8 @@ export default function Landing() {
       {/* CTA */}
       <section className="py-20 bg-primary/5">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-display font-bold text-foreground mb-4">جاهز لبدء البيع أونلاين؟</h2>
-          <p className="text-muted-foreground text-lg mb-8">انضم إلى مئات التجار الذين يستخدمون صلة لإدارة تجارتهم</p>
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-4">جاهز لبدء البيع أونلاين؟</h2>
+          <p className="text-muted-foreground text-base md:text-lg mb-8">انضم إلى مئات التجار الذين يستخدمون صلة لإدارة تجارتهم</p>
           <Link to="/signup">
             <Button size="lg" className="gap-2 text-base px-10 h-12 font-semibold glow-btn">
               أنشئ متجرك الآن
