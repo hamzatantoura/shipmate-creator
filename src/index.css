@@ -6,48 +6,48 @@
 
 @layer base {
   :root {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 99%;
+    --foreground: 222 47% 11%;
 
-    --card: 222 47% 14%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    --popover: 222 47% 16%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 187 100% 50%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 217 33% 20%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 220 14% 93%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 22%;
-    --ring: 187 100% 50%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 222 47% 12%;
-    --sidebar-foreground: 215 20% 75%;
-    --sidebar-primary: 187 100% 50%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 33% 20%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 20%;
-    --sidebar-ring: 187 100% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 9% 46%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
 
     --success: 160 60% 45%;
     --warning: 38 92% 50%;
-    --info: 187 100% 50%;
+    --info: 217 91% 60%;
   }
 }
 
@@ -73,10 +73,10 @@
 @layer utilities {
   .glow-btn {
     @apply relative;
-    box-shadow: 0 0 20px -5px hsl(187 100% 50% / 0.4), 0 0 6px -1px hsl(187 100% 50% / 0.2);
+    box-shadow: 0 4px 14px -3px hsl(217 91% 60% / 0.35);
     transition: box-shadow 0.3s ease;
   }
   .glow-btn:hover {
-    box-shadow: 0 0 30px -3px hsl(187 100% 50% / 0.6), 0 0 10px -1px hsl(187 100% 50% / 0.3);
+    box-shadow: 0 6px 20px -3px hsl(217 91% 60% / 0.45);
   }
 }
