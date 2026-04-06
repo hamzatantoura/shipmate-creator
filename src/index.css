@@ -69,3 +69,14 @@
     font-family: 'Inter', monospace, sans-serif;
   }
 }
+
+@layer utilities {
+  .glow-btn {
+    @apply relative;
+    box-shadow: 0 0 20px -5px hsl(187 100% 50% / 0.4), 0 0 6px -1px hsl(187 100% 50% / 0.2);
+    transition: box-shadow 0.3s ease;
+  }
+  .glow-btn:hover {
+    box-shadow: 0 0 30px -3px hsl(187 100% 50% / 0.6), 0 0 10px -1px hsl(187 100% 50% / 0.3);
+  }
+}
