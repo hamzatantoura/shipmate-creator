@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Truck, ShoppingBag, Shield, Search, Package, LogOut } from "lucide-react";
+import { ShoppingBag, Shield, Search, Package, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import silaLogo from "@/assets/sila-logo.png";
 
 export default function AppHeader() {
   const { pathname } = useLocation();
@@ -26,10 +27,7 @@ export default function AppHeader() {
     <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between" dir="rtl">
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
-            <Truck className="h-4 w-4 text-primary" />
-          </div>
-          <span className="font-display font-bold text-lg text-primary tracking-tight">Sila</span>
+          <img src={silaLogo} alt="Sila" className="h-8 w-auto" />
         </Link>
         <nav className="flex items-center gap-1 overflow-x-auto">
           {NAV_ITEMS.map((item) => (

@@ -2,14 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Package, Truck, Store, Wallet, ShieldCheck, Zap, ArrowLeft } from "lucide-react";
+import silaLogo from "@/assets/sila-logo.png";
 
 const FEATURES = [
-  { icon: Store, title: "متجرك الإلكتروني", desc: "أنشئ متجرك في دقائق وابدأ ببيع منتجاتك أونلاين بسهولة تامة" },
-  { icon: Truck, title: "ربط مباشر مع شركات الشحن", desc: "اربط متجرك مع عدة شركات شحن واختر الأنسب لكل طلب" },
-  { icon: Wallet, title: "محفظة ذكية", desc: "تتبّع أرباحك ومصاريف الشحن والعمولات في مكان واحد" },
-  { icon: Package, title: "إدارة الطلبات", desc: "من الطلب إلى التسليم، تتبّع كل شحنة بالتفصيل" },
-  { icon: ShieldCheck, title: "دفع عند الاستلام", desc: "ادعم عملاءك بخيار COD مع تسوية مالية تلقائية" },
-  { icon: Zap, title: "بطاقات شحن فورية", desc: "اطبع بطاقة شحن احترافية مع QR Code بضغطة زر" },
+  { icon: Store, title: "متجرك الإلكتروني", desc: "أنشئ متجرك في دقائق وابدأ ببيع منتجاتك أونلاين بسهولة تامة", color: "text-[hsl(152,62%,35%)]", bg: "bg-[hsl(152,62%,29%,0.12)]" },
+  { icon: Truck, title: "ربط مباشر مع شركات الشحن", desc: "اربط متجرك مع عدة شركات شحن واختر الأنسب لكل طلب", color: "text-[hsl(216,50%,50%)]", bg: "bg-[hsl(216,50%,45%,0.12)]" },
+  { icon: Wallet, title: "محفظة ذكية", desc: "تتبّع أرباحك ومصاريف الشحن والعمولات في مكان واحد", color: "text-[hsl(152,62%,35%)]", bg: "bg-[hsl(152,62%,29%,0.12)]" },
+  { icon: Package, title: "إدارة الطلبات", desc: "من الطلب إلى التسليم، تتبّع كل شحنة بالتفصيل", color: "text-[hsl(216,50%,50%)]", bg: "bg-[hsl(216,50%,45%,0.12)]" },
+  { icon: ShieldCheck, title: "دفع عند الاستلام", desc: "ادعم عملاءك بخيار COD مع تسوية مالية تلقائية", color: "text-[hsl(152,62%,35%)]", bg: "bg-[hsl(152,62%,29%,0.12)]" },
+  { icon: Zap, title: "بطاقات شحن فورية", desc: "اطبع بطاقة شحن احترافية مع QR Code بضغطة زر", color: "text-[hsl(216,50%,50%)]", bg: "bg-[hsl(216,50%,45%,0.12)]" },
 ];
 
 export default function Landing() {
@@ -18,11 +19,8 @@ export default function Landing() {
       {/* Nav */}
       <header className="border-b border-border bg-card/60 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
-              <Truck className="h-5 w-5 text-primary" />
-            </div>
-            <span className="font-display font-bold text-xl text-primary tracking-tight">Sila</span>
+          <div className="flex items-center gap-3">
+            <img src={silaLogo} alt="Sila Logo" className="h-10 w-auto" />
           </div>
           <Link to="/login">
             <Button className="gap-2 glow-btn">
@@ -35,14 +33,14 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        {/* Radial gradient for depth */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(217_33%_16%)_0%,_hsl(222_47%_11%)_70%,_hsl(222_47%_8%)_100%)]" />
-        {/* Network grid + nodes */}
+        {/* Radial gradient background */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_50%,_hsl(152_62%_12%_/_0.15)_0%,_hsl(220_40%_7%)_50%,_hsl(216_50%_10%_/_0.1)_100%)]" />
+        {/* Network grid */}
         <div className="absolute inset-0">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
-                <path d="M 80 0 L 0 0 0 80" fill="none" stroke="hsl(187 100% 50%)" strokeWidth="0.4" opacity="0.06" />
+                <path d="M 80 0 L 0 0 0 80" fill="none" stroke="hsl(152 62% 35%)" strokeWidth="0.3" opacity="0.06" />
               </pattern>
               <radialGradient id="gridFade" cx="50%" cy="50%" r="60%">
                 <stop offset="0%" stopColor="white" stopOpacity="1" />
@@ -51,24 +49,29 @@ export default function Landing() {
               <mask id="gridMask"><rect width="100%" height="100%" fill="url(#gridFade)" /></mask>
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" mask="url(#gridMask)" />
-            {/* Glowing nodes */}
-            <circle cx="18%" cy="28%" r="2.5" fill="hsl(187 100% 50%)" opacity="0.25" />
-            <circle cx="52%" cy="55%" r="2" fill="hsl(187 100% 50%)" opacity="0.2" />
-            <circle cx="78%" cy="22%" r="2" fill="hsl(187 100% 50%)" opacity="0.2" />
-            <circle cx="38%" cy="78%" r="1.8" fill="hsl(187 100% 50%)" opacity="0.15" />
-            <circle cx="65%" cy="70%" r="1.5" fill="hsl(187 100% 50%)" opacity="0.12" />
+            {/* Green nodes */}
+            <circle cx="15%" cy="30%" r="3" fill="hsl(152 62% 35%)" opacity="0.3" />
+            <circle cx="45%" cy="60%" r="2.5" fill="hsl(152 62% 35%)" opacity="0.2" />
+            <circle cx="75%" cy="25%" r="2" fill="hsl(152 62% 35%)" opacity="0.2" />
+            {/* Blue nodes */}
+            <circle cx="30%" cy="70%" r="2" fill="hsl(216 50% 50%)" opacity="0.25" />
+            <circle cx="60%" cy="40%" r="2.5" fill="hsl(216 50% 50%)" opacity="0.2" />
+            <circle cx="85%" cy="65%" r="1.5" fill="hsl(216 50% 50%)" opacity="0.15" />
             {/* Connection lines */}
-            <line x1="18%" y1="28%" x2="52%" y2="55%" stroke="hsl(187 100% 50%)" strokeWidth="0.5" opacity="0.08" />
-            <line x1="52%" y1="55%" x2="78%" y2="22%" stroke="hsl(187 100% 50%)" strokeWidth="0.5" opacity="0.08" />
-            <line x1="78%" y1="22%" x2="65%" y2="70%" stroke="hsl(187 100% 50%)" strokeWidth="0.4" opacity="0.06" />
-            <line x1="38%" y1="78%" x2="52%" y2="55%" stroke="hsl(187 100% 50%)" strokeWidth="0.4" opacity="0.06" />
+            <line x1="15%" y1="30%" x2="45%" y2="60%" stroke="hsl(152 62% 35%)" strokeWidth="0.5" opacity="0.08" />
+            <line x1="45%" y1="60%" x2="75%" y2="25%" stroke="hsl(152 62% 35%)" strokeWidth="0.5" opacity="0.06" />
+            <line x1="30%" y1="70%" x2="60%" y2="40%" stroke="hsl(216 50% 50%)" strokeWidth="0.5" opacity="0.08" />
+            <line x1="60%" y1="40%" x2="85%" y2="65%" stroke="hsl(216 50% 50%)" strokeWidth="0.4" opacity="0.06" />
+            {/* Orbital arcs like the logo */}
+            <ellipse cx="50%" cy="50%" rx="25%" ry="35%" fill="none" stroke="hsl(152 62% 35%)" strokeWidth="0.4" opacity="0.05" transform="rotate(-15 50 50)" />
+            <ellipse cx="50%" cy="50%" rx="30%" ry="20%" fill="none" stroke="hsl(216 50% 50%)" strokeWidth="0.4" opacity="0.04" transform="rotate(25 50 50)" />
           </svg>
         </div>
         <div className="max-w-6xl mx-auto px-4 py-24 md:py-36 relative">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary text-sm font-medium px-4 py-1.5 rounded-full mb-6">
               <Zap className="h-3.5 w-3.5" />
-              منصة متكاملة للتجارة والشحن في سوريا
+              المنصة اللوجستية التقنية السورية
             </div>
             <h1 className="text-4xl md:text-6xl font-display font-bold text-foreground leading-tight mb-6">
               صلة — مركز اللوجستيات الذكي
@@ -102,10 +105,10 @@ export default function Landing() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {FEATURES.map((f) => (
-              <Card key={f.title} className="bg-card/80 backdrop-blur-sm border-primary/10 hover:border-primary/30 transition-colors group">
+              <Card key={f.title} className="bg-card/80 backdrop-blur-sm border-border hover:border-primary/30 transition-colors group">
                 <CardContent className="p-6">
-                  <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                    <f.icon className="h-5 w-5 text-primary" />
+                  <div className={`h-11 w-11 rounded-xl ${f.bg} flex items-center justify-center mb-4 transition-colors`}>
+                    <f.icon className={`h-5 w-5 ${f.color}`} />
                   </div>
                   <h3 className="font-display font-semibold text-lg text-foreground mb-2">{f.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
@@ -133,12 +136,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-border py-8">
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-primary/10 border border-primary/25 flex items-center justify-center">
-              <Truck className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <span className="font-display font-semibold text-primary">Sila</span>
-          </div>
+          <img src={silaLogo} alt="Sila" className="h-8 w-auto opacity-80" />
           <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Sila — جميع الحقوق محفوظة</p>
         </div>
       </footer>
