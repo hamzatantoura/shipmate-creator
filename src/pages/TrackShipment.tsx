@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, MapPin, Phone, Clock, Truck } from "lucide-react";
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import { Search, Package, MapPin, Phone, Clock, Truck, ArrowRight } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
@@ -47,6 +51,7 @@ interface StatusLog {
 }
 
 export default function TrackShipment() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [history, setHistory] = useState<StatusLog[]>([]);
@@ -82,17 +87,40 @@ export default function TrackShipment() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      {/* Simple header */}
+      {/* Header with back button */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-2">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="shrink-0"
+          >
+            <ArrowRight className="h-5 w-5" />
+          </Button>
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
             <Truck className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-lg text-foreground">صلة - تتبع الشحنة</span>
+          <span className="font-display font-bold text-lg text-foreground">صلة — تتبع الشحنة</span>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-10 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+        {/* Breadcrumb */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/" className="text-muted-foreground hover:text-foreground">
+                الرئيسية
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>تتبع الشحنة</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-display font-bold text-foreground">تتبع شحنتك</h1>
           <p className="text-muted-foreground">أدخل رقم التتبع لمعرفة حالة شحنتك</p>

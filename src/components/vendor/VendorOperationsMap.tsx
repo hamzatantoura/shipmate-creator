@@ -1,45 +1,32 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Package, UserCheck, Loader2, Store, Banknote, Truck } from "lucide-react";
+import { MapPin, Package, Loader2, Store, Banknote, Truck } from "lucide-react";
 import { toast } from "sonner";
+import { ALEPPO_MERCHANTS, type DemoMerchant } from "@/data/aleppo-demo-merchants";
 
-// Aleppo neighborhood coordinates (real locations)
-const ALEPPO_MERCHANTS = [
-  { id: "demo-1", name: "أزياء السلطان", neighborhood: "الفرقان", lat: 36.1950, lng: 37.1480, packages: 5, productValue: 1250000, shippingFee: 35000 },
-  { id: "demo-2", name: "إلكترونيات الشهباء", neighborhood: "الشهباء", lat: 36.2280, lng: 37.1200, packages: 8, productValue: 3200000, shippingFee: 55000 },
-  { id: "demo-3", name: "مكتبة الفرقان", neighborhood: "الفرقان", lat: 36.1970, lng: 37.1520, packages: 3, productValue: 450000, shippingFee: 20000 },
-  { id: "demo-4", name: "حلويات السعد", neighborhood: "الموكامبو", lat: 36.2100, lng: 37.1350, packages: 2, productValue: 680000, shippingFee: 18000 },
-  { id: "demo-5", name: "عطور الشرق", neighborhood: "المحافظة", lat: 36.2150, lng: 37.1600, packages: 4, productValue: 920000, shippingFee: 28000 },
-  { id: "demo-6", name: "موبايلات الجميلية", neighborhood: "الجميلية", lat: 36.2030, lng: 37.1550, packages: 7, productValue: 4500000, shippingFee: 48000 },
-  { id: "demo-7", name: "أحذية الأناقة", neighborhood: "الجميلية", lat: 36.2045, lng: 37.1570, packages: 3, productValue: 750000, shippingFee: 22000 },
-  { id: "demo-8", name: "سوبر ماركت النجمة", neighborhood: "السريان", lat: 36.2080, lng: 37.1480, packages: 6, productValue: 1800000, shippingFee: 42000 },
-  { id: "demo-9", name: "مفروشات الديار", neighborhood: "حلب الجديدة", lat: 36.1880, lng: 37.1300, packages: 2, productValue: 5200000, shippingFee: 65000 },
-  { id: "demo-10", name: "صيدلية الشفاء", neighborhood: "الحمدانية", lat: 36.1750, lng: 37.1100, packages: 4, productValue: 380000, shippingFee: 25000 },
-  { id: "demo-11", name: "ملابس أطفال ليلى", neighborhood: "الحمدانية", lat: 36.1770, lng: 37.1130, packages: 5, productValue: 620000, shippingFee: 30000 },
-  { id: "demo-12", name: "معرض الأمل للأجهزة", neighborhood: "الشهباء", lat: 36.2260, lng: 37.1230, packages: 1, productValue: 2100000, shippingFee: 15000 },
-  { id: "demo-13", name: "بوتيك ورد", neighborhood: "المحافظة", lat: 36.2170, lng: 37.1580, packages: 6, productValue: 1450000, shippingFee: 38000 },
-  { id: "demo-14", name: "مطعم بيت جدي", neighborhood: "الموكامبو", lat: 36.2115, lng: 37.1370, packages: 3, productValue: 520000, shippingFee: 20000 },
-  { id: "demo-15", name: "قرطاسية النور", neighborhood: "السريان", lat: 36.2065, lng: 37.1500, packages: 2, productValue: 180000, shippingFee: 12000 },
-];
+interface Props {
+  selectedMerchantId: string | null;
+  onSelectMerchant: (id: string) => void;
+  assignedIds: Set<string>;
+  onAssign: React.Dispatch<React.SetStateAction<Set<string>>>;
+}
 
 interface NeighborhoodCluster {
   neighborhood: string;
   lat: number;
   lng: number;
-  merchants: typeof ALEPPO_MERCHANTS;
+  merchants: DemoMerchant[];
   totalPackages: number;
   totalValue: number;
   totalFees: number;
 }
 
-// Cluster icon matching design system
 const createClusterIcon = (count: number) => {
   const size = count > 10 ? 56 : count > 5 ? 48 : 40;
   return L.divIcon({
@@ -64,27 +51,26 @@ const createClusterIcon = (count: number) => {
   });
 };
 
-// Individual merchant pin
-const createMerchantIcon = () =>
+const createMerchantIcon = (selected = false) =>
   L.divIcon({
     html: `<div style="
-      background: hsl(217, 91%, 60%);
+      background: ${selected ? 'hsl(25, 100%, 50%)' : 'hsl(217, 91%, 60%)'};
       color: white;
       border-radius: 50%;
-      width: 28px;
-      height: 28px;
+      width: ${selected ? 36 : 28}px;
+      height: ${selected ? 36 : 28}px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 8px hsl(217 91% 60% / 0.4);
-      border: 2px solid white;
+      box-shadow: 0 2px 8px ${selected ? 'hsl(25 100% 50% / 0.5)' : 'hsl(217 91% 60% / 0.4)'};
+      border: ${selected ? '3px' : '2px'} solid white;
+      transition: all 0.2s;
     "><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></svg></div>`,
     className: "",
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    iconSize: [selected ? 36 : 28, selected ? 36 : 28],
+    iconAnchor: [selected ? 18 : 14, selected ? 18 : 14],
   });
 
-// Fix default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -92,16 +78,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-function FitAleppo() {
+function FlyToSelected({ merchant }: { merchant: DemoMerchant | null }) {
   const map = useMap();
   useEffect(() => {
-    map.setView([36.2021, 37.1343], 13);
-  }, [map]);
+    if (merchant) {
+      map.flyTo([merchant.lat, merchant.lng], 16, { duration: 0.8 });
+    }
+  }, [merchant, map]);
+  return null;
+}
+
+function FitAleppo() {
+  const map = useMap();
+  useEffect(() => { map.setView([36.2021, 37.1343], 13); }, [map]);
   return null;
 }
 
 function MerchantPopupContent({ merchant, onAssign, assigning }: {
-  merchant: typeof ALEPPO_MERCHANTS[0];
+  merchant: DemoMerchant;
   onAssign: (id: string) => void;
   assigning: boolean;
 }) {
@@ -111,7 +105,6 @@ function MerchantPopupContent({ merchant, onAssign, assigning }: {
         <h3 className="font-bold text-sm">{merchant.name}</h3>
         <span className="text-[11px] opacity-70">{merchant.neighborhood} — حلب</span>
       </div>
-
       <div className="space-y-2 px-1">
         <div className="flex justify-between items-center text-sm">
           <span className="text-gray-500">عدد الطرود</span>
@@ -140,37 +133,41 @@ function MerchantPopupContent({ merchant, onAssign, assigning }: {
   );
 }
 
-export default function VendorOperationsMap() {
+export default function VendorOperationsMap({ selectedMerchantId, onSelectMerchant, assignedIds, onAssign }: Props) {
   const { user } = useAuth();
-  const [couriers, setCouriers] = useState<any[]>([]);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
+  const markerRefs = useRef<Record<string, L.Marker>>({}); 
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
     const load = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("couriers")
-        .select("*")
-        .eq("vendor_id", user.id)
-        .eq("is_active", true);
-      if (data) setCouriers(data);
+      await supabase.from("couriers").select("*").eq("vendor_id", user.id).eq("is_active", true);
       setLoading(false);
     };
     load();
   }, [user]);
 
-  // Active (unassigned) merchants
   const activeMerchants = useMemo(
     () => ALEPPO_MERCHANTS.filter(m => !assignedIds.has(m.id)),
     [assignedIds]
   );
 
-  // Cluster by neighborhood
+  const selectedMerchant = useMemo(
+    () => activeMerchants.find(m => m.id === selectedMerchantId) || null,
+    [activeMerchants, selectedMerchantId]
+  );
+
+  // Open popup for selected merchant
+  useEffect(() => {
+    if (selectedMerchantId && markerRefs.current[selectedMerchantId]) {
+      setTimeout(() => markerRefs.current[selectedMerchantId]?.openPopup(), 900);
+    }
+  }, [selectedMerchantId]);
+
   const clusters = useMemo<NeighborhoodCluster[]>(() => {
-    const map: Record<string, typeof ALEPPO_MERCHANTS> = {};
+    const map: Record<string, DemoMerchant[]> = {};
     activeMerchants.forEach(m => {
       if (!map[m.neighborhood]) map[m.neighborhood] = [];
       map[m.neighborhood].push(m);
@@ -189,7 +186,7 @@ export default function VendorOperationsMap() {
   const handleAssign = (merchantId: string) => {
     setAssigning(merchantId);
     setTimeout(() => {
-      setAssignedIds(prev => new Set([...prev, merchantId]));
+      onAssign(prev => new Set([...prev, merchantId]));
       toast.success("تم تعيين الشحنة للمندوب بنجاح");
       setAssigning(null);
     }, 800);
@@ -237,9 +234,7 @@ export default function VendorOperationsMap() {
           <CardTitle className="text-base font-display flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
             غرفة عمليات حلب — بث مباشر
-            <Badge variant="outline" className="mr-auto text-[10px] border-primary/30 text-primary">
-              LIVE
-            </Badge>
+            <Badge variant="outline" className="mr-auto text-[10px] border-primary/30 text-primary">LIVE</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -255,13 +250,17 @@ export default function VendorOperationsMap() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <FitAleppo />
+              <FlyToSelected merchant={selectedMerchant} />
 
-              {/* Individual merchant pins */}
               {activeMerchants.map(merchant => (
                 <Marker
                   key={merchant.id}
                   position={[merchant.lat, merchant.lng]}
-                  icon={createMerchantIcon()}
+                  icon={createMerchantIcon(merchant.id === selectedMerchantId)}
+                  ref={(ref) => { if (ref) markerRefs.current[merchant.id] = ref; }}
+                  eventHandlers={{
+                    click: () => onSelectMerchant(merchant.id),
+                  }}
                 >
                   <Popup minWidth={260} maxWidth={300}>
                     <MerchantPopupContent
@@ -273,7 +272,6 @@ export default function VendorOperationsMap() {
                 </Marker>
               ))}
 
-              {/* Neighborhood cluster markers (larger, shows aggregate) */}
               {clusters.filter(c => c.merchants.length > 1).map(cluster => (
                 <Marker
                   key={cluster.neighborhood}
