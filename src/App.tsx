@@ -12,6 +12,8 @@ import VendorDashboard from "./pages/VendorDashboard";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
 import TrackShipment from "./pages/TrackShipment";
+import Storefront from "./pages/Storefront";
+import ProductPage from "./pages/ProductPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,10 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/track" element={<TrackShipment />} />
+
+          {/* Public storefront & product pages */}
+          <Route path="/store/:merchantId" element={<Storefront />} />
+          <Route path="/product/:slug" element={<ProductPage />} />
 
           {/* Protected: Merchant */}
           <Route path="/merchant" element={
