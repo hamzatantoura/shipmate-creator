@@ -14,13 +14,17 @@ import type { Database } from "@/integrations/supabase/types";
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
 const STATUS_AR: Record<string, string> = {
+  new: "جديد",
   pending: "قيد الانتظار",
+  processing: "قيد المعالجة",
+  assigned: "تم تعيين مندوب",
   pending_pickup: "بانتظار الاستلام",
-  at_warehouse: "تم الاستلام / في المستودع",
+  out_for_delivery: "خرج للتوصيل",
   in_transit: "قيد التوصيل",
   in_transit_intercity: "قيد الشحن بين المحافظات",
+  at_warehouse: "في المستودع",
   with_distributor: "مع مندوب التوزيع",
-  delivered: "تم التسليم",
+  delivered: "تم التسليم ✓",
   returned: "مرتجع",
   cancelled: "ملغاة",
   failed: "فشل التسليم",
@@ -34,21 +38,14 @@ const CITY_AR: Record<string, string> = {
 const statusColor = (s: string) => {
   switch (s) {
     case "delivered": return "bg-primary/20 text-primary border-primary/30";
-    case "returned":
-    case "failed":
-    case "cancelled": return "bg-destructive/20 text-destructive border-destructive/30";
-    case "with_distributor":
-    case "in_transit":
-    case "in_transit_intercity": return "bg-info/20 text-info border-info/30";
+    case "returned": case "failed": case "cancelled": return "bg-destructive/20 text-destructive border-destructive/30";
+    case "out_for_delivery": case "assigned": case "in_transit": case "in_transit_intercity": case "with_distributor":
+      return "bg-info/20 text-info border-info/30";
     default: return "bg-warning/20 text-warning border-warning/30";
   }
 };
 
-interface StatusLog {
-  id: string;
-  new_status: string;
-  created_at: string;
-}
+interface StatusLog { id: string; new_status: string; created_at: string; }
 
 export default function TrackShipment() {
   const navigate = useNavigate();
@@ -64,19 +61,10 @@ export default function TrackShipment() {
     setLoading(true);
     setSearched(true);
 
-    const { data } = await supabase
-      .from("shipments")
-      .select("*")
-      .eq("tracking_number", query.trim())
-      .single();
-
+    const { data } = await supabase.from("shipments").select("*").eq("tracking_number", query.trim()).single();
     if (data) {
       setShipment(data);
-      const { data: logs } = await supabase
-        .from("shipment_status_history")
-        .select("*")
-        .eq("shipment_id", data.id)
-        .order("created_at", { ascending: true });
+      const { data: logs } = await supabase.from("shipment_status_history").select("*").eq("shipment_id", data.id).order("created_at", { ascending: true });
       if (logs) setHistory(logs as StatusLog[]);
     } else {
       setShipment(null);
@@ -87,15 +75,9 @@ export default function TrackShipment() {
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
-      {/* Header with back button */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="shrink-0"
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
             <ArrowRight className="h-5 w-5" />
           </Button>
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -106,18 +88,11 @@ export default function TrackShipment() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        {/* Breadcrumb */}
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/" className="text-muted-foreground hover:text-foreground">
-                الرئيسية
-              </BreadcrumbLink>
-            </BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink href="/" className="text-muted-foreground hover:text-foreground">الرئيسية</BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>تتبع الشحنة</BreadcrumbPage>
-            </BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbPage>تتبع الشحنة</BreadcrumbPage></BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
 
@@ -127,17 +102,8 @@ export default function TrackShipment() {
         </div>
 
         <form onSubmit={handleSearch} className="flex gap-2">
-          <Input
-            placeholder="رقم التتبع (مثال: SHP-XXXXXX)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="flex-1"
-            dir="ltr"
-          />
-          <Button type="submit" disabled={loading} className="gap-2">
-            <Search className="h-4 w-4" />
-            تتبع
-          </Button>
+          <Input placeholder="رقم التتبع (مثال: SIL-XXXXXX)" value={query} onChange={e => setQuery(e.target.value)} className="flex-1" dir="ltr" />
+          <Button type="submit" disabled={loading} className="gap-2"><Search className="h-4 w-4" /> تتبع</Button>
         </form>
 
         {searched && !loading && !shipment && (
@@ -168,7 +134,6 @@ export default function TrackShipment() {
                 </div>
               </div>
 
-              {/* Timeline */}
               {history.length > 0 && (
                 <div className="pt-4 border-t border-border">
                   <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">

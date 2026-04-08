@@ -22,12 +22,19 @@ const PAYOUT_METHODS = [
 ];
 const PAYOUT_STATUS_AR: Record<string, string> = { pending: "بانتظار المعالجة", processing: "قيد المعالجة", completed: "مكتملة" };
 
+const ORDER_STATUS_AR: Record<string, string> = {
+  new: "جديد", processing: "قيد المعالجة", assigned: "تم التعيين",
+  out_for_delivery: "خرج للتوصيل", delivered: "تم التسليم", returned: "مرتجع",
+  pending: "قيد الانتظار", shipped: "تم الشحن",
+};
+
 interface WalletTx { id: string; type: string; amount: number; description: string | null; created_at: string; reference_id: string | null; }
 interface PayoutReq { id: string; amount: number; method: string; account_details: string; status: string; receipt_url: string | null; created_at: string; }
 
 export default function MerchantWallet() {
   const { user } = useAuth();
-  const [balance, setBalance] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [platformFeeRate, setPlatformFeeRate] = useState(0.05);
   const [pendingBalance, setPendingBalance] = useState(0);
   const [txns, setTxns] = useState<WalletTx[]>([]);
   const [payouts, setPayouts] = useState<PayoutReq[]>([]);
@@ -37,42 +44,58 @@ export default function MerchantWallet() {
   const [payoutDetails, setPayoutDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
-  const [shipmentProfits, setShipmentProfits] = useState<Array<{id: string; tracking: string; cod: number; fee: number; net: number; status: string}>>([]);
+  const [orderProfits, setOrderProfits] = useState<Array<{id: string; receiver: string; total: number; fee: number; platformFee: number; net: number; status: string}>>([]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    // Fetch wallet + transactions in parallel
-    const [walletRes, payoutRes, shipmentsRes] = await Promise.all([
-      supabase.from("wallets").select("*").eq("merchant_id", user.id).single(),
+
+    // Fetch merchant record, payouts, and orders in parallel
+    const [merchantRes, payoutRes, ordersRes] = await Promise.all([
+      supabase.from("merchants" as any).select("*").eq("user_id", user.id).single(),
       supabase.from("payout_requests").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("shipments").select("id, tracking_number, cod_amount, shipping_fee, status").eq("merchant_id", user.id).order("created_at", { ascending: false }).limit(50),
+      supabase.from("orders").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false }).limit(50),
     ]);
 
-    if (walletRes.data) {
-      setBalance(Number(walletRes.data.balance));
-      // Fetch transactions
-      const { data: t } = await supabase.from("wallet_transactions").select("*").eq("wallet_id", walletRes.data.id).order("created_at", { ascending: false }).limit(50);
-      if (t) setTxns(t as WalletTx[]);
+    if (merchantRes.data) {
+      const m = merchantRes.data as any;
+      setWalletBalance(Number(m.wallet_balance || 0));
+      setPlatformFeeRate(Number(m.platform_fee_rate || 0.05));
     }
+
+    // Fallback: also try wallets table for backward compat
+    if (!merchantRes.data) {
+      const { data: walletData } = await supabase.from("wallets").select("*").eq("merchant_id", user.id).single();
+      if (walletData) {
+        setWalletBalance(Number(walletData.balance));
+        const { data: t } = await supabase.from("wallet_transactions").select("*").eq("wallet_id", walletData.id).order("created_at", { ascending: false }).limit(50);
+        if (t) setTxns(t as WalletTx[]);
+      }
+    }
+
     if (payoutRes.data) setPayouts(payoutRes.data as PayoutReq[]);
 
-    // Calculate pending balance from in-transit shipments
-    if (shipmentsRes.data) {
-      const inTransit = shipmentsRes.data.filter((s: any) => !["delivered", "returned", "cancelled"].includes(s.status));
-      const pending = inTransit.reduce((sum: number, s: any) => sum + Number(s.cod_amount), 0);
+    // Calculate pending balance and profit table from orders
+    if (ordersRes.data) {
+      const inTransit = ordersRes.data.filter((o: any) => !["delivered", "returned", "cancelled"].includes(o.status));
+      const pending = inTransit.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
       setPendingBalance(pending);
 
-      // Build profit table
-      setShipmentProfits(shipmentsRes.data.map((s: any) => ({
-        id: s.id,
-        tracking: s.tracking_number || "-",
-        cod: Number(s.cod_amount),
-        fee: Number(s.shipping_fee || 0),
-        net: Number(s.cod_amount) - Number(s.shipping_fee || 0),
-        status: s.status,
-      })));
+      setOrderProfits(ordersRes.data.map((o: any) => {
+        const total = Number(o.final_sale_price || o.total_amount || 0);
+        const deliveryFee = Number(o.delivery_fee || 0);
+        const pFee = Number(o.platform_fee || total * platformFeeRate);
+        return {
+          id: o.id,
+          receiver: o.receiver_name,
+          total,
+          fee: deliveryFee,
+          platformFee: pFee,
+          net: total - deliveryFee - pFee,
+          status: o.status,
+        };
+      }));
     }
-  }, [user]);
+  }, [user, platformFeeRate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -80,7 +103,7 @@ export default function MerchantWallet() {
     if (!user) return;
     const amount = parseFloat(payoutAmount);
     if (!amount || amount <= 0) { toast.error("أدخل مبلغاً صحيحاً"); return; }
-    if (amount > balance) { toast.error("المبلغ يتجاوز الرصيد المتاح"); return; }
+    if (amount > walletBalance) { toast.error("المبلغ يتجاوز الرصيد المتاح"); return; }
     if (!payoutMethod) { toast.error("اختر طريقة التسوية"); return; }
     if (!payoutDetails.trim()) { toast.error("أدخل تفاصيل الحساب"); return; }
     setSubmitting(true);
@@ -95,11 +118,6 @@ export default function MerchantWallet() {
     setSubmitting(false);
   };
 
-  const STATUS_AR: Record<string, string> = {
-    pending: "قيد الانتظار", pending_pickup: "بانتظار الاستلام", delivered: "تم التسليم",
-    in_transit: "قيد التوصيل", returned: "مرتجع",
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -112,7 +130,7 @@ export default function MerchantWallet() {
             <DialogContent dir="rtl" className="max-w-md">
               <DialogHeader><DialogTitle>طلب تسوية مالية</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2"><Label>المبلغ (ل.س)</Label><Input type="number" min="1" max={balance} value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} placeholder={`الحد الأقصى: ${balance.toLocaleString()}`} /></div>
+                <div className="space-y-2"><Label>المبلغ (ل.س)</Label><Input type="number" min="1" max={walletBalance} value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} placeholder={`الحد الأقصى: ${walletBalance.toLocaleString()}`} /></div>
                 <div className="space-y-2"><Label>طريقة التسوية</Label><Select value={payoutMethod} onValueChange={setPayoutMethod}><SelectTrigger><SelectValue placeholder="اختر الطريقة" /></SelectTrigger><SelectContent>{PAYOUT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><Label>تفاصيل الحساب</Label><Input value={payoutDetails} onChange={e => setPayoutDetails(e.target.value)} placeholder="رقم الهاتف أو اسم الحساب" /></div>
                 <Button className="w-full glow-btn" disabled={submitting} onClick={submitPayout}>{submitting ? "جاري الإرسال..." : "إرسال طلب التسوية"}</Button>
@@ -132,7 +150,7 @@ export default function MerchantWallet() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">الرصيد المتاح</p>
-              <p className="text-2xl font-display font-bold text-primary">{balance.toLocaleString()} ل.س</p>
+              <p className="text-2xl font-display font-bold text-primary">{walletBalance.toLocaleString()} ل.س</p>
             </div>
           </CardContent>
         </Card>
@@ -142,7 +160,7 @@ export default function MerchantWallet() {
               <Clock className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">رصيد معلّق</p>
+              <p className="text-xs text-muted-foreground">رصيد معلّق (طلبات قيد التوصيل)</p>
               <p className="text-2xl font-display font-bold text-warning">{pendingBalance.toLocaleString()} ل.س</p>
             </div>
           </CardContent>
@@ -153,37 +171,39 @@ export default function MerchantWallet() {
               <Wallet className="h-6 w-6 text-foreground" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">الإجمالي</p>
-              <p className="text-2xl font-display font-bold text-foreground">{(balance + pendingBalance).toLocaleString()} ل.س</p>
+              <p className="text-xs text-muted-foreground">العمولة ({(platformFeeRate * 100).toFixed(0)}%)</p>
+              <p className="text-2xl font-display font-bold text-foreground">{(walletBalance + pendingBalance).toLocaleString()} ل.س</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Shipment Profit Table */}
-      {shipmentProfits.length > 0 && (
+      {/* Order Profit Table */}
+      {orderProfits.length > 0 && (
         <>
-          <h3 className="font-display font-semibold text-foreground">تفاصيل أرباح الشحنات</h3>
+          <h3 className="font-display font-semibold text-foreground">تفاصيل الأرباح (بعد العمولة)</h3>
           <div className="rounded-lg border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/50 text-muted-foreground">
-                    <th className="p-3 text-right font-medium">رقم التتبع</th>
+                    <th className="p-3 text-right font-medium">العميل</th>
                     <th className="p-3 text-right font-medium">سعر البيع</th>
-                    <th className="p-3 text-right font-medium">رسوم الشحن</th>
+                    <th className="p-3 text-right font-medium">رسوم التوصيل</th>
+                    <th className="p-3 text-right font-medium">عمولة المنصة</th>
                     <th className="p-3 text-right font-medium">صافي الربح</th>
                     <th className="p-3 text-right font-medium">الحالة</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {shipmentProfits.slice(0, 20).map(s => (
-                    <tr key={s.id} className="border-t border-border hover:bg-muted/30">
-                      <td className="p-3 font-mono text-xs">{s.tracking}</td>
-                      <td className="p-3 text-foreground">{s.cod.toLocaleString()} ل.س</td>
-                      <td className="p-3 text-destructive">-{s.fee.toLocaleString()} ل.س</td>
-                      <td className={`p-3 font-bold ${s.net >= 0 ? 'text-primary' : 'text-destructive'}`}>{s.net.toLocaleString()} ل.س</td>
-                      <td className="p-3"><Badge variant="outline" className="text-xs">{STATUS_AR[s.status] || s.status}</Badge></td>
+                  {orderProfits.slice(0, 20).map(o => (
+                    <tr key={o.id} className="border-t border-border hover:bg-muted/30">
+                      <td className="p-3 text-foreground">{o.receiver}</td>
+                      <td className="p-3 text-foreground">{o.total.toLocaleString()} ل.س</td>
+                      <td className="p-3 text-destructive">-{o.fee.toLocaleString()} ل.س</td>
+                      <td className="p-3 text-destructive">-{o.platformFee.toLocaleString()} ل.س</td>
+                      <td className={`p-3 font-bold ${o.net >= 0 ? 'text-primary' : 'text-destructive'}`}>{o.net.toLocaleString()} ل.س</td>
+                      <td className="p-3"><Badge variant="outline" className="text-xs">{ORDER_STATUS_AR[o.status] || o.status}</Badge></td>
                     </tr>
                   ))}
                 </tbody>
@@ -225,27 +245,29 @@ export default function MerchantWallet() {
       </Dialog>
 
       {/* Transaction History */}
-      <h3 className="font-display font-semibold text-foreground">سجل الحركات</h3>
-      {txns.length === 0 ? <p className="text-center py-8 text-muted-foreground">لا توجد حركات بعد</p> : (
-        <div className="space-y-2">
-          {txns.map(t => (
-            <Card key={t.id} className="bg-card border-border">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {t.amount >= 0 ? <TrendingUp className="h-4 w-4 text-primary" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{TYPE_AR[t.type] || t.type}</p>
-                    {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
+      {txns.length > 0 && (
+        <>
+          <h3 className="font-display font-semibold text-foreground">سجل الحركات</h3>
+          <div className="space-y-2">
+            {txns.map(t => (
+              <Card key={t.id} className="bg-card border-border">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {t.amount >= 0 ? <TrendingUp className="h-4 w-4 text-primary" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{TYPE_AR[t.type] || t.type}</p>
+                      {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
+                    </div>
                   </div>
-                </div>
-                <div className="text-left">
-                  <p className={`font-display font-bold ${t.amount >= 0 ? 'text-primary' : 'text-destructive'}`}>{t.amount >= 0 ? '+' : ''}{t.amount.toLocaleString()} ل.س</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(t.created_at).toLocaleDateString('ar')}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <div className="text-left">
+                    <p className={`font-display font-bold ${t.amount >= 0 ? 'text-primary' : 'text-destructive'}`}>{t.amount >= 0 ? '+' : ''}{t.amount.toLocaleString()} ل.س</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(t.created_at).toLocaleDateString('ar')}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
