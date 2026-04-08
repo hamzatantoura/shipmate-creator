@@ -91,42 +91,132 @@ export type Database = {
       }
       couriers: {
         Row: {
+          city: string | null
           created_at: string
           id: string
           is_active: boolean
           name: string
           phone: string | null
+          user_id: string | null
           vendor_id: string
+          wallet_balance: number
         }
         Insert: {
+          city?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
           name: string
           phone?: string | null
+          user_id?: string | null
           vendor_id: string
+          wallet_balance?: number
         }
         Update: {
+          city?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
           name?: string
           phone?: string | null
+          user_id?: string | null
           vendor_id?: string
+          wallet_balance?: number
+        }
+        Relationships: []
+      }
+      districts: {
+        Row: {
+          area: string | null
+          area_ar: string | null
+          created_at: string
+          delivery_fee: number
+          id: string
+          is_active: boolean
+          province: string
+          province_ar: string
+        }
+        Insert: {
+          area?: string | null
+          area_ar?: string | null
+          created_at?: string
+          delivery_fee?: number
+          id?: string
+          is_active?: boolean
+          province: string
+          province_ar: string
+        }
+        Update: {
+          area?: string | null
+          area_ar?: string | null
+          created_at?: string
+          delivery_fee?: number
+          id?: string
+          is_active?: boolean
+          province?: string
+          province_ar?: string
+        }
+        Relationships: []
+      }
+      merchants: {
+        Row: {
+          city: string | null
+          contact_person: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          platform_fee_rate: number
+          store_name: string
+          updated_at: string
+          user_id: string
+          wallet_balance: number
+        }
+        Insert: {
+          city?: string | null
+          contact_person?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          platform_fee_rate?: number
+          store_name?: string
+          updated_at?: string
+          user_id: string
+          wallet_balance?: number
+        }
+        Update: {
+          city?: string | null
+          contact_person?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          platform_fee_rate?: number
+          store_name?: string
+          updated_at?: string
+          user_id?: string
+          wallet_balance?: number
         }
         Relationships: []
       }
       orders: {
         Row: {
           city: string
+          courier_id: string | null
           created_at: string
           customer_lat: number | null
           customer_lng: number | null
+          delivery_fee: number
           detailed_address: string
+          district_id: string | null
           final_sale_price: number | null
           id: string
           merchant_id: string
+          net_amount: number
+          notes: string | null
           phone_number: string
+          platform_fee: number
           product_id: string | null
           quantity: number
           receiver_name: string
@@ -137,14 +227,20 @@ export type Database = {
         }
         Insert: {
           city: string
+          courier_id?: string | null
           created_at?: string
           customer_lat?: number | null
           customer_lng?: number | null
+          delivery_fee?: number
           detailed_address: string
+          district_id?: string | null
           final_sale_price?: number | null
           id?: string
           merchant_id: string
+          net_amount?: number
+          notes?: string | null
           phone_number: string
+          platform_fee?: number
           product_id?: string | null
           quantity?: number
           receiver_name: string
@@ -155,14 +251,20 @@ export type Database = {
         }
         Update: {
           city?: string
+          courier_id?: string | null
           created_at?: string
           customer_lat?: number | null
           customer_lng?: number | null
+          delivery_fee?: number
           detailed_address?: string
+          district_id?: string | null
           final_sale_price?: number | null
           id?: string
           merchant_id?: string
+          net_amount?: number
+          notes?: string | null
           phone_number?: string
+          platform_fee?: number
           product_id?: string | null
           quantity?: number
           receiver_name?: string
@@ -172,6 +274,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_product_id_fkey"
             columns: ["product_id"]
