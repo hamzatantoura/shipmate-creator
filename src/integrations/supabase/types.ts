@@ -120,7 +120,10 @@ export type Database = {
         Row: {
           city: string
           created_at: string
+          customer_lat: number | null
+          customer_lng: number | null
           detailed_address: string
+          final_sale_price: number | null
           id: string
           merchant_id: string
           phone_number: string
@@ -135,7 +138,10 @@ export type Database = {
         Insert: {
           city: string
           created_at?: string
+          customer_lat?: number | null
+          customer_lng?: number | null
           detailed_address: string
+          final_sale_price?: number | null
           id?: string
           merchant_id: string
           phone_number: string
@@ -150,7 +156,10 @@ export type Database = {
         Update: {
           city?: string
           created_at?: string
+          customer_lat?: number | null
+          customer_lng?: number | null
           detailed_address?: string
+          final_sale_price?: number | null
           id?: string
           merchant_id?: string
           phone_number?: string
@@ -218,37 +227,78 @@ export type Database = {
         }
         Relationships: []
       }
+      product_images: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          product_id: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          product_id: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          product_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           created_at: string
+          description: string | null
           id: string
           image_url: string | null
           is_active: boolean
           merchant_id: string
           name: string
           price: number
+          size_category: Database["public"]["Enums"]["size_category"]
+          slug: string | null
           stock: number
           updated_at: string
         }
         Insert: {
           created_at?: string
+          description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
           merchant_id: string
           name: string
           price?: number
+          size_category?: Database["public"]["Enums"]["size_category"]
+          slug?: string | null
           stock?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
+          description?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean
           merchant_id?: string
           name?: string
           price?: number
+          size_category?: Database["public"]["Enums"]["size_category"]
+          slug?: string | null
           stock?: number
           updated_at?: string
         }
@@ -265,6 +315,7 @@ export type Database = {
           phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           store_name: string | null
+          store_slug: string | null
           updated_at: string
           user_id: string
         }
@@ -278,6 +329,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
+          store_slug?: string | null
           updated_at?: string
           user_id: string
         }
@@ -291,6 +343,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
+          store_slug?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -591,6 +644,7 @@ export type Database = {
         | "Lattakia"
         | "Hama"
         | "Tartous"
+      size_category: "small" | "medium" | "large"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -727,6 +781,7 @@ export const Constants = {
         "Hama",
         "Tartous",
       ],
+      size_category: ["small", "medium", "large"],
     },
   },
 } as const

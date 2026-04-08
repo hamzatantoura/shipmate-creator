@@ -1,14 +1,18 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, ShoppingCart, Wallet, Truck } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import MerchantProducts from "@/components/merchant/MerchantProducts";
 import MerchantOrders from "@/components/merchant/MerchantOrders";
 import MerchantWallet from "@/components/merchant/MerchantWallet";
 import MerchantShipments from "@/components/merchant/MerchantShipments";
 import { useAuth } from "@/hooks/use-auth";
+import { useSearchParams } from "react-router-dom";
 
 export default function MerchantPortal() {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get("tab") || "shipments";
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -21,7 +25,7 @@ export default function MerchantPortal() {
           )}
         </div>
 
-        <Tabs defaultValue="shipments" dir="rtl">
+        <Tabs defaultValue={defaultTab} dir="rtl">
           <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="shipments" className="gap-1.5">
               <Truck className="h-3.5 w-3.5" /> الشحنات
@@ -37,10 +41,26 @@ export default function MerchantPortal() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="shipments"><MerchantShipments /></TabsContent>
-          <TabsContent value="products"><MerchantProducts /></TabsContent>
-          <TabsContent value="orders"><MerchantOrders /></TabsContent>
-          <TabsContent value="wallet"><MerchantWallet /></TabsContent>
+          <TabsContent value="shipments">
+            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الشحنات">
+              <MerchantShipments />
+            </ErrorBoundary>
+          </TabsContent>
+          <TabsContent value="products">
+            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل المنتجات">
+              <MerchantProducts />
+            </ErrorBoundary>
+          </TabsContent>
+          <TabsContent value="orders">
+            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الطلبات">
+              <MerchantOrders />
+            </ErrorBoundary>
+          </TabsContent>
+          <TabsContent value="wallet">
+            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل المحفظة">
+              <MerchantWallet />
+            </ErrorBoundary>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
