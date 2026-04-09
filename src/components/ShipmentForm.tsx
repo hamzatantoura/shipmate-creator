@@ -10,7 +10,6 @@ import {
 import { toast } from "sonner";
 import { Package, Loader2, MapPin, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import LocationPicker from "./LocationPicker";
 
 interface District {
   id: string;
@@ -45,14 +44,13 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const [districts, setDistricts] = useState<District[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [phoneError, setPhoneError] = useState("");
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     receiver_name: prefill?.receiver_name || "",
     phone_number: prefill?.phone_number || "",
     detailed_address: prefill?.detailed_address || "",
     cod_amount: prefill?.cod_amount || "",
+    neighborhood: "",
   });
 
   useEffect(() => {
@@ -73,6 +71,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         phone_number: prefill.phone_number || "",
         detailed_address: prefill.detailed_address || "",
         cod_amount: prefill.cod_amount || "",
+        neighborhood: "",
       });
     }
   }, [prefill, districts]);
@@ -117,8 +116,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       platform_fee: codAmount * 0.05,
       net_amount: codAmount - deliveryFee - (codAmount * 0.05),
       district_id: selectedDistrict,
-      customer_lat: lat,
-      customer_lng: lng,
+      customer_lat: null,
+      customer_lng: null,
       status: "new",
     } as any).select().single();
 
@@ -149,10 +148,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
-    setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "" });
+    setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "", neighborhood: "" });
     setSelectedDistrict("");
-    setLat(null);
-    setLng(null);
     onCreated();
   };
 
@@ -209,7 +206,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         <Textarea placeholder="الشارع، البناء، الطابق..." value={form.detailed_address} onChange={e => setForm({ ...form, detailed_address: e.target.value })} required rows={3} />
       </div>
 
-      <LocationPicker lat={lat} lng={lng} onChange={(la, ln) => { setLat(la); setLng(ln); }} />
+      <div className="space-y-2">
+        <Label>الحي / المنطقة</Label>
+        <Input placeholder="مثال: الجميلية، المزة، باب توما..." value={form.neighborhood} onChange={e => setForm({ ...form, neighborhood: e.target.value })} />
+      </div>
 
       {selectedDistrict && (
         <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border border-border">
