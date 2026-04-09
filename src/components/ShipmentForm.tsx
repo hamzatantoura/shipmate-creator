@@ -20,6 +20,19 @@ interface District {
   delivery_fee: number;
 }
 
+interface SubRegion {
+  id: string;
+  name: string;
+  name_ar: string;
+  province_id: string;
+}
+
+interface Province {
+  id: string;
+  name: string;
+  name_ar: string;
+}
+
 interface ShipmentFormProps {
   onCreated: () => void;
   prefill?: {
