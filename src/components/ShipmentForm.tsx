@@ -134,6 +134,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDistrict) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (!selectedSubRegion) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
 
     setLoading(true);
