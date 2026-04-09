@@ -55,7 +55,11 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
+  const [filteredSubRegions, setFilteredSubRegions] = useState<SubRegion[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedSubRegion, setSelectedSubRegion] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
   const [form, setForm] = useState({
@@ -63,14 +67,18 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     phone_number: prefill?.phone_number || "",
     detailed_address: prefill?.detailed_address || "",
     cod_amount: prefill?.cod_amount || "",
-    neighborhood: "",
   });
 
   useEffect(() => {
-    supabase.from("districts" as any).select("*").eq("is_active", true).order("province_ar")
-      .then(({ data }) => {
-        if (data) setDistricts(data as any as District[]);
-      });
+    Promise.all([
+      supabase.from("districts").select("*").eq("is_active", true).order("province_ar"),
+      supabase.from("provinces").select("*").order("name_ar"),
+      supabase.from("sub_regions").select("*").order("name_ar"),
+    ]).then(([distRes, provRes, subRes]) => {
+      if (distRes.data) setDistricts(distRes.data as any as District[]);
+      if (provRes.data) setProvinces(provRes.data as any as Province[]);
+      if (subRes.data) setSubRegions(subRes.data as any as SubRegion[]);
+    });
   }, []);
 
   useEffect(() => {
