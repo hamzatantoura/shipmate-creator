@@ -242,8 +242,15 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       </div>
 
       <div className="space-y-2">
-        <Label>الحي / المنطقة</Label>
-        <Input placeholder="مثال: الجميلية، المزة، باب توما..." value={form.neighborhood} onChange={e => setForm({ ...form, neighborhood: e.target.value })} />
+        <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي / المنطقة <span className="text-destructive">*</span></Label>
+        <Select value={selectedSubRegion} onValueChange={setSelectedSubRegion} required disabled={filteredSubRegions.length === 0}>
+          <SelectTrigger><SelectValue placeholder={selectedDistrict ? (filteredSubRegions.length > 0 ? "اختر الحي" : "لا توجد أحياء لهذه المحافظة") : "اختر المحافظة أولاً"} /></SelectTrigger>
+          <SelectContent>
+            {filteredSubRegions.map(sr => (
+              <SelectItem key={sr.id} value={sr.id}>{sr.name_ar}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {selectedDistrict && (
