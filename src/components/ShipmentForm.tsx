@@ -206,7 +206,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         <Textarea placeholder="الشارع، البناء، الطابق..." value={form.detailed_address} onChange={e => setForm({ ...form, detailed_address: e.target.value })} required rows={3} />
       </div>
 
-      <LocationPicker lat={lat} lng={lng} onChange={(la, ln) => { setLat(la); setLng(ln); }} />
+      <div className="space-y-2">
+        <Label>الحي / المنطقة</Label>
+        <Input placeholder="مثال: الجميلية، المزة، باب توما..." value={form.neighborhood} onChange={e => setForm({ ...form, neighborhood: e.target.value })} />
+      </div>
 
       {selectedDistrict && (
         <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border border-border">
