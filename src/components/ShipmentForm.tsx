@@ -116,8 +116,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       platform_fee: codAmount * 0.05,
       net_amount: codAmount - deliveryFee - (codAmount * 0.05),
       district_id: selectedDistrict,
-      customer_lat: lat,
-      customer_lng: lng,
+      customer_lat: null,
+      customer_lng: null,
       status: "new",
     } as any).select().single();
 
