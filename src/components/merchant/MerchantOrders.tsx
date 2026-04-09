@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ShoppingCart, Truck, Loader2, MapPin, Search, Edit } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import type { Database } from "@/integrations/supabase/types";
 
 const STATUS_AR: Record<string, string> = {
   new: "جديد", processing: "قيد المعالجة", assigned: "تم تعيين مندوب",
@@ -35,6 +35,34 @@ interface Order {
   products?: { name: string } | null;
 }
 
+type ShipmentCity = Database["public"]["Enums"]["shipment_city"];
+
+const CITY_TO_ENUM: Record<string, ShipmentCity> = {
+  damascus: "Damascus",
+  "دمشق": "Damascus",
+  "ريف دمشق": "Damascus",
+  "rural damascus": "Damascus",
+  aleppo: "Aleppo",
+  "حلب": "Aleppo",
+  homs: "Homs",
+  "حمص": "Homs",
+  lattakia: "Lattakia",
+  "اللاذقية": "Lattakia",
+  latakia: "Lattakia",
+  hama: "Hama",
+  "حماة": "Hama",
+  tartous: "Tartous",
+  tartus: "Tartous",
+  "طرطوس": "Tartous",
+};
+
+const normalizeShipmentCity = (city: string): ShipmentCity => {
+  const normalized = city.trim().toLowerCase();
+  return CITY_TO_ENUM[normalized] || "Aleppo";
+};
+
+const createTrackingNumber = () => `SIL-${Date.now().toString(36).toUpperCase()}`;
+
 export default function MerchantOrders() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -43,7 +71,6 @@ export default function MerchantOrders() {
   const [confirmOrder, setConfirmOrder] = useState<Order | null>(null);
   const [editPrice, setEditPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const navigate = useNavigate();
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
@@ -61,31 +88,52 @@ export default function MerchantOrders() {
   };
 
   const confirmAndShip = async () => {
-    if (!confirmOrder) return;
+    if (!confirmOrder || !user) return;
     const finalPrice = parseFloat(editPrice) || confirmOrder.total_amount;
     const deliveryFee = Number(confirmOrder.delivery_fee || 0);
     const platformFee = finalPrice * 0.05;
     const netAmount = finalPrice - deliveryFee - platformFee;
+    const trackingNumber = createTrackingNumber();
     setSubmitting(true);
 
-    await supabase.from("orders").update({
+    const { data: shipment, error: shipmentError } = await supabase.from("shipments").insert({
+      merchant_id: user.id,
+      receiver_name: confirmOrder.receiver_name,
+      phone_number: confirmOrder.phone_number,
+      city: normalizeShipmentCity(confirmOrder.city),
+      detailed_address: confirmOrder.detailed_address,
+      cod_amount: finalPrice,
+      tracking_number: trackingNumber,
+      shipping_fee: deliveryFee,
+      order_id: confirmOrder.id,
+      status: "pending",
+    } as any).select("id").single();
+
+    if (shipmentError || !shipment) {
+      setSubmitting(false);
+      toast.error(shipmentError?.message || "تعذر إنشاء الشحنة");
+      return;
+    }
+
+    const { error: orderError } = await supabase.from("orders").update({
       final_sale_price: finalPrice,
       platform_fee: platformFee,
       net_amount: netAmount,
       status: "processing",
+      shipment_id: shipment.id,
     } as any).eq("id", confirmOrder.id);
 
-    const params = new URLSearchParams({
-      order_id: confirmOrder.id,
-      receiver_name: confirmOrder.receiver_name,
-      phone_number: confirmOrder.phone_number,
-      city: confirmOrder.city,
-      detailed_address: confirmOrder.detailed_address,
-      cod_amount: String(finalPrice),
-    });
+    if (orderError) {
+      await supabase.from("shipments").delete().eq("id", shipment.id);
+      setSubmitting(false);
+      toast.error(orderError.message || "تعذر ربط الشحنة بالطلب");
+      return;
+    }
+
     setSubmitting(false);
     setConfirmOrder(null);
-    navigate(`/merchant?tab=shipments&${params.toString()}`);
+    toast.success(`تم إنشاء الشحنة بنجاح — رقم التتبع: ${trackingNumber}`);
+    fetchOrders();
   };
 
   const filtered = orders.filter(o => {
