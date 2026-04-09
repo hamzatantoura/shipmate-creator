@@ -10,7 +10,6 @@ import {
 import { toast } from "sonner";
 import { Package, Loader2, MapPin, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import LocationPicker from "./LocationPicker";
 
 interface District {
   id: string;
