@@ -47,9 +47,9 @@ export default function Products() {
     if (imageFile) {
       const ext = imageFile.name.split(".").pop();
       const path = `products/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("uploads").upload(path, imageFile);
+      const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFile);
       if (upErr) { toast.error("فشل رفع الصورة"); setLoading(false); return; }
-      const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
       image_url = pub.publicUrl;
     }
 

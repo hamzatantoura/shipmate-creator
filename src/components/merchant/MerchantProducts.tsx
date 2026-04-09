@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink } from "lucide-react";
@@ -14,14 +14,14 @@ import { useAuth } from "@/hooks/use-auth";
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
   price: number; stock: number; is_active: boolean; created_at: string;
-  size_category: string; slug: string | null;
+  weight_kg: number; slug: string | null;
 }
 
 interface ProductImage {
   id: string; product_id: string; image_url: string; sort_order: number;
 }
 
-const SIZE_LABELS: Record<string, string> = { small: "صغير", medium: "متوسط", large: "كبير" };
+
 
 function generateSlug(name: string): string {
   return name.trim().replace(/\s+/g, "-").replace(/[^\u0600-\u06FFa-zA-Z0-9-]/g, "") + "-" + Date.now().toString(36);
@@ -33,7 +33,7 @@ export default function MerchantProducts() {
   const [productImages, setProductImages] = useState<Record<string, ProductImage[]>>({});
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "0", description: "", size_category: "medium" });
+  const [form, setForm] = useState({ name: "", price: "", stock: "0", description: "", weight_kg: "1" });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [shareOpen, setShareOpen] = useState<string | null>(null);
 
@@ -69,13 +69,13 @@ export default function MerchantProducts() {
       let image_url: string | null = null;
       const slug = generateSlug(form.name);
 
-      // Upload first image as main image
+      // Upload first image as main image to product-images bucket
       if (imageFiles.length > 0) {
         const ext = imageFiles[0].name.split(".").pop();
-        const path = `products/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("uploads").upload(path, imageFiles[0]);
+        const path = `${user.id}/${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFiles[0]);
         if (upErr) { toast.error("فشل رفع الصورة"); setLoading(false); return; }
-        const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
+        const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
         image_url = pub.publicUrl;
       }
 
@@ -86,20 +86,20 @@ export default function MerchantProducts() {
         price: parseFloat(form.price) || 0,
         stock: parseInt(form.stock) || 0,
         image_url,
-        size_category: form.size_category,
+        weight_kg: parseFloat(form.weight_kg) || 1,
         slug,
       } as any).select().single();
 
       if (error) { toast.error(error.message); setLoading(false); return; }
 
-      // Upload additional images
+      // Upload additional images to product-images bucket
       if (product && imageFiles.length > 1) {
         for (let i = 0; i < imageFiles.length; i++) {
           const ext = imageFiles[i].name.split(".").pop();
-          const path = `products/${Date.now()}-${i}.${ext}`;
-          const { error: upErr } = await supabase.storage.from("uploads").upload(path, imageFiles[i]);
+          const path = `${user.id}/${Date.now()}-${i}.${ext}`;
+          const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFiles[i]);
           if (!upErr) {
-            const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
+            const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
             await supabase.from("product_images").insert({
               product_id: (product as any).id,
               image_url: pub.publicUrl,
@@ -110,7 +110,7 @@ export default function MerchantProducts() {
       }
 
       toast.success("تم إضافة المنتج بنجاح!");
-      setForm({ name: "", price: "", stock: "0", description: "", size_category: "medium" });
+      setForm({ name: "", price: "", stock: "0", description: "", weight_kg: "1" });
       setImageFiles([]); setOpen(false);
       fetchProducts();
     } catch (err) {
@@ -182,15 +182,8 @@ export default function MerchantProducts() {
                     <Input type="number" min="0" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
                   </div>
                   <div className="space-y-2">
-                    <Label>فئة الحجم</Label>
-                    <Select value={form.size_category} onValueChange={v => setForm({...form, size_category: v})}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="small">صغير</SelectItem>
-                        <SelectItem value="medium">متوسط</SelectItem>
-                        <SelectItem value="large">كبير</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>الوزن (كغ)</Label>
+                    <Input type="number" min="0.1" step="0.1" value={form.weight_kg} onChange={e => setForm({...form, weight_kg: e.target.value})} required />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -236,7 +229,7 @@ export default function MerchantProducts() {
                   <div className="flex items-center justify-between">
                     <span className="text-primary font-display font-bold">{Number(p.price).toLocaleString()} ل.س</span>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{SIZE_LABELS[p.size_category] || p.size_category}</span>
+                      <span>{p.weight_kg} كغ</span>
                       <span>المخزون: {p.stock}</span>
                     </div>
                   </div>
