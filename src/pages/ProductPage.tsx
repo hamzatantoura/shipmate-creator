@@ -298,25 +298,10 @@ export default function ProductPage() {
                     <Textarea value={form.detailed_address} onChange={e => setForm({...form, detailed_address: e.target.value})} rows={2} placeholder="الشارع، البناء، الطابق..." />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label>الكمية</Label>
-                      <Input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>موقعك على الخريطة</Label>
-                      <Button type="button" variant="outline" className="w-full gap-1.5" onClick={getLocation} disabled={locating}>
-                        {locating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Locate className="h-3.5 w-3.5" />}
-                        {customerLat ? "تم التحديد ✓" : "حدد موقعك"}
-                      </Button>
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label>الكمية</Label>
+                    <Input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} />
                   </div>
-
-                  {customerLat && customerLng && (
-                    <p className="text-xs text-muted-foreground">
-                      📍 الإحداثيات: {customerLat.toFixed(5)}, {customerLng.toFixed(5)}
-                    </p>
-                  )}
 
                   <div className="pt-2 border-t border-border space-y-2">
                     <div className="flex items-center justify-between">
