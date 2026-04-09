@@ -71,6 +71,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         phone_number: prefill.phone_number || "",
         detailed_address: prefill.detailed_address || "",
         cod_amount: prefill.cod_amount || "",
+        neighborhood: "",
       });
     }
   }, [prefill, districts]);
