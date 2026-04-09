@@ -44,14 +44,13 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const [districts, setDistricts] = useState<District[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [phoneError, setPhoneError] = useState("");
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     receiver_name: prefill?.receiver_name || "",
     phone_number: prefill?.phone_number || "",
     detailed_address: prefill?.detailed_address || "",
     cod_amount: prefill?.cod_amount || "",
+    neighborhood: "",
   });
 
   useEffect(() => {
