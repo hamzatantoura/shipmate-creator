@@ -20,6 +20,19 @@ interface District {
   delivery_fee: number;
 }
 
+interface SubRegion {
+  id: string;
+  name: string;
+  name_ar: string;
+  province_id: string;
+}
+
+interface Province {
+  id: string;
+  name: string;
+  name_ar: string;
+}
+
 interface ShipmentFormProps {
   onCreated: () => void;
   prefill?: {
@@ -42,7 +55,11 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
+  const [filteredSubRegions, setFilteredSubRegions] = useState<SubRegion[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedSubRegion, setSelectedSubRegion] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
   const [form, setForm] = useState({
@@ -50,14 +67,18 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     phone_number: prefill?.phone_number || "",
     detailed_address: prefill?.detailed_address || "",
     cod_amount: prefill?.cod_amount || "",
-    neighborhood: "",
   });
 
   useEffect(() => {
-    supabase.from("districts" as any).select("*").eq("is_active", true).order("province_ar")
-      .then(({ data }) => {
-        if (data) setDistricts(data as any as District[]);
-      });
+    Promise.all([
+      supabase.from("districts").select("*").eq("is_active", true).order("province_ar"),
+      supabase.from("provinces").select("*").order("name_ar"),
+      supabase.from("sub_regions").select("*").order("name_ar"),
+    ]).then(([distRes, provRes, subRes]) => {
+      if (distRes.data) setDistricts(distRes.data as any as District[]);
+      if (provRes.data) setProvinces(provRes.data as any as Province[]);
+      if (subRes.data) setSubRegions(subRes.data as any as SubRegion[]);
+    });
   }, []);
 
   useEffect(() => {
@@ -71,10 +92,24 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         phone_number: prefill.phone_number || "",
         detailed_address: prefill.detailed_address || "",
         cod_amount: prefill.cod_amount || "",
-        neighborhood: "",
       });
     }
   }, [prefill, districts]);
+
+  // Filter sub-regions when district changes
+  useEffect(() => {
+    if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
+      const province = provinces.find(p => p.name === selectedDistrictObj.province || p.name_ar === selectedDistrictObj.province_ar);
+      if (province) {
+        setFilteredSubRegions(subRegions.filter(sr => sr.province_id === province.id));
+      } else {
+        setFilteredSubRegions([]);
+      }
+    } else {
+      setFilteredSubRegions([]);
+    }
+    setSelectedSubRegion("");
+  }, [selectedDistrict, provinces, subRegions]);
 
   const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
   const deliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
@@ -99,6 +134,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDistrict) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (!selectedSubRegion) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
 
     setLoading(true);
@@ -148,8 +184,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
-    setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "", neighborhood: "" });
+    setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "" });
     setSelectedDistrict("");
+    setSelectedSubRegion("");
     onCreated();
   };
 
@@ -207,8 +244,15 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       </div>
 
       <div className="space-y-2">
-        <Label>الحي / المنطقة</Label>
-        <Input placeholder="مثال: الجميلية، المزة، باب توما..." value={form.neighborhood} onChange={e => setForm({ ...form, neighborhood: e.target.value })} />
+        <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي / المنطقة <span className="text-destructive">*</span></Label>
+        <Select value={selectedSubRegion} onValueChange={setSelectedSubRegion} required disabled={filteredSubRegions.length === 0}>
+          <SelectTrigger><SelectValue placeholder={selectedDistrict ? (filteredSubRegions.length > 0 ? "اختر الحي" : "لا توجد أحياء لهذه المحافظة") : "اختر المحافظة أولاً"} /></SelectTrigger>
+          <SelectContent>
+            {filteredSubRegions.map(sr => (
+              <SelectItem key={sr.id} value={sr.id}>{sr.name_ar}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {selectedDistrict && (
