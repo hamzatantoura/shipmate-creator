@@ -6,19 +6,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { ShoppingCart, Package, Loader2, MapPin, Share2, Check } from "lucide-react";
+import { ShoppingCart, Package, Loader2, MapPin, Share2, Check, AlertCircle, Locate } from "lucide-react";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
-  price: number; merchant_id: string; size_category: string; slug: string | null;
+  price: number; merchant_id: string; weight_kg: number; slug: string | null;
 }
 
 interface ProductImage {
   id: string; image_url: string; sort_order: number;
 }
 
-const SIZE_LABELS: Record<string, string> = { small: "صغير", medium: "متوسط", large: "كبير" };
+interface District {
+  id: string; province: string; province_ar: string; area: string | null; area_ar: string | null; delivery_fee: number;
+}
+
+interface Province {
+  id: string; name: string; name_ar: string;
+}
+
+interface SubRegion {
+  id: string; name: string; name_ar: string; province_id: string;
+}
+
+const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
+function validatePhone(phone: string): boolean {
+  return SYRIA_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
+}
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -28,15 +46,25 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
+  const [filteredSubRegions, setFilteredSubRegions] = useState<SubRegion[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedSubRegion, setSelectedSubRegion] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+
   const [form, setForm] = useState({
-    receiver_name: "", phone_number: "", city: "", detailed_address: "", quantity: "1",
+    receiver_name: "", phone_number: "", detailed_address: "", quantity: "1",
   });
+
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
-    // Try slug first, then id
     supabase.from("products").select("*").eq("slug", slug).single().then(async ({ data, error }) => {
       let prod = data;
       if (error || !data) {
@@ -46,7 +74,6 @@ export default function ProductPage() {
       if (prod) {
         setProduct(prod as any);
         setMainImage((prod as any).image_url);
-        // Fetch additional images
         const { data: imgs } = await supabase.from("product_images").select("*").eq("product_id", (prod as any).id).order("sort_order");
         if (imgs) setImages(imgs as ProductImage[]);
       }
@@ -54,35 +81,86 @@ export default function ProductPage() {
     });
   }, [slug]);
 
+  // Load districts, provinces, sub_regions
+  useEffect(() => {
+    Promise.all([
+      supabase.from("districts").select("*").eq("is_active", true).order("province_ar"),
+      supabase.from("provinces").select("*").order("name_ar"),
+      supabase.from("sub_regions").select("*").order("name_ar"),
+    ]).then(([distRes, provRes, subRes]) => {
+      if (distRes.data) setDistricts(distRes.data as any);
+      if (provRes.data) setProvinces(provRes.data as any);
+      if (subRes.data) setSubRegions(subRes.data as any);
+    });
+  }, []);
+
+  const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
+  const deliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
+
+  // Filter sub-regions when district changes
+  useEffect(() => {
+    if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
+      const province = provinces.find(p => p.name === selectedDistrictObj.province || p.name_ar === selectedDistrictObj.province_ar);
+      if (province) {
+        setFilteredSubRegions(subRegions.filter(sr => sr.province_id === province.id));
+      } else {
+        setFilteredSubRegions([]);
+      }
+    } else {
+      setFilteredSubRegions([]);
+    }
+    setSelectedSubRegion("");
+  }, [selectedDistrict, provinces, subRegions]);
+
+  const handlePhoneChange = (val: string) => {
+    setForm({ ...form, phone_number: val });
+    if (val && !validatePhone(val)) {
+      setPhoneError("صيغة الرقم غير صحيحة. مثال: 0912345678");
+    } else {
+      setPhoneError("");
+    }
+  };
+
   const getLocation = () => {
     if (!navigator.geolocation) { toast.error("المتصفح لا يدعم تحديد الموقع"); return; }
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCustomerLat(pos.coords.latitude);
         setCustomerLng(pos.coords.longitude);
+        setLocating(false);
         toast.success("تم تحديد موقعك بنجاح");
       },
-      () => toast.error("لم نتمكن من تحديد موقعك")
+      () => { setLocating(false); toast.error("لم نتمكن من تحديد موقعك"); },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;
-    if (!form.receiver_name.trim() || !form.phone_number.trim()) {
-      toast.error("الاسم ورقم الهاتف مطلوبان"); return;
-    }
+    if (!form.receiver_name.trim()) { toast.error("الاسم مطلوب"); return; }
+    if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
+    if (!selectedDistrict) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (!selectedSubRegion) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
+
     setSubmitting(true);
     const qty = parseInt(form.quantity) || 1;
+    const totalAmount = product.price * qty;
+
     const { error } = await supabase.from("orders").insert({
       merchant_id: product.merchant_id,
       product_id: product.id,
       quantity: qty,
-      total_amount: product.price * qty,
+      total_amount: totalAmount,
+      delivery_fee: deliveryFee,
+      platform_fee: totalAmount * 0.05,
+      net_amount: totalAmount - deliveryFee - (totalAmount * 0.05),
       receiver_name: form.receiver_name.trim(),
       phone_number: form.phone_number.trim(),
-      city: form.city.trim() || "غير محدد",
+      city: selectedDistrictObj?.province_ar || "",
       detailed_address: form.detailed_address.trim() || "غير محدد",
+      district_id: selectedDistrict,
       customer_lat: customerLat,
       customer_lng: customerLng,
     } as any);
@@ -152,7 +230,6 @@ export default function ProductPage() {
             <div>
               <h1 className="text-2xl font-display font-bold text-foreground mb-2">{product.name}</h1>
               <p className="text-2xl font-display font-bold text-primary">{Number(product.price).toLocaleString()} ل.س</p>
-              <span className="text-xs text-muted-foreground">الحجم: {SIZE_LABELS[product.size_category]}</span>
               {product.description && (
                 <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{product.description}</p>
               )}
@@ -169,42 +246,98 @@ export default function ProductPage() {
                 </h3>
                 <form onSubmit={handleOrder} className="space-y-3">
                   <div className="space-y-1.5">
-                    <Label>الاسم الكامل *</Label>
+                    <Label>الاسم الكامل <span className="text-destructive">*</span></Label>
                     <Input value={form.receiver_name} onChange={e => setForm({...form, receiver_name: e.target.value})} required />
                   </div>
+
                   <div className="space-y-1.5">
-                    <Label>رقم الهاتف *</Label>
-                    <Input value={form.phone_number} onChange={e => setForm({...form, phone_number: e.target.value})} required placeholder="+963 9XX XXX XXX" />
+                    <Label>رقم الهاتف <span className="text-destructive">*</span></Label>
+                    <Input
+                      value={form.phone_number}
+                      onChange={e => handlePhoneChange(e.target.value)}
+                      required dir="ltr" placeholder="0912345678"
+                      className={phoneError ? "border-destructive" : ""}
+                    />
+                    {phoneError && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" /> {phoneError}
+                      </p>
+                    )}
                   </div>
+
                   <div className="space-y-1.5">
-                    <Label>المدينة</Label>
-                    <Input value={form.city} onChange={e => setForm({...form, city: e.target.value})} placeholder="دمشق" />
+                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
+                    <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+                      <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
+                      <SelectContent>
+                        {districts.map(d => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.province_ar} {d.area_ar ? `— ${d.area_ar}` : ""} ({Number(d.delivery_fee).toLocaleString()} ل.س)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي / المنطقة <span className="text-destructive">*</span></Label>
+                    <Select value={selectedSubRegion} onValueChange={setSelectedSubRegion} disabled={filteredSubRegions.length === 0}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedDistrict ? (filteredSubRegions.length > 0 ? "اختر الحي" : "لا توجد أحياء لهذه المحافظة") : "اختر المحافظة أولاً"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredSubRegions.map(sr => (
+                          <SelectItem key={sr.id} value={sr.id}>{sr.name_ar}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-1.5">
                     <Label>العنوان التفصيلي</Label>
-                    <Textarea value={form.detailed_address} onChange={e => setForm({...form, detailed_address: e.target.value})} rows={2} />
+                    <Textarea value={form.detailed_address} onChange={e => setForm({...form, detailed_address: e.target.value})} rows={2} placeholder="الشارع، البناء، الطابق..." />
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>الكمية</Label>
                       <Input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>موقعك</Label>
-                      <Button type="button" variant="outline" className="w-full gap-1.5" onClick={getLocation}>
-                        <MapPin className="h-3.5 w-3.5" />
+                      <Label>موقعك على الخريطة</Label>
+                      <Button type="button" variant="outline" className="w-full gap-1.5" onClick={getLocation} disabled={locating}>
+                        {locating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Locate className="h-3.5 w-3.5" />}
                         {customerLat ? "تم التحديد ✓" : "حدد موقعك"}
                       </Button>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-border">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm text-muted-foreground">الإجمالي</span>
-                      <span className="font-display font-bold text-primary text-lg">
+
+                  {customerLat && customerLng && (
+                    <p className="text-xs text-muted-foreground">
+                      📍 الإحداثيات: {customerLat.toFixed(5)}, {customerLng.toFixed(5)}
+                    </p>
+                  )}
+
+                  <div className="pt-2 border-t border-border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">سعر المنتج</span>
+                      <span className="font-display font-bold text-foreground">
                         {(product.price * (parseInt(form.quantity) || 1)).toLocaleString()} ل.س
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">الدفع عند الاستلام (COD) فقط</p>
+                    {selectedDistrict && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
+                        <span className="font-display font-bold text-foreground">{deliveryFee.toLocaleString()} ل.س</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-1 border-t border-border">
+                      <span className="text-sm font-semibold text-foreground">الإجمالي</span>
+                      <span className="font-display font-bold text-primary text-lg">
+                        {((product.price * (parseInt(form.quantity) || 1)) + deliveryFee).toLocaleString()} ل.س
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">الدفع عند الاستلام (COD) فقط</p>
                     <Button type="submit" disabled={submitting} className="w-full glow-btn">
                       {submitting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <ShoppingCart className="h-4 w-4 ml-2" />}
                       تأكيد الطلب
