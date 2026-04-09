@@ -378,10 +378,10 @@ export type Database = {
           merchant_id: string
           name: string
           price: number
-          size_category: Database["public"]["Enums"]["size_category"]
           slug: string | null
           stock: number
           updated_at: string
+          weight_kg: number
         }
         Insert: {
           created_at?: string
@@ -392,10 +392,10 @@ export type Database = {
           merchant_id: string
           name: string
           price?: number
-          size_category?: Database["public"]["Enums"]["size_category"]
           slug?: string | null
           stock?: number
           updated_at?: string
+          weight_kg?: number
         }
         Update: {
           created_at?: string
@@ -406,10 +406,10 @@ export type Database = {
           merchant_id?: string
           name?: string
           price?: number
-          size_category?: Database["public"]["Enums"]["size_category"]
           slug?: string | null
           stock?: number
           updated_at?: string
+          weight_kg?: number
         }
         Relationships: []
       }
