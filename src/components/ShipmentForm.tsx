@@ -92,10 +92,24 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         phone_number: prefill.phone_number || "",
         detailed_address: prefill.detailed_address || "",
         cod_amount: prefill.cod_amount || "",
-        neighborhood: "",
       });
     }
   }, [prefill, districts]);
+
+  // Filter sub-regions when district changes
+  useEffect(() => {
+    if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
+      const province = provinces.find(p => p.name === selectedDistrictObj.province || p.name_ar === selectedDistrictObj.province_ar);
+      if (province) {
+        setFilteredSubRegions(subRegions.filter(sr => sr.province_id === province.id));
+      } else {
+        setFilteredSubRegions([]);
+      }
+    } else {
+      setFilteredSubRegions([]);
+    }
+    setSelectedSubRegion("");
+  }, [selectedDistrict, provinces, subRegions]);
 
   const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
   const deliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
