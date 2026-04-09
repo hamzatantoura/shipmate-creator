@@ -8,8 +8,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Package, Loader2, MapPin } from "lucide-react";
+import { Package, Loader2, MapPin, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import LocationPicker from "./LocationPicker";
 
 interface District {
   id: string;
@@ -32,11 +33,20 @@ interface ShipmentFormProps {
   };
 }
 
+const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
+
+function validatePhone(phone: string): boolean {
+  return SYRIA_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
+}
+
 export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     receiver_name: prefill?.receiver_name || "",
@@ -45,7 +55,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     cod_amount: prefill?.cod_amount || "",
   });
 
-  // Load districts dynamically
   useEffect(() => {
     supabase.from("districts" as any).select("*").eq("is_active", true).order("province_ar")
       .then(({ data }) => {
@@ -53,7 +62,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       });
   }, []);
 
-  // Prefill
   useEffect(() => {
     if (prefill?.city && districts.length > 0) {
       const match = districts.find(d => d.province_ar === prefill.city || d.province === prefill.city);
@@ -80,15 +88,24 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     return map[province] || "Damascus";
   };
 
+  const handlePhoneChange = (val: string) => {
+    setForm({ ...form, phone_number: val });
+    if (val && !validatePhone(val)) {
+      setPhoneError("صيغة الرقم غير صحيحة. مثال: 0912345678 أو +963912345678");
+    } else {
+      setPhoneError("");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDistrict) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
 
     setLoading(true);
     const tracking = `SIL-${Date.now().toString(36).toUpperCase()}`;
     const codAmount = parseFloat(form.cod_amount) || 0;
 
-    // Create order first
     const { data: order, error: orderErr } = await supabase.from("orders").insert({
       merchant_id: user?.id || "",
       receiver_name: form.receiver_name.trim(),
@@ -100,6 +117,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       platform_fee: codAmount * 0.05,
       net_amount: codAmount - deliveryFee - (codAmount * 0.05),
       district_id: selectedDistrict,
+      customer_lat: lat,
+      customer_lng: lng,
       status: "new",
     } as any).select().single();
 
@@ -109,7 +128,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       return;
     }
 
-    // Create shipment linked to order
     const { error: shipErr } = await supabase.from("shipments").insert({
       merchant_id: user?.id || "",
       receiver_name: form.receiver_name.trim(),
@@ -133,6 +151,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
     setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "" });
     setSelectedDistrict("");
+    setLat(null);
+    setLng(null);
     onCreated();
   };
 
@@ -145,18 +165,28 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>اسم المستلم</Label>
+          <Label>اسم المستلم <span className="text-destructive">*</span></Label>
           <Input placeholder="الاسم الكامل" value={form.receiver_name} onChange={e => setForm({ ...form, receiver_name: e.target.value })} required />
         </div>
         <div className="space-y-2">
-          <Label>رقم الهاتف</Label>
-          <Input placeholder="+963 9XX XXX XXX" value={form.phone_number} onChange={e => setForm({ ...form, phone_number: e.target.value })} required dir="ltr" />
+          <Label>رقم الهاتف <span className="text-destructive">*</span></Label>
+          <Input
+            placeholder="0912345678"
+            value={form.phone_number}
+            onChange={e => handlePhoneChange(e.target.value)}
+            required dir="ltr"
+            className={phoneError ? "border-destructive" : ""}
+          />
+          {phoneError && (
+            <p className="text-xs text-destructive flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" /> {phoneError}
+            </p>
+          )}
         </div>
 
-        {/* District selection from DB */}
         <div className="space-y-2">
-          <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة</Label>
-          <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+          <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
+          <Select value={selectedDistrict} onValueChange={setSelectedDistrict} required>
             <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
             <SelectContent>
               {districts.map(d => (
@@ -175,11 +205,12 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       </div>
 
       <div className="space-y-2">
-        <Label>العنوان التفصيلي</Label>
+        <Label>العنوان التفصيلي <span className="text-destructive">*</span></Label>
         <Textarea placeholder="الشارع، البناء، الطابق..." value={form.detailed_address} onChange={e => setForm({ ...form, detailed_address: e.target.value })} required rows={3} />
       </div>
 
-      {/* Delivery fee display */}
+      <LocationPicker lat={lat} lng={lng} onChange={(la, ln) => { setLat(la); setLng(ln); }} />
+
       {selectedDistrict && (
         <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border border-border">
           <div>

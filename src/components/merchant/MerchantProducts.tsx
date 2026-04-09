@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
@@ -36,6 +37,7 @@ export default function MerchantProducts() {
   const [form, setForm] = useState({ name: "", price: "", stock: "0", description: "", weight_kg: "1" });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [shareOpen, setShareOpen] = useState<string | null>(null);
+  const [variants, setVariants] = useState<VariantEntry[]>([]);
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
@@ -109,9 +111,21 @@ export default function MerchantProducts() {
         }
       }
 
+      // Save variants
+      if (product && variants.length > 0) {
+        const variantRows = variants.map(v => ({
+          product_id: (product as any).id,
+          variant_type: v.variant_type,
+          variant_value: v.variant_value,
+          price_adjustment: v.price_adjustment,
+          stock: v.stock,
+        }));
+        await supabase.from("product_variants" as any).insert(variantRows as any);
+      }
+
       toast.success("تم إضافة المنتج بنجاح!");
       setForm({ name: "", price: "", stock: "0", description: "", weight_kg: "1" });
-      setImageFiles([]); setOpen(false);
+      setImageFiles([]); setVariants([]); setOpen(false);
       fetchProducts();
     } catch (err) {
       toast.error("حدث خطأ غير متوقع");
@@ -186,6 +200,7 @@ export default function MerchantProducts() {
                     <Input type="number" min="0.1" step="0.1" value={form.weight_kg} onChange={e => setForm({...form, weight_kg: e.target.value})} required />
                   </div>
                 </div>
+                <ProductVariantsForm variants={variants} onChange={setVariants} />
                 <div className="space-y-2">
                   <Label>صور المنتج (يمكنك اختيار عدة صور)</Label>
                   <Input type="file" accept="image/*" multiple onChange={e => setImageFiles(Array.from(e.target.files || []))} />
