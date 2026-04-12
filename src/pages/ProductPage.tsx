@@ -64,7 +64,9 @@ export default function ProductPage() {
   const [shippingInfo, setShippingInfo] = useState<MerchantShippingInfo>({
     shipping_policy: "customer_pays", free_shipping_threshold: 0,
     whatsapp_number: null, phone: null, store_name: null,
+    verification_status: "pending_verification", is_active: false,
   });
+  const [merchantBlocked, setMerchantBlocked] = useState(false);
 
   const [districts, setDistricts] = useState<District[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
