@@ -7,6 +7,7 @@ import MerchantOrders from "@/components/merchant/MerchantOrders";
 import MerchantWallet from "@/components/merchant/MerchantWallet";
 import MerchantShipments from "@/components/merchant/MerchantShipments";
 import MerchantShippingSettings from "@/components/merchant/MerchantShippingSettings";
+import StoreReadinessBanner from "@/components/merchant/StoreReadinessBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "react-router-dom";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
