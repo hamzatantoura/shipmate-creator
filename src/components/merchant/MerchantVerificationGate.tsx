@@ -153,6 +153,14 @@ export default function MerchantVerificationGate({ children }: Props) {
       title: "حسابك قيد التحقق",
       description: "يرجى استكمال متطلبات التحقق التالية لتفعيل متجرك واستقبال الطلبات.",
     },
+    pending_admin_approval: {
+      icon: ShieldCheck,
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/30",
+      title: "بانتظار الموافقة الإدارية",
+      description: "تم استكمال جميع متطلبات التحقق. حسابك قيد المراجعة من فريق صلة وسيتم تفعيله بعد الموافقة.",
+    },
     rejected: {
       icon: AlertCircle,
       color: "text-destructive",
