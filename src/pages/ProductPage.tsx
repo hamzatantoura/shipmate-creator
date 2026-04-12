@@ -39,6 +39,8 @@ interface MerchantShippingInfo {
   whatsapp_number: string | null;
   phone: string | null;
   store_name: string | null;
+  verification_status: string;
+  is_active: boolean;
 }
 
 // Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
