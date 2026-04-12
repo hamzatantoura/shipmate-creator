@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingCart, Truck, Loader2, MapPin, Search, Edit } from "lucide-react";
+import { ShoppingCart, Truck, Loader2, Search, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
 import type { Database } from "@/integrations/supabase/types";
 
 const STATUS_AR: Record<string, string> = {
@@ -38,29 +38,15 @@ interface Order {
 type ShipmentCity = Database["public"]["Enums"]["shipment_city"];
 
 const CITY_TO_ENUM: Record<string, ShipmentCity> = {
-  damascus: "Damascus",
-  "دمشق": "Damascus",
-  "ريف دمشق": "Damascus",
-  "rural damascus": "Damascus",
-  aleppo: "Aleppo",
-  "حلب": "Aleppo",
-  homs: "Homs",
-  "حمص": "Homs",
-  lattakia: "Lattakia",
-  "اللاذقية": "Lattakia",
-  latakia: "Lattakia",
-  hama: "Hama",
-  "حماة": "Hama",
-  tartous: "Tartous",
-  tartus: "Tartous",
-  "طرطوس": "Tartous",
+  damascus: "Damascus", "دمشق": "Damascus", "ريف دمشق": "Damascus",
+  aleppo: "Aleppo", "حلب": "Aleppo",
+  homs: "Homs", "حمص": "Homs",
+  lattakia: "Lattakia", "اللاذقية": "Lattakia", latakia: "Lattakia",
+  hama: "Hama", "حماة": "Hama",
+  tartous: "Tartous", tartus: "Tartous", "طرطوس": "Tartous",
 };
 
-const normalizeShipmentCity = (city: string): ShipmentCity => {
-  const normalized = city.trim().toLowerCase();
-  return CITY_TO_ENUM[normalized] || "Aleppo";
-};
-
+const normalizeShipmentCity = (city: string): ShipmentCity => CITY_TO_ENUM[city.trim().toLowerCase()] || "Aleppo";
 const createTrackingNumber = () => `SIL-${Date.now().toString(36).toUpperCase()}`;
 
 export default function MerchantOrders() {
@@ -87,12 +73,31 @@ export default function MerchantOrders() {
     setEditPrice(String(o.final_sale_price || o.total_amount));
   };
 
-  const confirmAndShip = async () => {
-    if (!confirmOrder || !user) return;
+  // Look up carrier fee from shipping_zones based on order city
+  const [carrierFeeForOrder, setCarrierFeeForOrder] = useState(0);
+  useEffect(() => {
+    if (!confirmOrder) { setCarrierFeeForOrder(0); return; }
+    supabase.from("shipping_zones").select("delivery_fee")
+      .eq("province_name_ar", confirmOrder.city).eq("is_active", true)
+      .is("area_name", null).is("neighborhood_name", null)
+      .limit(1).then(({ data }) => {
+        setCarrierFeeForOrder(data?.[0]?.delivery_fee || 0);
+      });
+  }, [confirmOrder]);
+
+  const confirmPricing = (() => {
+    if (!confirmOrder) return null;
     const finalPrice = parseFloat(editPrice) || confirmOrder.total_amount;
-    const deliveryFee = Number(confirmOrder.delivery_fee || 0);
-    const platformFee = finalPrice * 0.05;
-    const netAmount = finalPrice - deliveryFee - platformFee;
+    return calculatePricing({ carrier_fee: carrierFeeForOrder, cod_amount: finalPrice });
+  })();
+
+  const isLoss = confirmPricing ? isLossOrder(confirmPricing, parseFloat(editPrice) || 0) : false;
+
+  const confirmAndShip = async () => {
+    if (!confirmOrder || !user || !confirmPricing) return;
+    if (isLoss) { toast.error("لا يمكن إتمام الطلب: شحنة خاسرة"); return; }
+
+    const finalPrice = parseFloat(editPrice) || confirmOrder.total_amount;
     const trackingNumber = createTrackingNumber();
     setSubmitting(true);
 
@@ -104,7 +109,13 @@ export default function MerchantOrders() {
       detailed_address: confirmOrder.detailed_address,
       cod_amount: finalPrice,
       tracking_number: trackingNumber,
-      shipping_fee: deliveryFee,
+      shipping_fee: confirmPricing.merchant_shipping_fee,
+      carrier_fee: confirmPricing.carrier_fee,
+      platform_margin: confirmPricing.platform_margin,
+      collection_fee: confirmPricing.collection_fee,
+      merchant_shipping_fee: confirmPricing.merchant_shipping_fee,
+      billable_weight: confirmPricing.billable_weight,
+      volumetric_weight: confirmPricing.volumetric_weight,
       order_id: confirmOrder.id,
       status: "pending",
     } as any).select("id").single();
@@ -117,8 +128,9 @@ export default function MerchantOrders() {
 
     const { error: orderError } = await supabase.from("orders").update({
       final_sale_price: finalPrice,
-      platform_fee: platformFee,
-      net_amount: netAmount,
+      delivery_fee: confirmPricing.merchant_shipping_fee,
+      platform_fee: confirmPricing.collection_fee,
+      net_amount: confirmPricing.net_to_merchant,
       status: "processing",
       shipment_id: shipment.id,
     } as any).eq("id", confirmOrder.id);
@@ -167,7 +179,8 @@ export default function MerchantOrders() {
                   <th className="p-3 text-right font-medium">العميل</th>
                   <th className="p-3 text-right font-medium">المدينة</th>
                   <th className="p-3 text-right font-medium">المبلغ</th>
-                  <th className="p-3 text-right font-medium">التوصيل</th>
+                  <th className="p-3 text-right font-medium">رسوم الشحن</th>
+                  <th className="p-3 text-right font-medium">بدل تحصيل</th>
                   <th className="p-3 text-right font-medium">صافي</th>
                   <th className="p-3 text-right font-medium">الحالة</th>
                   <th className="p-3 text-right font-medium">إجراءات</th>
@@ -184,6 +197,7 @@ export default function MerchantOrders() {
                     <td className="p-3 text-foreground">{o.city}</td>
                     <td className="p-3 text-foreground">{(o.final_sale_price || o.total_amount).toLocaleString()} ل.س</td>
                     <td className="p-3 text-muted-foreground">{Number(o.delivery_fee || 0).toLocaleString()} ل.س</td>
+                    <td className="p-3 text-muted-foreground">{Number(o.platform_fee || 0).toLocaleString()} ل.س</td>
                     <td className="p-3 font-bold text-primary">{Number(o.net_amount || 0).toLocaleString()} ل.س</td>
                     <td className="p-3">
                       <Badge variant="outline" className={`text-xs ${statusColor(o.status)}`}>
@@ -212,7 +226,7 @@ export default function MerchantOrders() {
       <Dialog open={!!confirmOrder} onOpenChange={o => !o && setConfirmOrder(null)}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader><DialogTitle>تأكيد الطلب وطلب الشحن</DialogTitle></DialogHeader>
-          {confirmOrder && (
+          {confirmOrder && confirmPricing && (
             <div className="space-y-4">
               <div className="bg-muted/50 p-3 rounded-lg space-y-1">
                 <p className="font-semibold text-foreground">{confirmOrder.receiver_name}</p>
@@ -220,17 +234,28 @@ export default function MerchantOrders() {
                 <p className="text-sm text-muted-foreground">{confirmOrder.phone_number}</p>
               </div>
               <div className="space-y-2">
-                <Label className="font-semibold">سعر البيع النهائي (ل.س) — الدفع عند الاستلام</Label>
+                <Label className="font-semibold">مبلغ التحصيل النهائي (ل.س)</Label>
                 <Input type="number" min="0" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="text-lg font-display font-bold" />
                 {editPrice && (
                   <div className="text-sm space-y-1 p-3 bg-muted/50 rounded-lg">
-                    <p>رسوم التوصيل: <span className="font-bold">{Number(confirmOrder.delivery_fee || 0).toLocaleString()} ل.س</span></p>
-                    <p>عمولة المنصة (5%): <span className="font-bold">{(parseFloat(editPrice) * 0.05).toLocaleString()} ل.س</span></p>
-                    <p className="text-primary font-bold">صافي الربح: {(parseFloat(editPrice) - Number(confirmOrder.delivery_fee || 0) - parseFloat(editPrice) * 0.05).toLocaleString()} ل.س</p>
+                    <p>رسوم الشحن: <span className="font-bold">{confirmPricing.merchant_shipping_fee.toLocaleString()} ل.س</span></p>
+                    <p>بدل تحصيل (1%): <span className="font-bold">{confirmPricing.collection_fee.toLocaleString()} ل.س</span></p>
+                    <div className="h-px bg-border my-1" />
+                    <p className={`font-bold ${confirmPricing.net_to_merchant >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                      صافي الربح: {confirmPricing.net_to_merchant.toLocaleString()} ل.س
+                    </p>
                   </div>
                 )}
               </div>
-              <Button className="w-full glow-btn" disabled={submitting} onClick={confirmAndShip}>
+
+              {isLoss && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                  <ShieldAlert className="h-5 w-5 shrink-0" />
+                  <p>شحنة خاسرة — لا يمكن الإتمام</p>
+                </div>
+              )}
+
+              <Button className="w-full glow-btn" disabled={submitting || isLoss} onClick={confirmAndShip}>
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Truck className="h-4 w-4 ml-2" />}
                 تأكيد وطلب شحن
               </Button>
