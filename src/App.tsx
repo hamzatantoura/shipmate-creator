@@ -29,6 +29,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/track" element={<TrackShipment />} />
+          <Route path="/track/:trackingId" element={<TrackShipment />} />
 
           {/* Public storefront & product pages */}
           <Route path="/store/:merchantId" element={<Storefront />} />

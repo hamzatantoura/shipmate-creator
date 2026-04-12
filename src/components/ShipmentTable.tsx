@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Printer, ChevronDown, ChevronUp, Clock, User, Shield, Truck as TruckIcon } from "lucide-react";
+import { Printer, ChevronDown, ChevronUp, Clock, User, Shield, Truck as TruckIcon, PhoneCall, MessageCircle } from "lucide-react";
 import { generateShippingLabel } from "@/lib/shipping-label";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -145,8 +145,8 @@ export default function ShipmentTable({ shipments }: { shipments: Shipment[] }) 
             <TableHead>المستلم</TableHead>
             <TableHead>المدينة</TableHead>
             <TableHead>المبلغ</TableHead>
-            <TableHead>الحالة</TableHead>
-            <TableHead>بطاقة</TableHead>
+             <TableHead>الحالة</TableHead>
+             <TableHead>إجراءات</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -172,9 +172,21 @@ export default function ShipmentTable({ shipments }: { shipments: Shipment[] }) 
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); generateShippingLabel(s); }}>
-                    <Printer className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); window.open(`tel:${s.phone_number}`); }}>
+                      <PhoneCall className="h-3.5 w-3.5 text-primary" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => {
+                      e.stopPropagation();
+                      const phone = s.phone_number.replace(/[\s-]/g, "").replace(/^0/, "963");
+                      window.open(`https://wa.me/${phone}`, "_blank");
+                    }}>
+                      <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); generateShippingLabel(s); }}>
+                      <Printer className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
               {expandedId === s.id && (

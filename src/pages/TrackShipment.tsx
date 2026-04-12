@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,22 +8,24 @@ import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Search, Package, MapPin, Phone, Clock, Truck, ArrowRight } from "lucide-react";
+import { Search, Package, MapPin, Phone, Clock, Truck, ArrowRight, MessageCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { useEffect } from "react";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
 const STATUS_AR: Record<string, string> = {
   new: "جديد",
   pending: "قيد الانتظار",
+  picked_up: "تم الاستلام من التاجر",
   processing: "قيد المعالجة",
   assigned: "تم تعيين مندوب",
   pending_pickup: "بانتظار الاستلام",
+  at_warehouse: "في المستودع",
+  in_transit_intercity: "جاري الشحن بين المحافظات",
+  with_distributor: "مع مندوب التوزيع",
   out_for_delivery: "خرج للتوصيل",
   in_transit: "قيد التوصيل",
-  in_transit_intercity: "قيد الشحن بين المحافظات",
-  at_warehouse: "في المستودع",
-  with_distributor: "مع مندوب التوزيع",
   delivered: "تم التسليم ✓",
   returned: "مرتجع",
   cancelled: "ملغاة",
@@ -35,6 +37,8 @@ const CITY_AR: Record<string, string> = {
   Lattakia: "اللاذقية", Hama: "حماة", Tartous: "طرطوس",
 };
 
+const STATUS_ORDER = ["pending", "picked_up", "at_warehouse", "in_transit_intercity", "with_distributor", "out_for_delivery", "delivered"];
+
 const statusColor = (s: string) => {
   switch (s) {
     case "delivered": return "bg-primary/20 text-primary border-primary/30";
@@ -45,32 +49,60 @@ const statusColor = (s: string) => {
   }
 };
 
-interface StatusLog { id: string; new_status: string; created_at: string; }
+interface StatusLog { id: string; new_status: string; old_status: string | null; created_at: string; changed_by_role: string | null; }
+interface CarrierInfo { name_ar: string; }
 
 export default function TrackShipment() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState("");
+  const { trackingId } = useParams();
+  const [query, setQuery] = useState(trackingId || "");
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [history, setHistory] = useState<StatusLog[]>([]);
+  const [carrier, setCarrier] = useState<CarrierInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const doSearch = async (trackingNum: string) => {
+    if (!trackingNum.trim()) return;
     setLoading(true);
     setSearched(true);
 
-    const { data } = await supabase.from("shipments").select("*").eq("tracking_number", query.trim()).single();
+    const { data } = await supabase.from("shipments").select("*").eq("tracking_number", trackingNum.trim()).single();
     if (data) {
       setShipment(data);
-      const { data: logs } = await supabase.from("shipment_status_history").select("*").eq("shipment_id", data.id).order("created_at", { ascending: true });
+      // Fetch audit logs
+      const { data: logs } = await supabase.from("audit_logs").select("*").eq("shipment_id", data.id).order("created_at", { ascending: true });
       if (logs) setHistory(logs as StatusLog[]);
+      // Fetch carrier info
+      if (data.carrier_id) {
+        const { data: c } = await supabase.from("carriers").select("name_ar").eq("id", data.carrier_id).single();
+        if (c) setCarrier(c as CarrierInfo);
+      }
     } else {
       setShipment(null);
       setHistory([]);
+      setCarrier(null);
     }
     setLoading(false);
+  };
+
+  // Auto-search if URL has tracking ID
+  useEffect(() => {
+    if (trackingId) doSearch(trackingId);
+  }, [trackingId]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    doSearch(query);
+  };
+
+  const openWhatsApp = (phone: string) => {
+    const cleaned = phone.replace(/[\s-]/g, "").replace(/^0/, "963");
+    window.open(`https://wa.me/${cleaned}`, "_blank");
+  };
+
+  const callPhone = (phone: string) => {
+    window.open(`tel:${phone}`, "_self");
   };
 
   return (
@@ -112,7 +144,7 @@ export default function TrackShipment() {
 
         {shipment && (
           <Card className="bg-card border-border">
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-6 space-y-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Package className="h-5 w-5 text-primary" />
@@ -121,6 +153,42 @@ export default function TrackShipment() {
                 <Badge variant="outline" className={statusColor(shipment.status)}>
                   {STATUS_AR[shipment.status] || shipment.status}
                 </Badge>
+              </div>
+
+              {/* Progress bar */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                {STATUS_ORDER.map((status, i) => {
+                  const currentIdx = STATUS_ORDER.indexOf(shipment.status);
+                  const isReturned = shipment.status === "returned";
+                  const isActive = !isReturned && i <= currentIdx;
+                  const isCurrent = shipment.status === status;
+                  return (
+                    <div key={status} className="flex items-center gap-1">
+                      <div className="flex flex-col items-center">
+                        <div className={`h-3 w-3 rounded-full border-2 ${
+                          isCurrent ? 'bg-primary border-primary scale-125' :
+                          isActive ? 'bg-primary/60 border-primary/60' :
+                          'bg-muted border-border'
+                        }`} />
+                        <span className={`text-[9px] mt-1 whitespace-nowrap ${isCurrent ? 'text-primary font-bold' : isActive ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
+                          {STATUS_AR[status]}
+                        </span>
+                      </div>
+                      {i < STATUS_ORDER.length - 1 && (
+                        <div className={`h-0.5 w-6 ${isActive && i < currentIdx ? 'bg-primary/60' : 'bg-border'}`} />
+                      )}
+                    </div>
+                  );
+                })}
+                {shipment.status === "returned" && (
+                  <div className="flex items-center gap-1 mr-2">
+                    <div className="h-0.5 w-4 bg-destructive/40" />
+                    <div className="flex flex-col items-center">
+                      <div className="h-3 w-3 rounded-full bg-destructive border-2 border-destructive scale-125" />
+                      <span className="text-[9px] mt-1 text-destructive font-bold">مرتجع</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -134,6 +202,17 @@ export default function TrackShipment() {
                 </div>
               </div>
 
+              {/* Carrier info & contact */}
+              {carrier && (
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">شركة الشحن: {carrier.name_ar}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline */}
               {history.length > 0 && (
                 <div className="pt-4 border-t border-border">
                   <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">

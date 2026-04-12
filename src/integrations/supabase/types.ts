@@ -620,6 +620,7 @@ export type Database = {
           id: string
           merchant_id: string
           merchant_shipping_fee: number | null
+          notes: string | null
           order_id: string | null
           phone_number: string
           platform_margin: number | null
@@ -644,6 +645,7 @@ export type Database = {
           id?: string
           merchant_id: string
           merchant_shipping_fee?: number | null
+          notes?: string | null
           order_id?: string | null
           phone_number: string
           platform_margin?: number | null
@@ -668,6 +670,7 @@ export type Database = {
           id?: string
           merchant_id?: string
           merchant_shipping_fee?: number | null
+          notes?: string | null
           order_id?: string | null
           phone_number?: string
           platform_margin?: number | null

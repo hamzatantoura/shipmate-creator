@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Phone, MapPin, CheckCircle, Clock, ChevronDown, ChevronUp, Loader2, Navigation } from "lucide-react";
+import { User, Phone, MapPin, CheckCircle, Clock, ChevronDown, ChevronUp, Loader2, Navigation, MessageCircle, PhoneCall, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { ALEPPO_MERCHANTS } from "@/data/aleppo-demo-merchants";
@@ -204,6 +204,17 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm text-foreground" dir="ltr">{s.phone_number}</span>
+                      <div className="flex gap-1 mr-auto">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(`tel:${s.phone_number}`)}>
+                          <PhoneCall className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                          const phone = s.phone_number.replace(/[\s-]/g, "").replace(/^0/, "963");
+                          window.open(`https://wa.me/${phone}`, "_blank");
+                        }}>
+                          <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -212,6 +223,12 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
                         <p className="text-xs text-muted-foreground">{s.detailed_address}</p>
                       </div>
                     </div>
+                    {(s as any).notes && (
+                      <div className="flex items-start gap-3 bg-warning/10 rounded-md px-3 py-2">
+                        <StickyNote className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                        <p className="text-sm text-foreground">{(s as any).notes}</p>
+                      </div>
+                    )}
                     <div className="bg-muted/30 rounded-md px-3 py-2 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">COD</span>

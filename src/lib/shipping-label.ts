@@ -17,6 +17,7 @@ interface ShipmentData {
   cod_amount: number;
   merchant_id: string;
   status: string;
+  notes?: string | null;
 }
 
 interface MerchantInfo {
@@ -224,6 +225,14 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       <span class="lbl">💰 الدفع عند الاستلام — COD</span>
       <span class="amount">${Number(shipment.cod_amount).toLocaleString()} ل.س</span>
     </div>
+
+    ${shipment.notes ? `
+    <!-- Notes -->
+    <div class="section" style="background: #fffbe6; border-bottom: 1.5px solid #f5c518;">
+      <p class="section-title">📝 ملاحظات</p>
+      <p style="font-size: ${11 * scale}px; font-weight: 600; color: #333;">${shipment.notes}</p>
+    </div>
+    ` : ""}
 
     <!-- Barcodes -->
     <div class="codes">
