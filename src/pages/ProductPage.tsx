@@ -184,26 +184,45 @@ export default function ProductPage() {
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-8 text-center space-y-4">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <Check className="h-8 w-8 text-primary" />
+        <Card className="max-w-md w-full border-primary/20 shadow-lg">
+          <CardContent className="p-8 text-center space-y-5">
+            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto animate-in zoom-in-50 duration-500">
+              <Check className="h-10 w-10 text-primary" />
             </div>
-            <h2 className="text-xl font-display font-bold text-foreground">تم إرسال طلبك بنجاح!</h2>
-            <p className="text-muted-foreground text-sm">سيتواصل معك التاجر قريباً لتأكيد الطلب وترتيب الشحن.</p>
+            <div className="space-y-1">
+              <h2 className="text-2xl font-display font-bold text-foreground">تم استلام طلبك بنجاح! 🎉</h2>
+              <p className="text-muted-foreground text-sm">سيتواصل معك التاجر قريباً لتأكيد الطلب وترتيب الشحن.</p>
+            </div>
             {orderDetails && (
-              <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1 text-right">
-                <p>📦 {orderDetails.productName}</p>
-                <p>🆔 رقم الطلب: <span className="font-mono">{orderDetails.orderId}</span></p>
-                <p>💰 الإجمالي: <span className="font-bold text-foreground">{orderDetails.total.toLocaleString()} ل.س</span></p>
+              <div className="text-sm bg-muted/50 rounded-xl p-4 space-y-2 text-right border border-border">
+                <p className="text-muted-foreground">📦 {orderDetails.productName}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">🆔 رقم الطلب</span>
+                  <span className="font-mono font-bold text-primary text-base tracking-wider">{orderDetails.orderId}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">💰 الإجمالي</span>
+                  <span className="font-bold text-foreground text-base">{orderDetails.total.toLocaleString()} ل.س</span>
+                </div>
               </div>
             )}
             {merchantPhone && (
-              <Button onClick={confirmViaWhatsApp} className="w-full gap-2 bg-[#25D366] hover:bg-[#1fb855] text-white">
+              <Button onClick={confirmViaWhatsApp} className="w-full gap-2 bg-[#25D366] hover:bg-[#1fb855] text-white h-12 text-base">
                 <MessageCircle className="h-5 w-5" />
                 تأكيد الطلب عبر واتساب
               </Button>
             )}
+            {orderDetails && (
+              <a href={`/track/${orderDetails.orderId}`} className="block">
+                <Button variant="outline" className="w-full gap-2 h-11">
+                  <Package className="h-4 w-4" />
+                  تتبع حالة طلبك
+                </Button>
+              </a>
+            )}
+            <p className="text-xs text-muted-foreground pt-2">
+              احتفظ برقم الطلب <span className="font-mono font-bold text-foreground">{orderDetails?.orderId}</span> لمتابعة شحنتك لاحقاً
+            </p>
           </CardContent>
         </Card>
       </div>
