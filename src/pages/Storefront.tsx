@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Store, Package, ArrowLeft } from "lucide-react";
+import { Store, Package, ShieldAlert } from "lucide-react";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
@@ -21,20 +21,48 @@ export default function Storefront() {
   const [products, setProducts] = useState<Product[]>([]);
   const [merchant, setMerchant] = useState<MerchantProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [merchantBlocked, setMerchantBlocked] = useState(false);
 
   useEffect(() => {
     if (!merchantId) return;
-    Promise.all([
-      supabase.from("profiles").select("store_name, city, phone").eq("user_id", merchantId).single(),
-      supabase.from("products").select("*").eq("merchant_id", merchantId).eq("is_active", true).order("created_at", { ascending: false }),
-    ]).then(([profileRes, productsRes]) => {
-      if (profileRes.data) setMerchant(profileRes.data as MerchantProfile);
-      if (productsRes.data) setProducts(productsRes.data as any);
-      setLoading(false);
-    });
+    // Check merchant is verified & active via anon policy
+    supabase.from("merchants").select("store_name, city, phone, verification_status, is_active")
+      .eq("user_id", merchantId).single().then(({ data: m, error }) => {
+        if (error || !m) {
+          setMerchantBlocked(true);
+          setLoading(false);
+          return;
+        }
+        const merchant = m as any;
+        if (merchant.verification_status !== "verified" || !merchant.is_active) {
+          setMerchantBlocked(true);
+          setLoading(false);
+          return;
+        }
+        setMerchant({ store_name: merchant.store_name, city: merchant.city, phone: merchant.phone });
+        supabase.from("products").select("*").eq("merchant_id", merchantId).eq("is_active", true)
+          .order("created_at", { ascending: false }).then(({ data: prods }) => {
+            if (prods) setProducts(prods as any);
+            setLoading(false);
+          });
+      });
   }, [merchantId]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
+
+  if (merchantBlocked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
+        <Card className="max-w-md w-full border-border">
+          <CardContent className="py-12 text-center space-y-4">
+            <ShieldAlert className="h-12 w-12 text-muted-foreground mx-auto" />
+            <h2 className="text-xl font-display font-bold text-foreground">المتجر غير متاح حالياً</h2>
+            <p className="text-sm text-muted-foreground">هذا المتجر لم يكمل عملية التحقق بعد أو غير مفعّل.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -70,7 +98,6 @@ export default function Storefront() {
                     <h3 className="font-semibold text-sm text-foreground line-clamp-1">{p.name}</h3>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-primary font-display font-bold text-sm">{Number(p.price).toLocaleString()} ل.س</span>
-                      <span className="text-[10px] text-muted-foreground">{SIZE_LABELS[p.size_category]}</span>
                     </div>
                   </CardContent>
                 </Card>
