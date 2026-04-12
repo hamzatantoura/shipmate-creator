@@ -96,7 +96,7 @@ export default function Signup() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>رقم الهاتف</Label>
-                <Input value={phone} onChange={e => setPhone(e.target.value)} required placeholder="+963 9XX XXX XXX" dir="ltr" />
+                <Input value={phone} onChange={e => setPhone(e.target.value)} required placeholder="+905xxxxxxxxx" dir="ltr" />
               </div>
               <div className="space-y-2">
                 <Label>المدينة</Label>
