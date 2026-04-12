@@ -204,15 +204,19 @@ export type Database = {
           city: string | null
           contact_person: string | null
           created_at: string
+          email_confirmed: boolean
           free_shipping_threshold: number
           id: string
+          id_image_url: string | null
           is_active: boolean
           phone: string | null
+          phone_verified: boolean
           platform_fee_rate: number
           shipping_policy: string
           store_name: string
           updated_at: string
           user_id: string
+          verification_status: string
           wallet_balance: number
           whatsapp_number: string | null
         }
@@ -220,15 +224,19 @@ export type Database = {
           city?: string | null
           contact_person?: string | null
           created_at?: string
+          email_confirmed?: boolean
           free_shipping_threshold?: number
           id?: string
+          id_image_url?: string | null
           is_active?: boolean
           phone?: string | null
+          phone_verified?: boolean
           platform_fee_rate?: number
           shipping_policy?: string
           store_name?: string
           updated_at?: string
           user_id: string
+          verification_status?: string
           wallet_balance?: number
           whatsapp_number?: string | null
         }
@@ -236,15 +244,19 @@ export type Database = {
           city?: string | null
           contact_person?: string | null
           created_at?: string
+          email_confirmed?: boolean
           free_shipping_threshold?: number
           id?: string
+          id_image_url?: string | null
           is_active?: boolean
           phone?: string | null
+          phone_verified?: boolean
           platform_fee_rate?: number
           shipping_policy?: string
           store_name?: string
           updated_at?: string
           user_id?: string
+          verification_status?: string
           wallet_balance?: number
           whatsapp_number?: string | null
         }
