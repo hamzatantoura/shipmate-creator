@@ -29,6 +29,8 @@ export default function MerchantPortal() {
           )}
         </div>
 
+        <StoreReadinessBanner />
+
         <Tabs defaultValue={defaultTab} dir="rtl">
           <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="shipments" className="gap-1.5">
