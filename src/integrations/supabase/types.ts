@@ -620,6 +620,59 @@ export type Database = {
           },
         ]
       }
+      shipping_zones: {
+        Row: {
+          area_name: string | null
+          area_name_ar: string | null
+          carrier_id: string | null
+          created_at: string
+          delivery_fee: number
+          id: string
+          is_active: boolean
+          neighborhood_name: string | null
+          neighborhood_name_ar: string | null
+          province_name: string
+          province_name_ar: string
+          updated_at: string
+        }
+        Insert: {
+          area_name?: string | null
+          area_name_ar?: string | null
+          carrier_id?: string | null
+          created_at?: string
+          delivery_fee?: number
+          id?: string
+          is_active?: boolean
+          neighborhood_name?: string | null
+          neighborhood_name_ar?: string | null
+          province_name: string
+          province_name_ar: string
+          updated_at?: string
+        }
+        Update: {
+          area_name?: string | null
+          area_name_ar?: string | null
+          carrier_id?: string | null
+          created_at?: string
+          delivery_fee?: number
+          id?: string
+          is_active?: boolean
+          neighborhood_name?: string | null
+          neighborhood_name_ar?: string | null
+          province_name?: string
+          province_name_ar?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipping_zones_carrier_id_fkey"
+            columns: ["carrier_id"]
+            isOneToOne: false
+            referencedRelation: "carriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sub_regions: {
         Row: {
           created_at: string
