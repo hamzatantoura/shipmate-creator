@@ -61,6 +61,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     phone_number: prefill?.phone_number || "",
     detailed_address: prefill?.detailed_address || "",
     cod_amount: prefill?.cod_amount || "",
+    notes: "",
   });
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       setForm({
         receiver_name: prefill.receiver_name || "", phone_number: prefill.phone_number || "",
         detailed_address: prefill.detailed_address || "", cod_amount: prefill.cod_amount || "",
+        notes: "",
       });
       if (prefill.city && zones.length > 0) {
         const match = zones.find(z => z.province_name_ar === prefill.city || z.province_name === prefill.city);
@@ -154,9 +156,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       city: provinceAr,
       detailed_address: form.detailed_address.trim(),
       total_amount: codAmount,
-      delivery_fee: pricing.merchant_shipping_fee,  // What merchant sees
-      platform_fee: pricing.collection_fee,          // Collection fee (1% COD)
+      delivery_fee: pricing.merchant_shipping_fee,
+      platform_fee: pricing.collection_fee,
       net_amount: pricing.net_to_merchant,
+      notes: form.notes.trim() || null,
       status: "new",
     } as any).select().single();
 
@@ -187,7 +190,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
-    setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "" });
+    setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "", notes: "" });
     setSelectedProvince(""); setSelectedArea(""); setSelectedNeighborhood("");
     onCreated();
   };
@@ -244,6 +247,11 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
           <Label>مبلغ التحصيل عند الاستلام (ل.س)</Label>
           <Input type="number" min="0" step="1" placeholder="0" value={form.cod_amount} onChange={e => setForm({ ...form, cod_amount: e.target.value })} />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>ملاحظات لشركة الشحن</Label>
+        <Textarea placeholder="مثال: الزبون يفضل الاستلام بعد الساعة 4 مساءً..." value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} />
       </div>
 
       {/* Pricing display — merchant sees shipping_fee + collection_fee, NOT carrier_fee or margin */}
