@@ -418,6 +418,9 @@ export default function AdminLogistics() {
           <TabsContent value="zones" className="mt-4">
             <AdminZonesManagement />
           </TabsContent>
+          <TabsContent value="merchants" className="mt-4">
+            <AdminMerchantApproval />
+          </TabsContent>
         </Tabs>
 
         {/* Payout detail dialog */}
