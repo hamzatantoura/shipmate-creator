@@ -119,6 +119,7 @@ export default function MerchantOrders() {
       billable_weight: confirmPricing.billable_weight,
       volumetric_weight: confirmPricing.volumetric_weight,
       order_id: confirmOrder.id,
+      carrier_id: carrierIdForOrder,
       status: "pending",
     } as any).select("id").single();
 
