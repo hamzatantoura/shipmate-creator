@@ -234,6 +234,17 @@ export default function ProductPage() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">المنتج غير موجود</div>;
+  if (merchantBlocked) return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
+      <Card className="max-w-md w-full border-border">
+        <CardContent className="py-12 text-center space-y-4">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h2 className="text-xl font-display font-bold text-foreground">المتجر غير متاح حالياً</h2>
+          <p className="text-sm text-muted-foreground">هذا المتجر لم يكمل عملية التحقق بعد أو غير مفعّل. لا يمكن إتمام الطلب حالياً.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   // ===== Success Page =====
   if (submitted) {
