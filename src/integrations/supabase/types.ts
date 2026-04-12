@@ -214,6 +214,7 @@ export type Database = {
           updated_at: string
           user_id: string
           wallet_balance: number
+          whatsapp_number: string | null
         }
         Insert: {
           city?: string | null
@@ -229,6 +230,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           wallet_balance?: number
+          whatsapp_number?: string | null
         }
         Update: {
           city?: string | null
@@ -244,6 +246,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           wallet_balance?: number
+          whatsapp_number?: string | null
         }
         Relationships: []
       }

@@ -36,6 +36,9 @@ interface SubRegion {
 interface MerchantShippingInfo {
   shipping_policy: string;
   free_shipping_threshold: number;
+  whatsapp_number: string | null;
+  phone: string | null;
+  store_name: string | null;
 }
 
 const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
@@ -51,9 +54,14 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [orderDetails, setOrderDetails] = useState<{ orderId: string; receiverName: string; phone: string; city: string; address: string; total: number; productName: string } | null>(null);
-  const [merchantPhone, setMerchantPhone] = useState<string | null>(null);
-  const [shippingInfo, setShippingInfo] = useState<MerchantShippingInfo>({ shipping_policy: "customer_pays", free_shipping_threshold: 0 });
+  const [orderDetails, setOrderDetails] = useState<{
+    orderId: string; receiverName: string; phone: string;
+    city: string; address: string; total: number; productName: string;
+  } | null>(null);
+  const [shippingInfo, setShippingInfo] = useState<MerchantShippingInfo>({
+    shipping_policy: "customer_pays", free_shipping_threshold: 0,
+    whatsapp_number: null, phone: null, store_name: null,
+  });
 
   const [districts, setDistricts] = useState<District[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -70,6 +78,7 @@ export default function ProductPage() {
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
 
+  // Fetch product + merchant info
   useEffect(() => {
     if (!slug) return;
     supabase.from("products").select("*").eq("slug", slug).single().then(async ({ data, error }) => {
@@ -83,17 +92,19 @@ export default function ProductPage() {
         setMainImage((prod as any).image_url);
         const { data: imgs } = await supabase.from("product_images").select("*").eq("product_id", (prod as any).id).order("sort_order");
         if (imgs) setImages(imgs as ProductImage[]);
-        // Fetch merchant phone for WhatsApp
-        const { data: profile } = await supabase.from("profiles").select("phone").eq("user_id", (prod as any).merchant_id).single();
-        if (profile?.phone) setMerchantPhone(profile.phone);
-        // Fetch merchant shipping policy
-        const { data: merchant } = await supabase.from("merchants").select("shipping_policy, free_shipping_threshold").eq("user_id", (prod as any).merchant_id).single();
+        // Fetch merchant shipping + contact info
+        const { data: merchant } = await supabase
+          .from("merchants")
+          .select("shipping_policy, free_shipping_threshold, whatsapp_number, phone, store_name")
+          .eq("user_id", (prod as any).merchant_id)
+          .single();
         if (merchant) setShippingInfo(merchant as any);
       }
       setLoading(false);
     });
   }, [slug]);
 
+  // Fetch geographic data
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("*").eq("is_active", true).order("province_ar"),
@@ -109,7 +120,6 @@ export default function ProductPage() {
   const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
   const rawDeliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
 
-  // Determine if shipping is free for the customer
   const qty = parseInt(form.quantity) || 1;
   const productTotal = product ? product.price * qty : 0;
   const isShippingFreeForCustomer =
@@ -117,6 +127,7 @@ export default function ProductPage() {
     (shippingInfo.shipping_policy === "free_above" && productTotal >= shippingInfo.free_shipping_threshold);
   const customerDeliveryFee = isShippingFreeForCustomer ? 0 : rawDeliveryFee;
 
+  // Filter sub-regions by selected district's province
   useEffect(() => {
     if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
       const province = provinces.find(p => p.name === selectedDistrictObj.province || p.name_ar === selectedDistrictObj.province_ar);
@@ -142,7 +153,13 @@ export default function ProductPage() {
     if (!form.receiver_name.trim()) { toast.error("الاسم مطلوب"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
     if (!selectedDistrict) { toast.error("الرجاء اختيار المحافظة"); return; }
-    if (!selectedSubRegion) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
+    if (!selectedSubRegion && filteredSubRegions.length > 0) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
+
+    // Validate delivery fee is not zero when shipping is on customer
+    if (!isShippingFreeForCustomer && rawDeliveryFee <= 0) {
+      toast.error("لا تتوفر تسعيرة شحن لهذه المنطقة حالياً، يرجى التواصل مع التاجر");
+      return;
+    }
 
     setSubmitting(true);
     const totalAmount = product.price * qty;
@@ -164,7 +181,12 @@ export default function ProductPage() {
       customer_lng: customerLng,
     } as any).select("id").single();
     setSubmitting(false);
-    if (error) { toast.error("فشل إرسال الطلب"); return; }
+
+    if (error) {
+      console.error("Order insert error:", error);
+      toast.error("فشل إرسال الطلب: " + (error.message || "خطأ غير معروف"));
+      return;
+    }
 
     setOrderDetails({
       orderId: (orderData as any)?.id?.slice(0, 8)?.toUpperCase() || "—",
@@ -187,8 +209,14 @@ export default function ProductPage() {
   };
 
   const confirmViaWhatsApp = () => {
-    if (!orderDetails || !merchantPhone) return;
-    const phone = merchantPhone.replace(/[\s-]/g, "").replace(/^0/, "963");
+    if (!orderDetails) return;
+    // Use merchant's whatsapp_number first, then phone
+    const rawPhone = shippingInfo.whatsapp_number || shippingInfo.phone;
+    if (!rawPhone) {
+      toast.error("رقم واتساب التاجر غير متوفر");
+      return;
+    }
+    const phone = rawPhone.replace(/[\s-]/g, "").replace(/^0/, "963");
     const msg = `مرحباً، أود تأكيد طلبي رقم ${orderDetails.orderId} باسم ${orderDetails.receiverName}.\n\n📦 المنتج: ${orderDetails.productName}\n📍 المدينة: ${orderDetails.city}\n🏠 العنوان: ${orderDetails.address}\n💰 الإجمالي: ${orderDetails.total.toLocaleString()} ل.س`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
@@ -196,7 +224,9 @@ export default function ProductPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">المنتج غير موجود</div>;
 
+  // ===== Success Page =====
   if (submitted) {
+    const merchantWhatsApp = shippingInfo.whatsapp_number || shippingInfo.phone;
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
         <Card className="max-w-md w-full border-primary/20 shadow-lg">
@@ -221,11 +251,14 @@ export default function ProductPage() {
                 </div>
               </div>
             )}
-            {merchantPhone && (
+            {merchantWhatsApp && (
               <Button onClick={confirmViaWhatsApp} className="w-full gap-2 bg-[#25D366] hover:bg-[#1fb855] text-white h-12 text-base">
                 <MessageCircle className="h-5 w-5" />
                 تأكيد الطلب عبر واتساب
               </Button>
+            )}
+            {!merchantWhatsApp && (
+              <p className="text-xs text-warning">رقم واتساب التاجر غير متوفر حالياً، سيتواصل معك التاجر مباشرةً.</p>
             )}
             {orderDetails && (
               <a href={`/track/${orderDetails.orderId}`} className="block">
@@ -244,12 +277,14 @@ export default function ProductPage() {
     );
   }
 
+  // ===== Product + Order Form =====
   const allImages = product.image_url ? [product.image_url, ...images.filter(i => i.image_url !== product.image_url).map(i => i.image_url)] : images.map(i => i.image_url);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-8">
+          {/* Product Images */}
           <div className="space-y-3">
             <div className="aspect-square bg-muted/30 rounded-xl overflow-hidden border border-border">
               {mainImage ? (
@@ -272,12 +307,22 @@ export default function ProductPage() {
             )}
           </div>
 
+          {/* Product Info + Order Form */}
           <div className="space-y-6">
             <div>
               <h1 className="text-2xl font-display font-bold text-foreground mb-2">{product.name}</h1>
               <p className="text-2xl font-display font-bold text-primary">{Number(product.price).toLocaleString()} ل.س</p>
               {product.description && (
                 <p className="text-sm text-muted-foreground mt-3 leading-relaxed">{product.description}</p>
+              )}
+              {/* Free shipping badge */}
+              {shippingInfo.shipping_policy === "free_all" && (
+                <span className="inline-block mt-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">🚚 شحن مجاني</span>
+              )}
+              {shippingInfo.shipping_policy === "free_above" && shippingInfo.free_shipping_threshold > 0 && (
+                <span className="inline-block mt-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                  🚚 شحن مجاني للطلبات فوق {Number(shippingInfo.free_shipping_threshold).toLocaleString()} ل.س
+                </span>
               )}
             </div>
 
@@ -311,6 +356,7 @@ export default function ProductPage() {
                     )}
                   </div>
 
+                  {/* Province selector - NO price shown */}
                   <div className="space-y-1.5">
                     <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
                     <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
@@ -325,6 +371,7 @@ export default function ProductPage() {
                     </Select>
                   </div>
 
+                  {/* Sub-region selector */}
                   <div className="space-y-1.5">
                     <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي / المنطقة <span className="text-destructive">*</span></Label>
                     <Select value={selectedSubRegion} onValueChange={setSelectedSubRegion} disabled={filteredSubRegions.length === 0}>
@@ -349,6 +396,7 @@ export default function ProductPage() {
                     <Input type="number" min="1" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} />
                   </div>
 
+                  {/* Order Summary */}
                   <div className="pt-2 border-t border-border space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">سعر المنتج</span>
@@ -356,7 +404,8 @@ export default function ProductPage() {
                         {productTotal.toLocaleString()} ل.س
                       </span>
                     </div>
-                    {selectedDistrict && !isShippingFreeForCustomer && (
+                    {/* Show shipping fee ONLY in summary, not in dropdown */}
+                    {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
                         <span className="font-display font-bold text-foreground">{customerDeliveryFee.toLocaleString()} ل.س</span>
@@ -366,6 +415,11 @@ export default function ProductPage() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
                         <span className="font-display font-bold text-primary">مجاني ✓</span>
+                      </div>
+                    )}
+                    {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee <= 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-warning">⚠️ لا تتوفر تسعيرة شحن لهذه المنطقة</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between pt-1 border-t border-border">

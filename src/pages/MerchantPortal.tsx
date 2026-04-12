@@ -7,6 +7,7 @@ import MerchantOrders from "@/components/merchant/MerchantOrders";
 import MerchantWallet from "@/components/merchant/MerchantWallet";
 import MerchantShipments from "@/components/merchant/MerchantShipments";
 import MerchantShippingSettings from "@/components/merchant/MerchantShippingSettings";
+import StoreReadinessBanner from "@/components/merchant/StoreReadinessBanner";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "react-router-dom";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
@@ -27,6 +28,8 @@ export default function MerchantPortal() {
             <p className="text-sm text-muted-foreground mt-1">{profile.store_name}</p>
           )}
         </div>
+
+        <StoreReadinessBanner />
 
         <Tabs defaultValue={defaultTab} dir="rtl">
           <TabsList className="mb-6 flex-wrap">
