@@ -62,7 +62,7 @@ export default function MerchantWallet() {
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("");
-  const [payoutDetails, setPayoutDetails] = useState("");
+  
   const [submitting, setSubmitting] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
   const [pendingShipments, setPendingShipments] = useState(0);
@@ -103,14 +103,13 @@ export default function MerchantWallet() {
     if (!amount || amount <= 0) { toast.error("أدخل مبلغاً صحيحاً"); return; }
     if (amount > walletBalance) { toast.error("المبلغ يتجاوز الرصيد المتاح"); return; }
     if (!payoutMethod) { toast.error("اختر طريقة التسوية"); return; }
-    if (!payoutDetails.trim()) { toast.error("أدخل تفاصيل الحساب"); return; }
     setSubmitting(true);
     const { error } = await supabase.from("payout_requests").insert({
-      merchant_id: user.id, amount, method: payoutMethod, account_details: payoutDetails.trim(),
+      merchant_id: user.id, amount, method: payoutMethod, account_details: "-",
     } as any);
     if (error) { toast.error(error.message); } else {
       toast.success("تم إرسال طلب التسوية بنجاح");
-      setPayoutOpen(false); setPayoutAmount(""); setPayoutMethod(""); setPayoutDetails("");
+      setPayoutOpen(false); setPayoutAmount(""); setPayoutMethod("");
       fetchData();
     }
     setSubmitting(false);
@@ -140,10 +139,6 @@ export default function MerchantWallet() {
                     <SelectTrigger><SelectValue placeholder="اختر الطريقة" /></SelectTrigger>
                     <SelectContent>{PAYOUT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>تفاصيل الحساب (رقم الهاتف / الاسم)</Label>
-                  <Input value={payoutDetails} onChange={e => setPayoutDetails(e.target.value)} placeholder="رقم الهاتف أو اسم الحساب" />
                 </div>
                 <Button className="w-full glow-btn" disabled={submitting} onClick={submitPayout}>
                   {submitting ? "جاري الإرسال..." : "إرسال طلب التسوية"}
