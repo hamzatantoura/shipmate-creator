@@ -33,6 +33,11 @@ interface SubRegion {
   id: string; name: string; name_ar: string; province_id: string;
 }
 
+interface MerchantShippingInfo {
+  shipping_policy: string;
+  free_shipping_threshold: number;
+}
+
 const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
 function validatePhone(phone: string): boolean {
   return SYRIA_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
@@ -48,6 +53,7 @@ export default function ProductPage() {
   const [submitted, setSubmitted] = useState(false);
   const [orderDetails, setOrderDetails] = useState<{ orderId: string; receiverName: string; phone: string; city: string; address: string; total: number; productName: string } | null>(null);
   const [merchantPhone, setMerchantPhone] = useState<string | null>(null);
+  const [shippingInfo, setShippingInfo] = useState<MerchantShippingInfo>({ shipping_policy: "customer_pays", free_shipping_threshold: 0 });
 
   const [districts, setDistricts] = useState<District[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -63,7 +69,6 @@ export default function ProductPage() {
 
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
-  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -81,6 +86,9 @@ export default function ProductPage() {
         // Fetch merchant phone for WhatsApp
         const { data: profile } = await supabase.from("profiles").select("phone").eq("user_id", (prod as any).merchant_id).single();
         if (profile?.phone) setMerchantPhone(profile.phone);
+        // Fetch merchant shipping policy
+        const { data: merchant } = await supabase.from("merchants").select("shipping_policy, free_shipping_threshold").eq("user_id", (prod as any).merchant_id).single();
+        if (merchant) setShippingInfo(merchant as any);
       }
       setLoading(false);
     });
@@ -99,7 +107,15 @@ export default function ProductPage() {
   }, []);
 
   const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
-  const deliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
+  const rawDeliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
+
+  // Determine if shipping is free for the customer
+  const qty = parseInt(form.quantity) || 1;
+  const productTotal = product ? product.price * qty : 0;
+  const isShippingFreeForCustomer =
+    shippingInfo.shipping_policy === "free_all" ||
+    (shippingInfo.shipping_policy === "free_above" && productTotal >= shippingInfo.free_shipping_threshold);
+  const customerDeliveryFee = isShippingFreeForCustomer ? 0 : rawDeliveryFee;
 
   useEffect(() => {
     if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
@@ -129,7 +145,6 @@ export default function ProductPage() {
     if (!selectedSubRegion) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
 
     setSubmitting(true);
-    const qty = parseInt(form.quantity) || 1;
     const totalAmount = product.price * qty;
 
     const { data: orderData, error } = await supabase.from("orders").insert({
@@ -137,9 +152,9 @@ export default function ProductPage() {
       product_id: product.id,
       quantity: qty,
       total_amount: totalAmount,
-      delivery_fee: deliveryFee,
+      delivery_fee: customerDeliveryFee,
       platform_fee: totalAmount * 0.05,
-      net_amount: totalAmount - deliveryFee - (totalAmount * 0.05),
+      net_amount: totalAmount - customerDeliveryFee - (totalAmount * 0.05),
       receiver_name: form.receiver_name.trim(),
       phone_number: form.phone_number.trim(),
       city: selectedDistrictObj?.province_ar || "",
@@ -157,7 +172,7 @@ export default function ProductPage() {
       phone: form.phone_number.trim(),
       city: selectedDistrictObj?.province_ar || "",
       address: form.detailed_address.trim() || "غير محدد",
-      total: totalAmount + deliveryFee,
+      total: totalAmount + customerDeliveryFee,
       productName: product.name,
     });
     setSubmitted(true);
@@ -174,7 +189,7 @@ export default function ProductPage() {
   const confirmViaWhatsApp = () => {
     if (!orderDetails || !merchantPhone) return;
     const phone = merchantPhone.replace(/[\s-]/g, "").replace(/^0/, "963");
-    const msg = `✅ تأكيد طلب جديد\n\n📦 المنتج: ${orderDetails.productName}\n🆔 رقم الطلب: ${orderDetails.orderId}\n👤 الاسم: ${orderDetails.receiverName}\n📱 الهاتف: ${orderDetails.phone}\n📍 المدينة: ${orderDetails.city}\n🏠 العنوان: ${orderDetails.address}\n💰 الإجمالي: ${orderDetails.total.toLocaleString()} ل.س`;
+    const msg = `مرحباً، أود تأكيد طلبي رقم ${orderDetails.orderId} باسم ${orderDetails.receiverName}.\n\n📦 المنتج: ${orderDetails.productName}\n📍 المدينة: ${orderDetails.city}\n🏠 العنوان: ${orderDetails.address}\n💰 الإجمالي: ${orderDetails.total.toLocaleString()} ل.س`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -303,7 +318,7 @@ export default function ProductPage() {
                       <SelectContent>
                         {districts.map(d => (
                           <SelectItem key={d.id} value={d.id}>
-                            {d.province_ar} {d.area_ar ? `— ${d.area_ar}` : ""} ({Number(d.delivery_fee).toLocaleString()} ل.س)
+                            {d.province_ar} {d.area_ar ? `— ${d.area_ar}` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -338,19 +353,25 @@ export default function ProductPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">سعر المنتج</span>
                       <span className="font-display font-bold text-foreground">
-                        {(product.price * (parseInt(form.quantity) || 1)).toLocaleString()} ل.س
+                        {productTotal.toLocaleString()} ل.س
                       </span>
                     </div>
-                    {selectedDistrict && (
+                    {selectedDistrict && !isShippingFreeForCustomer && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
-                        <span className="font-display font-bold text-foreground">{deliveryFee.toLocaleString()} ل.س</span>
+                        <span className="font-display font-bold text-foreground">{customerDeliveryFee.toLocaleString()} ل.س</span>
+                      </div>
+                    )}
+                    {isShippingFreeForCustomer && selectedDistrict && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
+                        <span className="font-display font-bold text-primary">مجاني ✓</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between pt-1 border-t border-border">
                       <span className="text-sm font-semibold text-foreground">الإجمالي</span>
                       <span className="font-display font-bold text-primary text-lg">
-                        {((product.price * (parseInt(form.quantity) || 1)) + deliveryFee).toLocaleString()} ل.س
+                        {(productTotal + customerDeliveryFee).toLocaleString()} ل.س
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">الدفع عند الاستلام (COD) فقط</p>

@@ -67,6 +67,11 @@ export default function MerchantPortal() {
               <MerchantWallet />
             </ErrorBoundary>
           </TabsContent>
+          <TabsContent value="settings">
+            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الإعدادات">
+              <MerchantShippingSettings />
+            </ErrorBoundary>
+          </TabsContent>
         </Tabs>
       </main>
     </div>
