@@ -248,6 +248,7 @@ export type Database = {
           created_at: string
           customer_lat: number | null
           customer_lng: number | null
+          deleted_at: string | null
           delivery_fee: number
           detailed_address: string
           district_id: string | null
@@ -272,6 +273,7 @@ export type Database = {
           created_at?: string
           customer_lat?: number | null
           customer_lng?: number | null
+          deleted_at?: string | null
           delivery_fee?: number
           detailed_address: string
           district_id?: string | null
@@ -296,6 +298,7 @@ export type Database = {
           created_at?: string
           customer_lat?: number | null
           customer_lng?: number | null
+          deleted_at?: string | null
           delivery_fee?: number
           detailed_address?: string
           district_id?: string | null
@@ -453,6 +456,7 @@ export type Database = {
       products: {
         Row: {
           created_at: string
+          deleted_at: string | null
           description: string | null
           height_cm: number | null
           id: string
@@ -470,6 +474,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           height_cm?: number | null
           id?: string
@@ -487,6 +492,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           description?: string | null
           height_cm?: number | null
           id?: string
