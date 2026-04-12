@@ -182,6 +182,7 @@ export default function MerchantOrders() {
               <thead>
                 <tr className="bg-muted/50 text-muted-foreground">
                   <th className="p-3 text-right font-medium">العميل</th>
+                  <th className="p-3 text-right font-medium">رقم التتبع</th>
                   <th className="p-3 text-right font-medium">المدينة</th>
                   <th className="p-3 text-right font-medium">المبلغ</th>
                   <th className="p-3 text-right font-medium">رسوم الشحن</th>
