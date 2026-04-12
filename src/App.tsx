@@ -8,6 +8,8 @@ import { AuthProvider } from "@/hooks/use-auth";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import MerchantPortal from "./pages/MerchantPortal";
 import VendorDashboard from "./pages/VendorDashboard";
 import TopUp from "./pages/TopUp";
