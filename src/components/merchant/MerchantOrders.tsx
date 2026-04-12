@@ -224,7 +224,18 @@ export default function MerchantOrders() {
                             <Truck className="h-3.5 w-3.5 text-primary" /> شحن
                           </Button>
                         )}
-                        {o.shipment_id && <Badge className="bg-primary/15 text-primary border-primary/30 text-xs">تم الشحن</Badge>}
+                        {o.shipment_id && (
+                          <>
+                            <Badge className="bg-primary/15 text-primary border-primary/30 text-xs">تم الشحن</Badge>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="طباعة بوليصة الشحن" onClick={async () => {
+                              const { data: shipment } = await supabase.from("shipments").select("*").eq("id", o.shipment_id!).single();
+                              if (shipment) generateShippingLabel(shipment);
+                              else toast.error("تعذر تحميل بيانات الشحنة");
+                            }}>
+                              <Printer className="h-3.5 w-3.5 text-primary" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
