@@ -76,6 +76,9 @@ export default function VendorDashboard() {
             <TabsTrigger value="couriers" className="gap-1.5">
               <Users className="h-3.5 w-3.5" /> المناديب
             </TabsTrigger>
+            <TabsTrigger value="scanner" className="gap-1.5">
+              <ScanLine className="h-3.5 w-3.5" /> ماسح الباركود
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="map">
@@ -98,6 +101,7 @@ export default function VendorDashboard() {
             />
           </TabsContent>
           <TabsContent value="couriers"><VendorCouriers /></TabsContent>
+          <TabsContent value="scanner"><BarcodeScanner /></TabsContent>
         </Tabs>
       </main>
     </div>
