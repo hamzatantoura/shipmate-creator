@@ -1,10 +1,11 @@
 import { Component, type ReactNode, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, Package, Users } from "lucide-react";
+import { Map, Package, Users, ScanLine } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import VendorOperationsMap from "@/components/vendor/VendorOperationsMap";
 import VendorShipments from "@/components/vendor/VendorShipments";
 import VendorCouriers from "@/components/vendor/VendorCouriers";
+import BarcodeScanner from "@/components/vendor/BarcodeScanner";
 import { useAuth } from "@/hooks/use-auth";
 
 class VendorMapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -75,6 +76,9 @@ export default function VendorDashboard() {
             <TabsTrigger value="couriers" className="gap-1.5">
               <Users className="h-3.5 w-3.5" /> المناديب
             </TabsTrigger>
+            <TabsTrigger value="scanner" className="gap-1.5">
+              <ScanLine className="h-3.5 w-3.5" /> ماسح الباركود
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="map">
@@ -97,6 +101,7 @@ export default function VendorDashboard() {
             />
           </TabsContent>
           <TabsContent value="couriers"><VendorCouriers /></TabsContent>
+          <TabsContent value="scanner"><BarcodeScanner /></TabsContent>
         </Tabs>
       </main>
     </div>
