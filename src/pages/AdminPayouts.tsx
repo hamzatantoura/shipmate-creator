@@ -33,6 +33,7 @@ interface PayoutRequest {
   admin_note: string | null;
   created_at: string;
   merchant_name?: string;
+  merchant_contact?: string;
   merchant_phone?: string;
 }
 
