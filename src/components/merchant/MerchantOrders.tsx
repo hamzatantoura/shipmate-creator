@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingCart, Truck, Loader2, Search, ShieldAlert } from "lucide-react";
+import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
@@ -206,6 +206,15 @@ export default function MerchantOrders() {
                     </td>
                     <td className="p-3">
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(`tel:${o.phone_number}`)}>
+                          <PhoneCall className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                          const phone = o.phone_number.replace(/[\s-]/g, "").replace(/^0/, "963");
+                          window.open(`https://wa.me/${phone}`, "_blank");
+                        }}>
+                          <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                        </Button>
                         {!o.shipment_id && ["new", "pending", "processing"].includes(o.status) && (
                           <Button size="sm" variant="ghost" className="gap-1" onClick={() => openConfirm(o)}>
                             <Truck className="h-3.5 w-3.5 text-primary" /> شحن
