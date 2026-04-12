@@ -5,11 +5,10 @@ import { useMerchantVerification } from "@/hooks/use-merchant-verification";
 import { compressImage } from "@/lib/image-compress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import {
   AlertCircle, CheckCircle2, Upload, Shield, Loader2,
-  ShieldCheck, Clock, Mail, Phone, MessageCircle,
+  ShieldCheck, Clock, Mail, Phone, MessageCircle, Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 
