@@ -228,9 +228,17 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
                         <p className="text-xs text-muted-foreground">{s.detailed_address}</p>
                       </div>
                     </div>
-                    <div className="bg-muted/30 rounded-md px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">COD</span>
-                      <span className="font-display font-bold text-foreground">{Number(s.cod_amount).toLocaleString()} ل.س</span>
+                    <div className="bg-muted/30 rounded-md px-3 py-2 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">COD</span>
+                        <span className="font-display font-bold text-foreground">{Number(s.cod_amount).toLocaleString()} ل.س</span>
+                      </div>
+                      {(s as any).carrier_fee != null && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">رسوم الشحن</span>
+                          <span className="font-display font-semibold text-foreground">{Number((s as any).carrier_fee).toLocaleString()} ل.س</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
