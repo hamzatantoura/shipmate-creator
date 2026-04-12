@@ -267,6 +267,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="zones" className="gap-1.5">
               <MapPin className="h-3.5 w-3.5" /> مناطق الشحن
             </TabsTrigger>
+            <TabsTrigger value="merchants" className="gap-1.5">
+              <User className="h-3.5 w-3.5" /> التجار
+            </TabsTrigger>
           </TabsList>
 
           {/* Shipments management tab */}
