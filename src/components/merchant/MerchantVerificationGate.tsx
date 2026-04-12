@@ -153,6 +153,14 @@ export default function MerchantVerificationGate({ children }: Props) {
       title: "حسابك قيد التحقق",
       description: "يرجى استكمال متطلبات التحقق التالية لتفعيل متجرك واستقبال الطلبات.",
     },
+    pending_admin_approval: {
+      icon: ShieldCheck,
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/30",
+      title: "بانتظار الموافقة الإدارية",
+      description: "تم استكمال جميع متطلبات التحقق. حسابك قيد المراجعة من فريق صلة وسيتم تفعيله بعد الموافقة.",
+    },
     rejected: {
       icon: AlertCircle,
       color: "text-destructive",
@@ -412,16 +420,16 @@ export default function MerchantVerificationGate({ children }: Props) {
         </CardContent>
       </Card>
 
-      {/* All checks done but not yet verified */}
-      {verification.allChecksPassed && !verification.isVerified && (
-        <Card className="border-primary/20 bg-primary/5">
+      {/* Pending admin approval state */}
+      {verification.verification_status === "pending_admin_approval" && (
+        <Card className="border-blue-500/20 bg-blue-500/5">
           <CardContent className="py-6 text-center space-y-2">
-            <ShieldCheck className="h-10 w-10 text-primary mx-auto" />
+            <ShieldCheck className="h-10 w-10 text-blue-500 mx-auto" />
             <p className="text-sm font-medium text-foreground">
               تم استكمال جميع المتطلبات!
             </p>
             <p className="text-xs text-muted-foreground">
-              حسابك قيد المراجعة من فريق صلة. سيتم تفعيل متجرك خلال فترة قصيرة.
+              حسابك قيد المراجعة من فريق صلة. سيتم تفعيل متجرك بعد الموافقة الإدارية.
             </p>
           </CardContent>
         </Card>

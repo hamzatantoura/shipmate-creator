@@ -13,6 +13,7 @@ import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowD
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
+import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
@@ -266,6 +267,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="zones" className="gap-1.5">
               <MapPin className="h-3.5 w-3.5" /> مناطق الشحن
             </TabsTrigger>
+            <TabsTrigger value="merchants" className="gap-1.5">
+              <User className="h-3.5 w-3.5" /> التجار
+            </TabsTrigger>
           </TabsList>
 
           {/* Shipments management tab */}
@@ -413,6 +417,9 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="zones" className="mt-4">
             <AdminZonesManagement />
+          </TabsContent>
+          <TabsContent value="merchants" className="mt-4">
+            <AdminMerchantApproval />
           </TabsContent>
         </Tabs>
 

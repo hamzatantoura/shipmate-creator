@@ -8,6 +8,8 @@ import { AuthProvider } from "@/hooks/use-auth";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import MerchantPortal from "./pages/MerchantPortal";
 import VendorDashboard from "./pages/VendorDashboard";
 import TopUp from "./pages/TopUp";
@@ -30,6 +32,8 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/track" element={<TrackShipment />} />
           <Route path="/track/:trackingId" element={<TrackShipment />} />
 

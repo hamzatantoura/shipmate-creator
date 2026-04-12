@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
 export interface VerificationState {
-  verification_status: "pending_verification" | "verified" | "rejected";
+  verification_status: "pending_verification" | "pending_admin_approval" | "verified" | "rejected";
   phone_verified: boolean;
   email_confirmed: boolean;
   id_image_url: string | null;
@@ -44,7 +44,7 @@ export function useMerchantVerification() {
     if (!user) return;
 
     (async () => {
-      // Check email confirmation from auth
+      // Check email confirmation from auth session
       const emailConfirmed = !!user.email_confirmed_at;
 
       const { data: merchant } = await supabase
@@ -55,8 +55,27 @@ export function useMerchantVerification() {
 
       const m = merchant as any;
       if (m) {
+        // Sync email_confirmed from auth to merchants table
+        if (emailConfirmed && !m.email_confirmed) {
+          await supabase
+            .from("merchants")
+            .update({ email_confirmed: true } as any)
+            .eq("user_id", user.id);
+        }
+
+        // Auto-transition: if all 3 critical checks pass and still pending_verification, move to pending_admin_approval
+        const allCriticalPassed = emailConfirmed && !!m.phone_verified && !!m.id_image_url;
+        let currentStatus = m.verification_status || "pending_verification";
+        if (allCriticalPassed && currentStatus === "pending_verification") {
+          await supabase
+            .from("merchants")
+            .update({ verification_status: "pending_admin_approval" } as any)
+            .eq("user_id", user.id);
+          currentStatus = "pending_admin_approval";
+        }
+
         const vs: VerificationState = {
-          verification_status: m.verification_status || "pending_verification",
+          verification_status: currentStatus,
           phone_verified: m.phone_verified || false,
           email_confirmed: emailConfirmed,
           id_image_url: m.id_image_url || null,
@@ -104,8 +123,19 @@ export function useMerchantVerification() {
           .single();
         const m = merchant as any;
         if (m) {
+          // Sync email_confirmed
+          if (emailConfirmed && !m.email_confirmed) {
+            await supabase.from("merchants").update({ email_confirmed: true } as any).eq("user_id", user.id);
+          }
+          // Auto-transition
+          const allCriticalPassed = emailConfirmed && !!m.phone_verified && !!m.id_image_url;
+          let currentStatus = m.verification_status || "pending_verification";
+          if (allCriticalPassed && currentStatus === "pending_verification") {
+            await supabase.from("merchants").update({ verification_status: "pending_admin_approval" } as any).eq("user_id", user.id);
+            currentStatus = "pending_admin_approval";
+          }
           setState({
-            verification_status: m.verification_status || "pending_verification",
+            verification_status: currentStatus,
             phone_verified: m.phone_verified || false,
             email_confirmed: emailConfirmed,
             id_image_url: m.id_image_url || null,
