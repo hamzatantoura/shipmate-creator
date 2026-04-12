@@ -413,9 +413,11 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          height_cm: number | null
           id: string
           image_url: string | null
           is_active: boolean
+          length_cm: number | null
           merchant_id: string
           name: string
           price: number
@@ -423,13 +425,16 @@ export type Database = {
           stock: number
           updated_at: string
           weight_kg: number
+          width_cm: number | null
         }
         Insert: {
           created_at?: string
           description?: string | null
+          height_cm?: number | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          length_cm?: number | null
           merchant_id: string
           name: string
           price?: number
@@ -437,13 +442,16 @@ export type Database = {
           stock?: number
           updated_at?: string
           weight_kg?: number
+          width_cm?: number | null
         }
         Update: {
           created_at?: string
           description?: string | null
+          height_cm?: number | null
           id?: string
           image_url?: string | null
           is_active?: boolean
+          length_cm?: number | null
           merchant_id?: string
           name?: string
           price?: number
@@ -451,6 +459,7 @@ export type Database = {
           stock?: number
           updated_at?: string
           weight_kg?: number
+          width_cm?: number | null
         }
         Relationships: []
       }
@@ -557,58 +566,76 @@ export type Database = {
       }
       shipments: {
         Row: {
+          billable_weight: number | null
+          carrier_fee: number | null
           carrier_id: string | null
           city: Database["public"]["Enums"]["shipment_city"]
           cod_amount: number
+          collection_fee: number | null
           courier_id: string | null
           created_at: string
           detailed_address: string
           final_weight: number | null
           id: string
           merchant_id: string
+          merchant_shipping_fee: number | null
           order_id: string | null
           phone_number: string
+          platform_margin: number | null
           receiver_name: string
           shipping_fee: number | null
           status: string
           tracking_number: string | null
           updated_at: string
+          volumetric_weight: number | null
         }
         Insert: {
+          billable_weight?: number | null
+          carrier_fee?: number | null
           carrier_id?: string | null
           city: Database["public"]["Enums"]["shipment_city"]
           cod_amount?: number
+          collection_fee?: number | null
           courier_id?: string | null
           created_at?: string
           detailed_address: string
           final_weight?: number | null
           id?: string
           merchant_id: string
+          merchant_shipping_fee?: number | null
           order_id?: string | null
           phone_number: string
+          platform_margin?: number | null
           receiver_name: string
           shipping_fee?: number | null
           status?: string
           tracking_number?: string | null
           updated_at?: string
+          volumetric_weight?: number | null
         }
         Update: {
+          billable_weight?: number | null
+          carrier_fee?: number | null
           carrier_id?: string | null
           city?: Database["public"]["Enums"]["shipment_city"]
           cod_amount?: number
+          collection_fee?: number | null
           courier_id?: string | null
           created_at?: string
           detailed_address?: string
           final_weight?: number | null
           id?: string
           merchant_id?: string
+          merchant_shipping_fee?: number | null
           order_id?: string | null
           phone_number?: string
+          platform_margin?: number | null
           receiver_name?: string
           shipping_fee?: number | null
           status?: string
           tracking_number?: string | null
           updated_at?: string
+          volumetric_weight?: number | null
         }
         Relationships: [
           {
