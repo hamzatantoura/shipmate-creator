@@ -10,7 +10,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ShoppingCart, Package, Loader2, MapPin, Share2, Check, AlertCircle, Locate } from "lucide-react";
+import { ShoppingCart, Package, Loader2, MapPin, Share2, Check, AlertCircle, MessageCircle } from "lucide-react";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
@@ -46,6 +46,8 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<{ orderId: string; receiverName: string; phone: string; city: string; address: string; total: number; productName: string } | null>(null);
+  const [merchantPhone, setMerchantPhone] = useState<string | null>(null);
 
   const [districts, setDistricts] = useState<District[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -76,12 +78,14 @@ export default function ProductPage() {
         setMainImage((prod as any).image_url);
         const { data: imgs } = await supabase.from("product_images").select("*").eq("product_id", (prod as any).id).order("sort_order");
         if (imgs) setImages(imgs as ProductImage[]);
+        // Fetch merchant phone for WhatsApp
+        const { data: profile } = await supabase.from("profiles").select("phone").eq("user_id", (prod as any).merchant_id).single();
+        if (profile?.phone) setMerchantPhone(profile.phone);
       }
       setLoading(false);
     });
   }, [slug]);
 
-  // Load districts, provinces, sub_regions
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("*").eq("is_active", true).order("province_ar"),
@@ -97,7 +101,6 @@ export default function ProductPage() {
   const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
   const deliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
 
-  // Filter sub-regions when district changes
   useEffect(() => {
     if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
       const province = provinces.find(p => p.name === selectedDistrictObj.province || p.name_ar === selectedDistrictObj.province_ar);
@@ -114,26 +117,7 @@ export default function ProductPage() {
 
   const handlePhoneChange = (val: string) => {
     setForm({ ...form, phone_number: val });
-    if (val && !validatePhone(val)) {
-      setPhoneError("صيغة الرقم غير صحيحة. مثال: 0912345678");
-    } else {
-      setPhoneError("");
-    }
-  };
-
-  const getLocation = () => {
-    if (!navigator.geolocation) { toast.error("المتصفح لا يدعم تحديد الموقع"); return; }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCustomerLat(pos.coords.latitude);
-        setCustomerLng(pos.coords.longitude);
-        setLocating(false);
-        toast.success("تم تحديد موقعك بنجاح");
-      },
-      () => { setLocating(false); toast.error("لم نتمكن من تحديد موقعك"); },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    setPhoneError(val && !validatePhone(val) ? "صيغة الرقم غير صحيحة. مثال: 0912345678" : "");
   };
 
   const handleOrder = async (e: React.FormEvent) => {
@@ -148,7 +132,7 @@ export default function ProductPage() {
     const qty = parseInt(form.quantity) || 1;
     const totalAmount = product.price * qty;
 
-    const { error } = await supabase.from("orders").insert({
+    const { data: orderData, error } = await supabase.from("orders").insert({
       merchant_id: product.merchant_id,
       product_id: product.id,
       quantity: qty,
@@ -163,9 +147,19 @@ export default function ProductPage() {
       district_id: selectedDistrict,
       customer_lat: customerLat,
       customer_lng: customerLng,
-    } as any);
+    } as any).select("id").single();
     setSubmitting(false);
     if (error) { toast.error("فشل إرسال الطلب"); return; }
+
+    setOrderDetails({
+      orderId: (orderData as any)?.id?.slice(0, 8)?.toUpperCase() || "—",
+      receiverName: form.receiver_name.trim(),
+      phone: form.phone_number.trim(),
+      city: selectedDistrictObj?.province_ar || "",
+      address: form.detailed_address.trim() || "غير محدد",
+      total: totalAmount + deliveryFee,
+      productName: product.name,
+    });
     setSubmitted(true);
     toast.success("تم إرسال طلبك بنجاح!");
   };
@@ -175,6 +169,13 @@ export default function ProductPage() {
     const url = window.location.href;
     const text = `${product.name}\nالسعر: ${Number(product.price).toLocaleString()} ل.س\n${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const confirmViaWhatsApp = () => {
+    if (!orderDetails || !merchantPhone) return;
+    const phone = merchantPhone.replace(/[\s-]/g, "").replace(/^0/, "963");
+    const msg = `✅ تأكيد طلب جديد\n\n📦 المنتج: ${orderDetails.productName}\n🆔 رقم الطلب: ${orderDetails.orderId}\n👤 الاسم: ${orderDetails.receiverName}\n📱 الهاتف: ${orderDetails.phone}\n📍 المدينة: ${orderDetails.city}\n🏠 العنوان: ${orderDetails.address}\n💰 الإجمالي: ${orderDetails.total.toLocaleString()} ل.س`;
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
@@ -190,6 +191,19 @@ export default function ProductPage() {
             </div>
             <h2 className="text-xl font-display font-bold text-foreground">تم إرسال طلبك بنجاح!</h2>
             <p className="text-muted-foreground text-sm">سيتواصل معك التاجر قريباً لتأكيد الطلب وترتيب الشحن.</p>
+            {orderDetails && (
+              <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3 space-y-1 text-right">
+                <p>📦 {orderDetails.productName}</p>
+                <p>🆔 رقم الطلب: <span className="font-mono">{orderDetails.orderId}</span></p>
+                <p>💰 الإجمالي: <span className="font-bold text-foreground">{orderDetails.total.toLocaleString()} ل.س</span></p>
+              </div>
+            )}
+            {merchantPhone && (
+              <Button onClick={confirmViaWhatsApp} className="w-full gap-2 bg-[#25D366] hover:bg-[#1fb855] text-white">
+                <MessageCircle className="h-5 w-5" />
+                تأكيد الطلب عبر واتساب
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -202,7 +216,6 @@ export default function ProductPage() {
     <div className="min-h-screen bg-background" dir="rtl">
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-8">
-          {/* Product Images */}
           <div className="space-y-3">
             <div className="aspect-square bg-muted/30 rounded-xl overflow-hidden border border-border">
               {mainImage ? (
@@ -225,7 +238,6 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Product Info + Order Form */}
           <div className="space-y-6">
             <div>
               <h1 className="text-2xl font-display font-bold text-foreground mb-2">{product.name}</h1>

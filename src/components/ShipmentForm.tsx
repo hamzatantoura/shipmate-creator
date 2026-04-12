@@ -183,6 +183,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       volumetric_weight: pricing.volumetric_weight,
       order_id: (order as any)?.id || prefill?.order_id || null,
       carrier_id: matchedZone?.carrier_id || null,
+      notes: form.notes.trim() || null,
       status: "pending",
     } as any);
 
