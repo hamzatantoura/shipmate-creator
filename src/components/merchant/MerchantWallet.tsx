@@ -62,7 +62,7 @@ export default function MerchantWallet() {
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("");
-  const [payoutDetails, setPayoutDetails] = useState("");
+  
   const [submitting, setSubmitting] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
   const [pendingShipments, setPendingShipments] = useState(0);
