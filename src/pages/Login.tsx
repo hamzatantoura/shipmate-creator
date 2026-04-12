@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Truck } from "lucide-react";
 
+const ADMIN_EMAILS = new Set(["hamza.tantoura@gmail.com"]);
+
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -25,22 +27,28 @@ export default function Login() {
       return;
     }
 
-    // Get role and redirect
     if (data.user) {
-      const { data: profile } = await supabase
-        .from("profiles")
+      const { data: roleRows } = await supabase
+        .from("user_roles")
         .select("role")
-        .eq("user_id", data.user.id)
-        .single();
+        .eq("user_id", data.user.id);
 
-      const role = profile?.role || "merchant";
-      const routes: Record<string, string> = {
+      const role = (roleRows?.[0]?.role as "admin" | "merchant" | "vendor" | undefined)
+        ?? (ADMIN_EMAILS.has(data.user.email ?? "") ? "admin" : null);
+
+      const routes = {
         admin: "/admin",
         merchant: "/merchant",
         vendor: "/vendor",
-      };
-      navigate(routes[role] || "/merchant");
+      } as const;
+
+      navigate(role ? routes[role] : "/login", { replace: true });
+
+      if (!role) {
+        toast.error("لم يتم العثور على صلاحية لهذا الحساب");
+      }
     }
+
     setLoading(false);
   };
 
