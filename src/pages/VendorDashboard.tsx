@@ -45,6 +45,9 @@ export default function VendorDashboard() {
   const [selectedMerchantId, setSelectedMerchantId] = useState<string | null>(null);
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
 
+  useRealtimeNotifications("vendor");
+  useEffect(() => { const cleanup = setupOfflineSync(); return cleanup; }, []);
+
   // When user clicks a row in the list, switch to map and highlight
   const handleSelectFromList = useCallback((id: string) => {
     setSelectedMerchantId(id);
