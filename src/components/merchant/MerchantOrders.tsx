@@ -34,6 +34,7 @@ interface Order {
   final_sale_price: number | null; customer_lat: number | null; customer_lng: number | null;
   delivery_fee: number; platform_fee: number; net_amount: number;
   products?: { name: string } | null;
+  shipments?: { tracking_number: string | null } | null;
 }
 
 type ShipmentCity = Database["public"]["Enums"]["shipment_city"];
