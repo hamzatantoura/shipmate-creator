@@ -123,8 +123,19 @@ export function useMerchantVerification() {
           .single();
         const m = merchant as any;
         if (m) {
+          // Sync email_confirmed
+          if (emailConfirmed && !m.email_confirmed) {
+            await supabase.from("merchants").update({ email_confirmed: true } as any).eq("user_id", user.id);
+          }
+          // Auto-transition
+          const allCriticalPassed = emailConfirmed && !!m.phone_verified && !!m.id_image_url;
+          let currentStatus = m.verification_status || "pending_verification";
+          if (allCriticalPassed && currentStatus === "pending_verification") {
+            await supabase.from("merchants").update({ verification_status: "pending_admin_approval" } as any).eq("user_id", user.id);
+            currentStatus = "pending_admin_approval";
+          }
           setState({
-            verification_status: m.verification_status || "pending_verification",
+            verification_status: currentStatus,
             phone_verified: m.phone_verified || false,
             email_confirmed: emailConfirmed,
             id_image_url: m.id_image_url || null,
