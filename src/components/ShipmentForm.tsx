@@ -36,9 +36,10 @@ interface ShipmentFormProps {
   };
 }
 
-const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
+// Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
+const INTL_PHONE_REGEX = /^\+?\d{7,15}$/;
 function validatePhone(phone: string): boolean {
-  return SYRIA_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
+  return INTL_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
 }
 
 const CITY_MAP: Record<string, "Damascus" | "Aleppo" | "Homs" | "Lattakia" | "Hama" | "Tartous"> = {

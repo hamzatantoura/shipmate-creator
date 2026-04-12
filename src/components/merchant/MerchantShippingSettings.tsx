@@ -12,9 +12,10 @@ import { toast } from "sonner";
 
 type ShippingPolicy = "customer_pays" | "free_all" | "free_above";
 
-const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
+// Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
+const INTL_PHONE_REGEX = /^\+?\d{7,15}$/;
 function isValidPhone(phone: string): boolean {
-  return SYRIA_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
+  return INTL_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
 }
 
 export default function MerchantShippingSettings() {
