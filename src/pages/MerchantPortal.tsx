@@ -42,6 +42,9 @@ export default function MerchantPortal() {
             <TabsTrigger value="wallet" className="gap-1.5">
               <Wallet className="h-3.5 w-3.5" /> المحفظة
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <Settings className="h-3.5 w-3.5" /> الإعدادات
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="shipments">
