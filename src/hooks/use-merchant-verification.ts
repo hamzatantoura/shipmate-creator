@@ -71,9 +71,10 @@ export function useMerchantVerification() {
 
         const c: VerificationCheck[] = [
           { key: "email", label: "تأكيد البريد الإلكتروني", ok: emailConfirmed },
+          { key: "phone_verified", label: "تأكيد رقم الهاتف", ok: !!m.phone_verified },
+          { key: "id_image", label: "رفع صورة الهوية", ok: !!m.id_image_url },
           { key: "phone", label: "رقم الهاتف", ok: !!m.phone?.trim() },
           { key: "whatsapp", label: "رقم واتساب", ok: !!m.whatsapp_number?.trim() },
-          { key: "id_image", label: "رفع صورة الهوية", ok: !!m.id_image_url },
           { key: "store_name", label: "اسم المتجر", ok: !!m.store_name?.trim() },
           { key: "contact_person", label: "اسم التاجر", ok: !!m.contact_person?.trim() },
           { key: "city", label: "المحافظة", ok: !!m.city?.trim() },
@@ -117,9 +118,10 @@ export function useMerchantVerification() {
           });
           setChecks([
             { key: "email", label: "تأكيد البريد الإلكتروني", ok: emailConfirmed },
+            { key: "phone_verified", label: "تأكيد رقم الهاتف", ok: !!m.phone_verified },
+            { key: "id_image", label: "رفع صورة الهوية", ok: !!m.id_image_url },
             { key: "phone", label: "رقم الهاتف", ok: !!m.phone?.trim() },
             { key: "whatsapp", label: "رقم واتساب", ok: !!m.whatsapp_number?.trim() },
-            { key: "id_image", label: "رفع صورة الهوية", ok: !!m.id_image_url },
             { key: "store_name", label: "اسم المتجر", ok: !!m.store_name?.trim() },
             { key: "contact_person", label: "اسم التاجر", ok: !!m.contact_person?.trim() },
             { key: "city", label: "المحافظة", ok: !!m.city?.trim() },
