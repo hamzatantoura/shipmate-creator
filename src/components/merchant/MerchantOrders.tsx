@@ -200,6 +200,11 @@ export default function MerchantOrders() {
                       <p className="text-xs text-muted-foreground" dir="ltr">{o.phone_number}</p>
                       {o.products?.name && <p className="text-xs text-muted-foreground">{o.products.name} × {o.quantity}</p>}
                     </td>
+                    <td className="p-3">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {o.shipments?.tracking_number || "—"}
+                      </span>
+                    </td>
                     <td className="p-3 text-foreground">{o.city}</td>
                     <td className="p-3 text-foreground">{(o.final_sale_price || o.total_amount).toLocaleString()} ل.س</td>
                     <td className="p-3 text-muted-foreground">{Number(o.delivery_fee || 0).toLocaleString()} ل.س</td>
