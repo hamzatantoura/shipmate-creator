@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
 export interface VerificationState {
-  verification_status: "pending_verification" | "verified" | "rejected";
+  verification_status: "pending_verification" | "pending_admin_approval" | "verified" | "rejected";
   phone_verified: boolean;
   email_confirmed: boolean;
   id_image_url: string | null;
