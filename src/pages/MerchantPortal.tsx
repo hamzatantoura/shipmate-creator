@@ -8,11 +8,13 @@ import MerchantWallet from "@/components/merchant/MerchantWallet";
 import MerchantShipments from "@/components/merchant/MerchantShipments";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "react-router-dom";
+import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 
 export default function MerchantPortal() {
   const { profile } = useAuth();
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get("tab") || "shipments";
+  useRealtimeNotifications("merchant");
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">

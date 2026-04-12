@@ -1,4 +1,4 @@
-import { Component, type ReactNode, useState, useCallback } from "react";
+import { Component, type ReactNode, useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Map, Package, Users, ScanLine } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
@@ -7,6 +7,8 @@ import VendorShipments from "@/components/vendor/VendorShipments";
 import VendorCouriers from "@/components/vendor/VendorCouriers";
 import BarcodeScanner from "@/components/vendor/BarcodeScanner";
 import { useAuth } from "@/hooks/use-auth";
+import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
+import { setupOfflineSync } from "@/lib/offline-sync";
 
 class VendorMapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
