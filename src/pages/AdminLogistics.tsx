@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
+import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
@@ -262,6 +263,9 @@ export default function AdminLogistics() {
               <CreditCard className="h-3.5 w-3.5" /> طلبات التسوية
               {pendingPayouts > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingPayouts}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="zones" className="gap-1.5">
+              <MapPin className="h-3.5 w-3.5" /> مناطق الشحن
+            </TabsTrigger>
           </TabsList>
 
           {/* Shipments management tab */}
@@ -406,6 +410,9 @@ export default function AdminLogistics() {
                 ))}
               </div>
             )}
+          </TabsContent>
+          <TabsContent value="zones" className="mt-4">
+            <AdminZonesManagement />
           </TabsContent>
         </Tabs>
 
