@@ -19,19 +19,22 @@ interface Props {
 }
 
 const STATUS_OPTIONS = [
-  { value: "at_warehouse", label: "تم الاستلام" },
-  { value: "in_transit_intercity", label: "قيد الشحن" },
+  { value: "picked_up", label: "تم الاستلام من التاجر" },
+  { value: "at_warehouse", label: "في المستودع" },
+  { value: "in_transit_intercity", label: "جاري الشحن بين المحافظات" },
   { value: "with_distributor", label: "مع مندوب التوزيع" },
+  { value: "out_for_delivery", label: "جاري التوصيل" },
   { value: "delivered", label: "تم التسليم" },
   { value: "returned", label: "مرتجع" },
 ];
 
 const STATUS_AR: Record<string, string> = {
-  pending: "قيد الانتظار",
-  pending_pickup: "بانتظار الاستلام",
+  pending: "جديد",
+  picked_up: "تم الاستلام",
   at_warehouse: "في المستودع",
-  in_transit_intercity: "قيد الشحن",
+  in_transit_intercity: "جاري الشحن",
   with_distributor: "مع التوزيع",
+  out_for_delivery: "جاري التوصيل",
   delivered: "تم التسليم",
   returned: "مرتجع",
 };
