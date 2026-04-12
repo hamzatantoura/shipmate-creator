@@ -40,6 +40,9 @@ interface PayoutRequest {
   id: string; merchant_id: string; amount: number; method: string;
   account_details: string; status: string; receipt_url: string | null;
   admin_note: string | null; created_at: string;
+  merchant_name?: string;
+  merchant_contact?: string;
+  merchant_phone?: string;
 }
 interface TopUpRequest {
   id: string; merchant_id: string; amount: number; method: string;
@@ -98,7 +101,32 @@ export default function AdminLogistics() {
       supabase.from("shipments").select("status"),
       supabase.from("shipments").select("*").not("status", "in", '("delivered","returned")').order("created_at", { ascending: false }),
     ]);
-    if (pRes.data) setPayouts(pRes.data as PayoutRequest[]);
+    if (pRes.data) {
+      const merchantIds = [...new Set(pRes.data.map((p) => p.merchant_id).filter(Boolean))];
+      const { data: merchants } = merchantIds.length
+        ? await supabase
+            .from("merchants")
+            .select("user_id, store_name, contact_person, phone")
+            .in("user_id", merchantIds)
+        : { data: [] };
+
+      const merchantMap = new Map(
+        (merchants ?? []).map((merchant) => [merchant.user_id, merchant]),
+      );
+
+      setPayouts(
+        pRes.data.map((payout) => {
+          const merchant = merchantMap.get(payout.merchant_id);
+
+          return {
+            ...payout,
+            merchant_name: merchant?.store_name || "—",
+            merchant_contact: merchant?.contact_person || "—",
+            merchant_phone: merchant?.phone || "—",
+          };
+        }) as PayoutRequest[],
+      );
+    }
     if (tRes.data) setTopups(tRes.data as TopUpRequest[]);
     if (sAllRes.data) {
       setTotalShipments(sAllRes.data.length);
@@ -402,7 +430,8 @@ export default function AdminLogistics() {
                     <CardContent className="p-4 flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="font-display font-bold text-foreground text-lg">{Number(p.amount).toLocaleString()} ل.س</p>
-                        <p className="text-sm text-muted-foreground">{METHOD_AR[p.method] || p.method} — {p.account_details}</p>
+                        <p className="text-sm text-foreground font-medium">{p.merchant_name || "—"} — {p.merchant_phone || "—"}</p>
+                        <p className="text-sm text-muted-foreground">{METHOD_AR[p.method] || p.method}</p>
                         <p className="text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString("ar")}</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -432,7 +461,9 @@ export default function AdminLogistics() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-muted-foreground">المبلغ:</span> <span className="font-bold">{Number(selectedPayout.amount).toLocaleString()} ل.س</span></div>
                   <div><span className="text-muted-foreground">الطريقة:</span> <span className="font-bold">{METHOD_AR[selectedPayout.method] || selectedPayout.method}</span></div>
-                  <div className="col-span-2"><span className="text-muted-foreground">تفاصيل الحساب:</span> <span className="font-bold">{selectedPayout.account_details}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">اسم المتجر:</span> <span className="font-bold">{selectedPayout.merchant_name || "—"}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">اسم البائع:</span> <span className="font-bold">{selectedPayout.merchant_contact || "—"}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">رقم الهاتف:</span> <span className="font-bold">{selectedPayout.merchant_phone || "—"}</span></div>
                 </div>
                 <div className="space-y-2">
                   <Label>تحديث الحالة</Label>
