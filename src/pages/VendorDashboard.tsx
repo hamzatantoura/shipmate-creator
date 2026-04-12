@@ -1,10 +1,11 @@
 import { Component, type ReactNode, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, Package, Users } from "lucide-react";
+import { Map, Package, Users, ScanLine } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import VendorOperationsMap from "@/components/vendor/VendorOperationsMap";
 import VendorShipments from "@/components/vendor/VendorShipments";
 import VendorCouriers from "@/components/vendor/VendorCouriers";
+import BarcodeScanner from "@/components/vendor/BarcodeScanner";
 import { useAuth } from "@/hooks/use-auth";
 
 class VendorMapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
