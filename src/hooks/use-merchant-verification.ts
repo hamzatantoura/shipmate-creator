@@ -44,7 +44,7 @@ export function useMerchantVerification() {
     if (!user) return;
 
     (async () => {
-      // Check email confirmation from auth session
+        // Check email confirmation from auth session
       const emailConfirmed = !!user.email_confirmed_at;
 
       const { data: merchant } = await supabase
@@ -63,8 +63,8 @@ export function useMerchantVerification() {
             .eq("user_id", user.id);
         }
 
-        // Auto-transition: if all 3 critical checks pass and still pending_verification, move to pending_admin_approval
-        const allCriticalPassed = emailConfirmed && !!m.phone_verified && !!m.id_image_url;
+        // Auto-transition: once required store data is completed, move to pending_admin_approval
+        const allCriticalPassed = !!m.store_name?.trim() && !!m.contact_person?.trim() && !!m.city?.trim() && !!m.shipping_policy;
         let currentStatus = m.verification_status || "pending_verification";
         if (allCriticalPassed && currentStatus === "pending_verification") {
           await supabase
@@ -89,11 +89,6 @@ export function useMerchantVerification() {
         setState(vs);
 
         const c: VerificationCheck[] = [
-          { key: "email", label: "تأكيد البريد الإلكتروني", ok: emailConfirmed },
-          { key: "phone_verified", label: "تأكيد رقم الهاتف", ok: !!m.phone_verified },
-          { key: "id_image", label: "رفع صورة الهوية", ok: !!m.id_image_url },
-          { key: "phone", label: "رقم الهاتف", ok: !!m.phone?.trim() },
-          { key: "whatsapp", label: "رقم واتساب", ok: !!m.whatsapp_number?.trim() },
           { key: "store_name", label: "اسم المتجر", ok: !!m.store_name?.trim() },
           { key: "contact_person", label: "اسم التاجر", ok: !!m.contact_person?.trim() },
           { key: "city", label: "المحافظة", ok: !!m.city?.trim() },
@@ -128,7 +123,7 @@ export function useMerchantVerification() {
             await supabase.from("merchants").update({ email_confirmed: true } as any).eq("user_id", user.id);
           }
           // Auto-transition
-          const allCriticalPassed = emailConfirmed && !!m.phone_verified && !!m.id_image_url;
+          const allCriticalPassed = !!m.store_name?.trim() && !!m.contact_person?.trim() && !!m.city?.trim() && !!m.shipping_policy;
           let currentStatus = m.verification_status || "pending_verification";
           if (allCriticalPassed && currentStatus === "pending_verification") {
             await supabase.from("merchants").update({ verification_status: "pending_admin_approval" } as any).eq("user_id", user.id);
@@ -147,11 +142,6 @@ export function useMerchantVerification() {
             shipping_policy: m.shipping_policy || "customer_pays",
           });
           setChecks([
-            { key: "email", label: "تأكيد البريد الإلكتروني", ok: emailConfirmed },
-            { key: "phone_verified", label: "تأكيد رقم الهاتف", ok: !!m.phone_verified },
-            { key: "id_image", label: "رفع صورة الهوية", ok: !!m.id_image_url },
-            { key: "phone", label: "رقم الهاتف", ok: !!m.phone?.trim() },
-            { key: "whatsapp", label: "رقم واتساب", ok: !!m.whatsapp_number?.trim() },
             { key: "store_name", label: "اسم المتجر", ok: !!m.store_name?.trim() },
             { key: "contact_person", label: "اسم التاجر", ok: !!m.contact_person?.trim() },
             { key: "city", label: "المحافظة", ok: !!m.city?.trim() },
