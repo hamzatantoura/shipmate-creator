@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, ShoppingCart, Wallet, Truck } from "lucide-react";
+import { Package, ShoppingCart, Wallet, Truck, Settings } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MerchantProducts from "@/components/merchant/MerchantProducts";
 import MerchantOrders from "@/components/merchant/MerchantOrders";
 import MerchantWallet from "@/components/merchant/MerchantWallet";
 import MerchantShipments from "@/components/merchant/MerchantShipments";
+import MerchantShippingSettings from "@/components/merchant/MerchantShippingSettings";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "react-router-dom";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
@@ -41,6 +42,9 @@ export default function MerchantPortal() {
             <TabsTrigger value="wallet" className="gap-1.5">
               <Wallet className="h-3.5 w-3.5" /> المحفظة
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <Settings className="h-3.5 w-3.5" /> الإعدادات
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="shipments">
@@ -61,6 +65,11 @@ export default function MerchantPortal() {
           <TabsContent value="wallet">
             <ErrorBoundary fallbackMessage="حدث خطأ في تحميل المحفظة">
               <MerchantWallet />
+            </ErrorBoundary>
+          </TabsContent>
+          <TabsContent value="settings">
+            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الإعدادات">
+              <MerchantShippingSettings />
             </ErrorBoundary>
           </TabsContent>
         </Tabs>
