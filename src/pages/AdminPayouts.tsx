@@ -80,7 +80,7 @@ export default function AdminPayouts() {
       const merchantMap = new Map(merchants?.map(m => [m.user_id, m]) || []);
       setPayouts(data.map((p: any) => {
         const m = merchantMap.get(p.merchant_id);
-        return { ...p, merchant_name: m?.store_name || m?.contact_person || "-", merchant_phone: m?.phone || "-" };
+        return { ...p, merchant_name: m?.store_name || "-", merchant_contact: m?.contact_person || "-", merchant_phone: m?.phone || "-" };
       }));
     }
     setLoading(false);
