@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,26 +11,16 @@ import { toast } from "sonner";
 import { Package, Loader2, MapPin, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
-interface District {
+interface ShippingZone {
   id: string;
-  province: string;
-  province_ar: string;
-  area: string | null;
-  area_ar: string | null;
+  province_name: string;
+  province_name_ar: string;
+  area_name: string | null;
+  area_name_ar: string | null;
+  neighborhood_name: string | null;
+  neighborhood_name_ar: string | null;
   delivery_fee: number;
-}
-
-interface SubRegion {
-  id: string;
-  name: string;
-  name_ar: string;
-  province_id: string;
-}
-
-interface Province {
-  id: string;
-  name: string;
-  name_ar: string;
+  carrier_id: string | null;
 }
 
 interface ShipmentFormProps {
@@ -46,22 +36,26 @@ interface ShipmentFormProps {
 }
 
 const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
-
 function validatePhone(phone: string): boolean {
   return SYRIA_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
 }
 
+const CITY_MAP: Record<string, "Damascus" | "Aleppo" | "Homs" | "Lattakia" | "Hama" | "Tartous"> = {
+  Damascus: "Damascus", "Rural Damascus": "Damascus", Aleppo: "Aleppo",
+  Homs: "Homs", Hama: "Hama", Lattakia: "Lattakia", Tartous: "Tartous",
+};
+
 export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
-  const [filteredSubRegions, setFilteredSubRegions] = useState<SubRegion[]>([]);
-  const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [selectedSubRegion, setSelectedSubRegion] = useState("");
-  const [phoneError, setPhoneError] = useState("");
+  const [zones, setZones] = useState<ShippingZone[]>([]);
 
+  // Cascading selection state
+  const [selectedProvince, setSelectedProvince] = useState("");
+  const [selectedArea, setSelectedArea] = useState("");
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
+
+  const [phoneError, setPhoneError] = useState("");
   const [form, setForm] = useState({
     receiver_name: prefill?.receiver_name || "",
     phone_number: prefill?.phone_number || "",
@@ -69,23 +63,20 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     cod_amount: prefill?.cod_amount || "",
   });
 
+  // Load zones
   useEffect(() => {
-    Promise.all([
-      supabase.from("districts").select("*").eq("is_active", true).order("province_ar"),
-      supabase.from("provinces").select("*").order("name_ar"),
-      supabase.from("sub_regions").select("*").order("name_ar"),
-    ]).then(([distRes, provRes, subRes]) => {
-      if (distRes.data) setDistricts(distRes.data as any as District[]);
-      if (provRes.data) setProvinces(provRes.data as any as Province[]);
-      if (subRes.data) setSubRegions(subRes.data as any as SubRegion[]);
-    });
+    supabase
+      .from("shipping_zones")
+      .select("*")
+      .eq("is_active", true)
+      .order("province_name_ar")
+      .then(({ data }) => {
+        if (data) setZones(data as any);
+      });
   }, []);
 
+  // Prefill
   useEffect(() => {
-    if (prefill?.city && districts.length > 0) {
-      const match = districts.find(d => d.province_ar === prefill.city || d.province === prefill.city);
-      if (match) setSelectedDistrict(match.id);
-    }
     if (prefill) {
       setForm({
         receiver_name: prefill.receiver_name || "",
@@ -93,34 +84,73 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         detailed_address: prefill.detailed_address || "",
         cod_amount: prefill.cod_amount || "",
       });
-    }
-  }, [prefill, districts]);
-
-  // Filter sub-regions when district changes
-  useEffect(() => {
-    if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
-      const province = provinces.find(p => p.name === selectedDistrictObj.province || p.name_ar === selectedDistrictObj.province_ar);
-      if (province) {
-        setFilteredSubRegions(subRegions.filter(sr => sr.province_id === province.id));
-      } else {
-        setFilteredSubRegions([]);
+      if (prefill.city && zones.length > 0) {
+        const match = zones.find(
+          z => z.province_name_ar === prefill.city || z.province_name === prefill.city
+        );
+        if (match) setSelectedProvince(match.province_name);
       }
-    } else {
-      setFilteredSubRegions([]);
     }
-    setSelectedSubRegion("");
-  }, [selectedDistrict, provinces, subRegions]);
+  }, [prefill, zones]);
 
-  const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
-  const deliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
+  // Derived lists
+  const provinces = useMemo(() => {
+    const map = new Map<string, string>();
+    zones.forEach(z => map.set(z.province_name, z.province_name_ar));
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "ar"));
+  }, [zones]);
 
-  const mapToCity = (province: string): "Damascus" | "Aleppo" | "Homs" | "Lattakia" | "Hama" | "Tartous" => {
-    const map: Record<string, any> = {
-      Damascus: "Damascus", "Rural Damascus": "Damascus", Aleppo: "Aleppo",
-      Homs: "Homs", Hama: "Hama", Lattakia: "Lattakia", Tartous: "Tartous",
-    };
-    return map[province] || "Damascus";
-  };
+  const areas = useMemo(() => {
+    if (!selectedProvince) return [];
+    const map = new Map<string, string>();
+    zones
+      .filter(z => z.province_name === selectedProvince && z.area_name)
+      .forEach(z => map.set(z.area_name!, z.area_name_ar!));
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "ar"));
+  }, [zones, selectedProvince]);
+
+  const neighborhoods = useMemo(() => {
+    if (!selectedProvince || !selectedArea) return [];
+    return zones
+      .filter(
+        z =>
+          z.province_name === selectedProvince &&
+          z.area_name === selectedArea &&
+          z.neighborhood_name
+      )
+      .map(z => ({ name: z.neighborhood_name!, name_ar: z.neighborhood_name_ar! }))
+      .sort((a, b) => a.name_ar.localeCompare(b.name_ar, "ar"));
+  }, [zones, selectedProvince, selectedArea]);
+
+  // Reset downstream when upstream changes
+  useEffect(() => { setSelectedArea(""); setSelectedNeighborhood(""); }, [selectedProvince]);
+  useEffect(() => { setSelectedNeighborhood(""); }, [selectedArea]);
+
+  // Find the matching zone for pricing
+  const matchedZone = useMemo(() => {
+    if (!selectedProvince) return null;
+    // Try most specific first: neighborhood
+    if (selectedNeighborhood) {
+      const z = zones.find(
+        z => z.province_name === selectedProvince && z.area_name === selectedArea && z.neighborhood_name === selectedNeighborhood
+      );
+      if (z) return z;
+    }
+    // Then area
+    if (selectedArea) {
+      const z = zones.find(
+        z => z.province_name === selectedProvince && z.area_name === selectedArea && !z.neighborhood_name
+      );
+      if (z) return z;
+    }
+    // Then province
+    const z = zones.find(
+      z => z.province_name === selectedProvince && !z.area_name && !z.neighborhood_name
+    );
+    return z || null;
+  }, [zones, selectedProvince, selectedArea, selectedNeighborhood]);
+
+  const deliveryFee = matchedZone ? Number(matchedZone.delivery_fee) : 0;
 
   const handlePhoneChange = (val: string) => {
     setForm({ ...form, phone_number: val });
@@ -133,60 +163,54 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDistrict) { toast.error("الرجاء اختيار المحافظة"); return; }
-    if (!selectedSubRegion) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
+    if (!selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
 
     setLoading(true);
     const tracking = `SIL-${Date.now().toString(36).toUpperCase()}`;
     const codAmount = parseFloat(form.cod_amount) || 0;
+    const provinceAr = provinces.find(p => p[0] === selectedProvince)?.[1] || selectedProvince;
+    const cityEnum = CITY_MAP[selectedProvince] || "Damascus";
 
     const { data: order, error: orderErr } = await supabase.from("orders").insert({
       merchant_id: user?.id || "",
       receiver_name: form.receiver_name.trim(),
       phone_number: form.phone_number.trim(),
-      city: selectedDistrictObj?.province_ar || "",
+      city: provinceAr,
       detailed_address: form.detailed_address.trim(),
       total_amount: codAmount,
       delivery_fee: deliveryFee,
       platform_fee: codAmount * 0.05,
       net_amount: codAmount - deliveryFee - (codAmount * 0.05),
-      district_id: selectedDistrict,
       customer_lat: null,
       customer_lng: null,
       status: "new",
     } as any).select().single();
 
-    if (orderErr) {
-      toast.error(orderErr.message);
-      setLoading(false);
-      return;
-    }
+    if (orderErr) { toast.error(orderErr.message); setLoading(false); return; }
 
     const { error: shipErr } = await supabase.from("shipments").insert({
       merchant_id: user?.id || "",
       receiver_name: form.receiver_name.trim(),
       phone_number: form.phone_number.trim(),
-      city: mapToCity(selectedDistrictObj?.province || ""),
+      city: cityEnum,
       detailed_address: form.detailed_address.trim(),
       cod_amount: codAmount,
       tracking_number: tracking,
       shipping_fee: deliveryFee,
       order_id: (order as any)?.id || prefill?.order_id || null,
+      carrier_id: matchedZone?.carrier_id || null,
       status: "pending",
     } as any);
 
-    if (shipErr) {
-      toast.error(shipErr.message);
-      setLoading(false);
-      return;
-    }
+    if (shipErr) { toast.error(shipErr.message); setLoading(false); return; }
 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
     setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "" });
-    setSelectedDistrict("");
-    setSelectedSubRegion("");
+    setSelectedProvince("");
+    setSelectedArea("");
+    setSelectedNeighborhood("");
     onCreated();
   };
 
@@ -217,51 +241,90 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             </p>
           )}
         </div>
+      </div>
 
+      {/* Cascading location selects */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Province */}
         <div className="space-y-2">
-          <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
-          <Select value={selectedDistrict} onValueChange={setSelectedDistrict} required>
-            <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
+          <Label className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span>
+          </Label>
+          <Select value={selectedProvince} onValueChange={setSelectedProvince}>
+            <SelectTrigger>
+              <SelectValue placeholder="اختر المحافظة" />
+            </SelectTrigger>
             <SelectContent>
-              {districts.map(d => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.province_ar} {d.area_ar ? `— ${d.area_ar}` : ""} ({Number(d.delivery_fee).toLocaleString()} ل.س)
-                </SelectItem>
+              {provinces.map(([name, nameAr]) => (
+                <SelectItem key={name} value={name}>{nameAr}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
+        {/* Area */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" /> المنطقة
+          </Label>
+          <Select
+            value={selectedArea}
+            onValueChange={setSelectedArea}
+            disabled={areas.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={selectedProvince ? (areas.length > 0 ? "اختر المنطقة" : "لا توجد مناطق") : "اختر المحافظة أولاً"} />
+            </SelectTrigger>
+            <SelectContent>
+              {areas.map(([name, nameAr]) => (
+                <SelectItem key={name} value={name}>{nameAr}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Neighborhood */}
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" /> الحي
+          </Label>
+          <Select
+            value={selectedNeighborhood}
+            onValueChange={setSelectedNeighborhood}
+            disabled={neighborhoods.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={selectedArea ? (neighborhoods.length > 0 ? "اختر الحي" : "لا توجد أحياء") : "اختر المنطقة أولاً"} />
+            </SelectTrigger>
+            <SelectContent>
+              {neighborhoods.map(n => (
+                <SelectItem key={n.name} value={n.name}>{n.name_ar}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>العنوان التفصيلي <span className="text-destructive">*</span></Label>
+          <Textarea placeholder="الشارع، البناء، الطابق..." value={form.detailed_address} onChange={e => setForm({ ...form, detailed_address: e.target.value })} required rows={3} />
+        </div>
         <div className="space-y-2">
           <Label>مبلغ الدفع عند الاستلام (ل.س)</Label>
           <Input type="number" min="0" step="1" placeholder="0" value={form.cod_amount} onChange={e => setForm({ ...form, cod_amount: e.target.value })} />
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>العنوان التفصيلي <span className="text-destructive">*</span></Label>
-        <Textarea placeholder="الشارع، البناء، الطابق..." value={form.detailed_address} onChange={e => setForm({ ...form, detailed_address: e.target.value })} required rows={3} />
-      </div>
-
-      <div className="space-y-2">
-        <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي / المنطقة <span className="text-destructive">*</span></Label>
-        <Select value={selectedSubRegion} onValueChange={setSelectedSubRegion} required disabled={filteredSubRegions.length === 0}>
-          <SelectTrigger><SelectValue placeholder={selectedDistrict ? (filteredSubRegions.length > 0 ? "اختر الحي" : "لا توجد أحياء لهذه المحافظة") : "اختر المحافظة أولاً"} /></SelectTrigger>
-          <SelectContent>
-            {filteredSubRegions.map(sr => (
-              <SelectItem key={sr.id} value={sr.id}>{sr.name_ar}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {selectedDistrict && (
+      {selectedProvince && (
         <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 border border-border">
           <div>
             <p className="text-sm text-muted-foreground">رسوم التوصيل</p>
-            <p className="text-lg font-display font-bold text-primary">{deliveryFee.toLocaleString()} ل.س</p>
+            <p className="text-lg font-display font-bold text-primary">
+              {deliveryFee > 0 ? `${deliveryFee.toLocaleString()} ل.س` : "غير محدد لهذه المنطقة"}
+            </p>
           </div>
-          {form.cod_amount && (
+          {form.cod_amount && parseFloat(form.cod_amount) > 0 && (
             <>
               <div className="h-8 w-px bg-border" />
               <div>
