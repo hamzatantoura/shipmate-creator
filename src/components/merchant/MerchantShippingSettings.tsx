@@ -124,8 +124,12 @@ export default function MerchantShippingSettings() {
           </div>
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> رقم واتساب <span className="text-destructive">*</span></Label>
-            <Input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} dir="ltr" placeholder="0912345678" />
-            <p className="text-xs text-muted-foreground">سيستخدم هذا الرقم لزر تأكيد الطلب عبر واتساب</p>
+            <Input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} dir="ltr" placeholder="+905xxxxxxxxx" />
+            <p className="text-xs text-muted-foreground">
+              أدخل الرقم بالصيغة الدولية مع مفتاح الدولة (مثال: +905xxxxxxxxx).
+              سيستخدم هذا الرقم لزر تأكيد الطلب عبر واتساب.
+              {phone && <><br />💡 إذا كان نفس رقم الهاتف، اتركه كما هو.</>}
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
