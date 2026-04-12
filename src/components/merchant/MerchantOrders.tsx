@@ -73,15 +73,17 @@ export default function MerchantOrders() {
     setEditPrice(String(o.final_sale_price || o.total_amount));
   };
 
-  // Look up carrier fee from shipping_zones based on order city
+  // Look up carrier fee + carrier_id from shipping_zones based on order city
   const [carrierFeeForOrder, setCarrierFeeForOrder] = useState(0);
+  const [carrierIdForOrder, setCarrierIdForOrder] = useState<string | null>(null);
   useEffect(() => {
-    if (!confirmOrder) { setCarrierFeeForOrder(0); return; }
-    supabase.from("shipping_zones").select("delivery_fee")
+    if (!confirmOrder) { setCarrierFeeForOrder(0); setCarrierIdForOrder(null); return; }
+    supabase.from("shipping_zones").select("delivery_fee, carrier_id")
       .eq("province_name_ar", confirmOrder.city).eq("is_active", true)
       .is("area_name", null).is("neighborhood_name", null)
       .limit(1).then(({ data }) => {
         setCarrierFeeForOrder(data?.[0]?.delivery_fee || 0);
+        setCarrierIdForOrder(data?.[0]?.carrier_id || null);
       });
   }, [confirmOrder]);
 
@@ -117,6 +119,7 @@ export default function MerchantOrders() {
       billable_weight: confirmPricing.billable_weight,
       volumetric_weight: confirmPricing.volumetric_weight,
       order_id: confirmOrder.id,
+      carrier_id: carrierIdForOrder,
       status: "pending",
     } as any).select("id").single();
 
