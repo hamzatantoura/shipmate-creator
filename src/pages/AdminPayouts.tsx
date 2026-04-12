@@ -33,6 +33,7 @@ interface PayoutRequest {
   admin_note: string | null;
   created_at: string;
   merchant_name?: string;
+  merchant_contact?: string;
   merchant_phone?: string;
 }
 
@@ -79,7 +80,7 @@ export default function AdminPayouts() {
       const merchantMap = new Map(merchants?.map(m => [m.user_id, m]) || []);
       setPayouts(data.map((p: any) => {
         const m = merchantMap.get(p.merchant_id);
-        return { ...p, merchant_name: m?.store_name || m?.contact_person || "-", merchant_phone: m?.phone || "-" };
+        return { ...p, merchant_name: m?.store_name || "-", merchant_contact: m?.contact_person || "-", merchant_phone: m?.phone || "-" };
       }));
     }
     setLoading(false);
@@ -198,7 +199,8 @@ export default function AdminPayouts() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-muted-foreground">المبلغ:</span> <span className="font-bold">{Number(selectedPayout.amount).toLocaleString()} ل.س</span></div>
                   <div><span className="text-muted-foreground">الطريقة:</span> <span className="font-bold">{METHOD_AR[selectedPayout.method] || selectedPayout.method}</span></div>
-                  <div className="col-span-2"><span className="text-muted-foreground">التاجر:</span> <span className="font-bold">{selectedPayout.merchant_name}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">اسم المتجر:</span> <span className="font-bold">{selectedPayout.merchant_name}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">اسم البائع:</span> <span className="font-bold">{selectedPayout.merchant_contact}</span></div>
                   <div className="col-span-2"><span className="text-muted-foreground">الهاتف:</span> <span className="font-bold">{selectedPayout.merchant_phone}</span></div>
                 </div>
 
