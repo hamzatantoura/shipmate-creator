@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { compressImage } from "@/lib/image-compress";
 import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
 
 interface Product {
@@ -96,9 +97,10 @@ export default function MerchantProducts() {
       if (editingProduct) {
         let image_url = editingProduct.image_url;
         if (imageFiles.length > 0) {
-          const ext = imageFiles[0].name.split(".").pop();
+          const compressed = await compressImage(imageFiles[0]);
+          const ext = compressed.name.split(".").pop();
           const path = `${user.id}/${Date.now()}.${ext}`;
-          const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFiles[0]);
+          const { error: upErr } = await supabase.storage.from("product-images").upload(path, compressed);
           if (upErr) { toast.error("فشل رفع الصورة"); setLoading(false); return; }
           const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
           image_url = pub.publicUrl;
@@ -112,9 +114,10 @@ export default function MerchantProducts() {
         const slug = generateSlug(form.name);
 
         if (imageFiles.length > 0) {
-          const ext = imageFiles[0].name.split(".").pop();
+          const compressed = await compressImage(imageFiles[0]);
+          const ext = compressed.name.split(".").pop();
           const path = `${user.id}/${Date.now()}.${ext}`;
-          const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFiles[0]);
+          const { error: upErr } = await supabase.storage.from("product-images").upload(path, compressed);
           if (upErr) { toast.error("فشل رفع الصورة"); setLoading(false); return; }
           const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
           image_url = pub.publicUrl;
@@ -128,9 +131,10 @@ export default function MerchantProducts() {
 
         if (product && imageFiles.length > 1) {
           for (let i = 0; i < imageFiles.length; i++) {
-            const ext = imageFiles[i].name.split(".").pop();
+            const compressed = await compressImage(imageFiles[i]);
+            const ext = compressed.name.split(".").pop();
             const path = `${user.id}/${Date.now()}-${i}.${ext}`;
-            const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFiles[i]);
+            const { error: upErr } = await supabase.storage.from("product-images").upload(path, compressed);
             if (!upErr) {
               const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
               await supabase.from("product_images").insert({ product_id: (product as any).id, image_url: pub.publicUrl, sort_order: i } as any);
@@ -155,7 +159,8 @@ export default function MerchantProducts() {
   };
 
   const deleteProduct = async (id: string) => {
-    const { error } = await supabase.from("products").delete().eq("id", id);
+    // Soft delete — set deleted_at timestamp instead of actually deleting
+    const { error } = await supabase.from("products").update({ deleted_at: new Date().toISOString() } as any).eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("تم حذف المنتج"); fetchProducts(); }
   };
