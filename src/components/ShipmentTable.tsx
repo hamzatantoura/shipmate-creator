@@ -129,8 +129,8 @@ function ShipmentTimeline({ shipmentId }: { shipmentId: string }) {
       .from("audit_logs" as any)
       .select("*")
       .eq("shipment_id", shipmentId)
-      .order("created_at", { ascending: true });
-    setLogs((data as AuditLog[] | null) || []);
+      .order("created_at", { ascending: true }) as { data: AuditLog[] | null };
+    setLogs(data || []);
     setLoading(false);
   };
 
