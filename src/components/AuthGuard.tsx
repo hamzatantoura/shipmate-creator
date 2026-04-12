@@ -22,14 +22,19 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
-    // Redirect to appropriate dashboard
-    const redirectMap: Record<UserRole, string> = {
-      merchant: "/merchant",
-      vendor: "/vendor",
-      admin: "/admin",
-    };
-    return <Navigate to={redirectMap[role] || "/login"} replace />;
+  if (allowedRoles) {
+    if (!role) {
+      // Role not loaded yet or missing — redirect to login
+      return <Navigate to="/login" replace />;
+    }
+    if (!allowedRoles.includes(role)) {
+      const redirectMap: Record<UserRole, string> = {
+        merchant: "/merchant",
+        vendor: "/vendor",
+        admin: "/admin",
+      };
+      return <Navigate to={redirectMap[role] || "/login"} replace />;
+    }
   }
 
   return <>{children}</>;
