@@ -32,6 +32,8 @@ interface PayoutRequest {
   receipt_url: string | null;
   admin_note: string | null;
   created_at: string;
+  merchant_name?: string;
+  merchant_phone?: string;
 }
 
 const METHOD_AR: Record<string, string> = {
@@ -67,7 +69,19 @@ export default function AdminPayouts() {
       .from("payout_requests")
       .select("*")
       .order("created_at", { ascending: false });
-    if (data) setPayouts(data as PayoutRequest[]);
+    if (data) {
+      // Fetch merchant info for each payout
+      const merchantIds = [...new Set(data.map((p: any) => p.merchant_id))];
+      const { data: merchants } = await supabase
+        .from("merchants")
+        .select("user_id, store_name, phone, contact_person")
+        .in("user_id", merchantIds);
+      const merchantMap = new Map(merchants?.map(m => [m.user_id, m]) || []);
+      setPayouts(data.map((p: any) => {
+        const m = merchantMap.get(p.merchant_id);
+        return { ...p, merchant_name: m?.store_name || m?.contact_person || "-", merchant_phone: m?.phone || "-" };
+      }));
+    }
     setLoading(false);
   };
 
@@ -151,8 +165,11 @@ export default function AdminPayouts() {
                     <p className="font-display font-bold text-foreground text-lg">
                       {Number(p.amount).toLocaleString()} ل.س
                     </p>
+                    <p className="text-sm text-foreground font-medium">
+                      {p.merchant_name} — {p.merchant_phone}
+                    </p>
                     <p className="text-sm text-muted-foreground">
-                      {METHOD_AR[p.method] || p.method} — {p.account_details}
+                      {METHOD_AR[p.method] || p.method}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(p.created_at).toLocaleDateString("ar")}
@@ -181,7 +198,8 @@ export default function AdminPayouts() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-muted-foreground">المبلغ:</span> <span className="font-bold">{Number(selectedPayout.amount).toLocaleString()} ل.س</span></div>
                   <div><span className="text-muted-foreground">الطريقة:</span> <span className="font-bold">{METHOD_AR[selectedPayout.method] || selectedPayout.method}</span></div>
-                  <div className="col-span-2"><span className="text-muted-foreground">تفاصيل الحساب:</span> <span className="font-bold">{selectedPayout.account_details}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">التاجر:</span> <span className="font-bold">{selectedPayout.merchant_name}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">الهاتف:</span> <span className="font-bold">{selectedPayout.merchant_phone}</span></div>
                 </div>
 
                 {/* Status update */}
