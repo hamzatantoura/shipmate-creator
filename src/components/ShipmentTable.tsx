@@ -172,7 +172,7 @@ export default function ShipmentTable({ shipments }: { shipments: Shipment[] }) 
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); generateLabel(s); }}>
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); generateShippingLabel(s); }}>
                     <Printer className="h-4 w-4" />
                   </Button>
                 </TableCell>
