@@ -100,32 +100,11 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
 
     await supabase.from("shipments").update({ status: ns }).eq("id", shipment.id);
 
+    // Wallet settlement is handled automatically by database trigger
     if (ns === "delivered") {
-      const { data: wallet } = await supabase
-        .from("wallets").select("*").eq("merchant_id", shipment.merchant_id).single();
-      if (wallet) {
-        const codAmount = Number(shipment.cod_amount);
-        const merchantShippingFee = Number((shipment as any).merchant_shipping_fee || shipment.shipping_fee || 0);
-        const collectionFee = Number((shipment as any).collection_fee || 0);
-        const totalCost = merchantShippingFee + collectionFee;
-        const net = codAmount - totalCost;
-        await supabase.from("wallets").update({ balance: Number(wallet.balance) + net } as any).eq("id", wallet.id);
-        await supabase.from("wallet_transactions").insert([
-          { wallet_id: wallet.id, type: "cod_settlement", amount: codAmount, description: `تسوية COD - ${shipment.tracking_number}`, reference_id: shipment.id },
-          { wallet_id: wallet.id, type: "shipping_fee", amount: -totalCost, description: `رسوم شحن + تحصيل - ${shipment.tracking_number}`, reference_id: shipment.id },
-        ] as any);
-      }
-      toast.success("تم التسليم وتسوية المبلغ!");
+      toast.success("تم التسليم وتسوية المبلغ تلقائياً!");
     } else if (ns === "returned") {
-      const { data: wallet } = await supabase.from("wallets").select("*").eq("merchant_id", shipment.merchant_id).single();
-      if (wallet) {
-        await supabase.from("wallets").update({ balance: Number(wallet.balance) - 5000 } as any).eq("id", wallet.id);
-        await supabase.from("wallet_transactions").insert({
-          wallet_id: wallet.id, type: "return_fee", amount: -5000,
-          description: `رسوم إرجاع - ${shipment.tracking_number}`, reference_id: shipment.id,
-        } as any);
-      }
-      toast.success("تم تسجيل المرتجع");
+      toast.success("تم تسجيل المرتجع وخصم الرسوم تلقائياً");
     } else {
       toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[ns] || ns}`);
     }
