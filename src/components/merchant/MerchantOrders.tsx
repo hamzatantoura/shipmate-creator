@@ -62,7 +62,7 @@ export default function MerchantOrders() {
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("orders").select("*, products(name)")
+    const { data } = await supabase.from("orders").select("*, products(name), shipments(tracking_number)")
       .eq("merchant_id", user.id).order("created_at", { ascending: false });
     if (data) setOrders(data as any);
     setLoading(false);
