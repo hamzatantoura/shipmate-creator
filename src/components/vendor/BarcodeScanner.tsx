@@ -66,12 +66,12 @@ export default function BarcodeScanner() {
           setScanning(false);
 
           // Search for shipment
+          // Search by tracking number first
           const { data } = await supabase
             .from("shipments")
             .select("*")
-            .or(`tracking_number.eq.${decodedText},id.eq.${decodedText}`)
-            .limit(1)
-            .single();
+            .eq("tracking_number", decodedText.trim())
+            .maybeSingle();
 
           if (data) {
             setShipment(data);
