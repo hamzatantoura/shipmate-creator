@@ -420,16 +420,16 @@ export default function MerchantVerificationGate({ children }: Props) {
         </CardContent>
       </Card>
 
-      {/* All checks done but not yet verified */}
-      {verification.allChecksPassed && !verification.isVerified && (
-        <Card className="border-primary/20 bg-primary/5">
+      {/* Pending admin approval state */}
+      {verification.verification_status === "pending_admin_approval" && (
+        <Card className="border-blue-500/20 bg-blue-500/5">
           <CardContent className="py-6 text-center space-y-2">
-            <ShieldCheck className="h-10 w-10 text-primary mx-auto" />
+            <ShieldCheck className="h-10 w-10 text-blue-500 mx-auto" />
             <p className="text-sm font-medium text-foreground">
               تم استكمال جميع المتطلبات!
             </p>
             <p className="text-xs text-muted-foreground">
-              حسابك قيد المراجعة من فريق صلة. سيتم تفعيل متجرك خلال فترة قصيرة.
+              حسابك قيد المراجعة من فريق صلة. سيتم تفعيل متجرك بعد الموافقة الإدارية.
             </p>
           </CardContent>
         </Card>
