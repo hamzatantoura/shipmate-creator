@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle } from "lucide-react";
+import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle, Printer } from "lucide-react";
+import { generateShippingLabel } from "@/lib/shipping-label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
@@ -223,7 +224,18 @@ export default function MerchantOrders() {
                             <Truck className="h-3.5 w-3.5 text-primary" /> شحن
                           </Button>
                         )}
-                        {o.shipment_id && <Badge className="bg-primary/15 text-primary border-primary/30 text-xs">تم الشحن</Badge>}
+                        {o.shipment_id && (
+                          <>
+                            <Badge className="bg-primary/15 text-primary border-primary/30 text-xs">تم الشحن</Badge>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="طباعة بوليصة الشحن" onClick={async () => {
+                              const { data: shipment } = await supabase.from("shipments").select("*").eq("id", o.shipment_id!).single();
+                              if (shipment) generateShippingLabel(shipment);
+                              else toast.error("تعذر تحميل بيانات الشحنة");
+                            }}>
+                              <Printer className="h-3.5 w-3.5 text-primary" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
