@@ -39,6 +39,8 @@ interface MerchantShippingInfo {
   whatsapp_number: string | null;
   phone: string | null;
   store_name: string | null;
+  verification_status: string;
+  is_active: boolean;
 }
 
 // Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
@@ -62,7 +64,9 @@ export default function ProductPage() {
   const [shippingInfo, setShippingInfo] = useState<MerchantShippingInfo>({
     shipping_policy: "customer_pays", free_shipping_threshold: 0,
     whatsapp_number: null, phone: null, store_name: null,
+    verification_status: "pending_verification", is_active: false,
   });
+  const [merchantBlocked, setMerchantBlocked] = useState(false);
 
   const [districts, setDistricts] = useState<District[]>([]);
   const [provinces, setProvinces] = useState<Province[]>([]);
@@ -93,13 +97,19 @@ export default function ProductPage() {
         setMainImage((prod as any).image_url);
         const { data: imgs } = await supabase.from("product_images").select("*").eq("product_id", (prod as any).id).order("sort_order");
         if (imgs) setImages(imgs as ProductImage[]);
-        // Fetch merchant shipping + contact info
+        // Fetch merchant shipping + contact info + verification
         const { data: merchant } = await supabase
           .from("merchants")
-          .select("shipping_policy, free_shipping_threshold, whatsapp_number, phone, store_name")
+          .select("shipping_policy, free_shipping_threshold, whatsapp_number, phone, store_name, verification_status, is_active")
           .eq("user_id", (prod as any).merchant_id)
           .single();
-        if (merchant) setShippingInfo(merchant as any);
+        if (merchant) {
+          const m = merchant as any;
+          setShippingInfo(m);
+          if (m.verification_status !== "verified" || !m.is_active) {
+            setMerchantBlocked(true);
+          }
+        }
       }
       setLoading(false);
     });
@@ -224,6 +234,17 @@ export default function ProductPage() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
   if (!product) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">المنتج غير موجود</div>;
+  if (merchantBlocked) return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
+      <Card className="max-w-md w-full border-border">
+        <CardContent className="py-12 text-center space-y-4">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h2 className="text-xl font-display font-bold text-foreground">المتجر غير متاح حالياً</h2>
+          <p className="text-sm text-muted-foreground">هذا المتجر لم يكمل عملية التحقق بعد أو غير مفعّل. لا يمكن إتمام الطلب حالياً.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   // ===== Success Page =====
   if (submitted) {

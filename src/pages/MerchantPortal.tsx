@@ -7,7 +7,7 @@ import MerchantOrders from "@/components/merchant/MerchantOrders";
 import MerchantWallet from "@/components/merchant/MerchantWallet";
 import MerchantShipments from "@/components/merchant/MerchantShipments";
 import MerchantShippingSettings from "@/components/merchant/MerchantShippingSettings";
-import StoreReadinessBanner from "@/components/merchant/StoreReadinessBanner";
+import MerchantVerificationGate from "@/components/merchant/MerchantVerificationGate";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "react-router-dom";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
@@ -29,8 +29,6 @@ export default function MerchantPortal() {
           )}
         </div>
 
-        <StoreReadinessBanner />
-
         <Tabs defaultValue={defaultTab} dir="rtl">
           <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="shipments" className="gap-1.5">
@@ -50,26 +48,36 @@ export default function MerchantPortal() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Operational tabs gated by verification */}
           <TabsContent value="shipments">
-            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الشحنات">
-              <MerchantShipments />
-            </ErrorBoundary>
+            <MerchantVerificationGate>
+              <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الشحنات">
+                <MerchantShipments />
+              </ErrorBoundary>
+            </MerchantVerificationGate>
           </TabsContent>
           <TabsContent value="products">
-            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل المنتجات">
-              <MerchantProducts />
-            </ErrorBoundary>
+            <MerchantVerificationGate>
+              <ErrorBoundary fallbackMessage="حدث خطأ في تحميل المنتجات">
+                <MerchantProducts />
+              </ErrorBoundary>
+            </MerchantVerificationGate>
           </TabsContent>
           <TabsContent value="orders">
-            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الطلبات">
-              <MerchantOrders />
-            </ErrorBoundary>
+            <MerchantVerificationGate>
+              <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الطلبات">
+                <MerchantOrders />
+              </ErrorBoundary>
+            </MerchantVerificationGate>
           </TabsContent>
           <TabsContent value="wallet">
-            <ErrorBoundary fallbackMessage="حدث خطأ في تحميل المحفظة">
-              <MerchantWallet />
-            </ErrorBoundary>
+            <MerchantVerificationGate>
+              <ErrorBoundary fallbackMessage="حدث خطأ في تحميل المحفظة">
+                <MerchantWallet />
+              </ErrorBoundary>
+            </MerchantVerificationGate>
           </TabsContent>
+          {/* Settings always accessible for completing data */}
           <TabsContent value="settings">
             <ErrorBoundary fallbackMessage="حدث خطأ في تحميل الإعدادات">
               <MerchantShippingSettings />
