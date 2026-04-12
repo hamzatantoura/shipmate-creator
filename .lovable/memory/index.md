@@ -1,10 +1,11 @@
 # Project Memory
 
 ## Core
-"Sila — صلة" = Digital Commerce & Logistics Gateway for Syria (like Salla.sa). Clean white light theme, blue primary (#4B8BF5). Readex Pro Arabic, Inter English.
-Lovable Cloud enabled. All UI in Arabic RTL. Currency: SYP (ل.س). NO dark mode, no gold/green/orange/turquoise.
-Sila is an INTEGRATOR not a courier — connects merchants to shipping companies.
+Shipping/logistics SaaS "Sila — صلة". Dark navy theme, orange primary (#FF8C00). Readex Pro for Arabic, Inter for English.
+Lovable Cloud enabled. All UI in Arabic RTL. Currency: SYP (ل.س).
+Testing mode: international phone numbers accepted (+90, +963, etc.)
 
 ## Memories
-- [Design tokens](mem://design/tokens) — Clean white theme with professional blue accent, Readex Pro + Inter fonts
-- [Platform features](mem://features/platform) — Digital Commerce & Logistics Gateway: merchants, shipping partners, financial ledger, subscription plans
+- [Design tokens](mem://design/tokens) — Dark navy palette with vibrant orange accent, Readex Pro + Inter fonts
+- [Platform features](mem://features/platform) — Multi-store SaaS with products, orders, carriers, wallet engine, location-based pricing, and top-up system
+- [Merchant verification](mem://features/merchant-verification) — 3-stage merchant lifecycle, ID upload, email confirmation, verification gate
