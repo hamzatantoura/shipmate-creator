@@ -97,13 +97,19 @@ export default function ProductPage() {
         setMainImage((prod as any).image_url);
         const { data: imgs } = await supabase.from("product_images").select("*").eq("product_id", (prod as any).id).order("sort_order");
         if (imgs) setImages(imgs as ProductImage[]);
-        // Fetch merchant shipping + contact info
+        // Fetch merchant shipping + contact info + verification
         const { data: merchant } = await supabase
           .from("merchants")
-          .select("shipping_policy, free_shipping_threshold, whatsapp_number, phone, store_name")
+          .select("shipping_policy, free_shipping_threshold, whatsapp_number, phone, store_name, verification_status, is_active")
           .eq("user_id", (prod as any).merchant_id)
           .single();
-        if (merchant) setShippingInfo(merchant as any);
+        if (merchant) {
+          const m = merchant as any;
+          setShippingInfo(m);
+          if (m.verification_status !== "verified" || !m.is_active) {
+            setMerchantBlocked(true);
+          }
+        }
       }
       setLoading(false);
     });
