@@ -34,6 +34,7 @@ interface Order {
   final_sale_price: number | null; customer_lat: number | null; customer_lng: number | null;
   delivery_fee: number; platform_fee: number; net_amount: number;
   products?: { name: string } | null;
+  shipments?: { tracking_number: string | null } | null;
 }
 
 type ShipmentCity = Database["public"]["Enums"]["shipment_city"];
@@ -61,7 +62,7 @@ export default function MerchantOrders() {
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("orders").select("*, products(name)")
+    const { data } = await supabase.from("orders").select("*, products(name), shipments(tracking_number)")
       .eq("merchant_id", user.id).order("created_at", { ascending: false });
     if (data) setOrders(data as any);
     setLoading(false);
@@ -181,6 +182,7 @@ export default function MerchantOrders() {
               <thead>
                 <tr className="bg-muted/50 text-muted-foreground">
                   <th className="p-3 text-right font-medium">العميل</th>
+                  <th className="p-3 text-right font-medium">رقم التتبع</th>
                   <th className="p-3 text-right font-medium">المدينة</th>
                   <th className="p-3 text-right font-medium">المبلغ</th>
                   <th className="p-3 text-right font-medium">رسوم الشحن</th>
@@ -197,6 +199,11 @@ export default function MerchantOrders() {
                       <p className="font-medium text-foreground">{o.receiver_name}</p>
                       <p className="text-xs text-muted-foreground" dir="ltr">{o.phone_number}</p>
                       {o.products?.name && <p className="text-xs text-muted-foreground">{o.products.name} × {o.quantity}</p>}
+                    </td>
+                    <td className="p-3">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {o.shipments?.tracking_number || "—"}
+                      </span>
                     </td>
                     <td className="p-3 text-foreground">{o.city}</td>
                     <td className="p-3 text-foreground">{(o.final_sale_price || o.total_amount).toLocaleString()} ل.س</td>
