@@ -15,6 +15,7 @@ interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
   price: number; stock: number; is_active: boolean; created_at: string;
   weight_kg: number; slug: string | null;
+  length_cm: number; width_cm: number; height_cm: number;
 }
 
 interface ProductImage {
@@ -31,7 +32,7 @@ export default function MerchantProducts() {
   const [productImages, setProductImages] = useState<Record<string, ProductImage[]>>({});
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "0", description: "", weight_kg: "1" });
+  const [form, setForm] = useState({ name: "", price: "", stock: "0", description: "", weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0" });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [variants, setVariants] = useState<VariantEntry[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -59,27 +60,20 @@ export default function MerchantProducts() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const resetForm = () => {
-    setForm({ name: "", price: "", stock: "0", description: "", weight_kg: "1" });
+    setForm({ name: "", price: "", stock: "0", description: "", weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0" });
     setImageFiles([]); setVariants([]); setEditingProduct(null);
   };
 
-  const openAddDialog = () => {
-    resetForm();
-    setOpen(true);
-  };
+  const openAddDialog = () => { resetForm(); setOpen(true); };
 
   const openEditDialog = (p: Product) => {
     setEditingProduct(p);
     setForm({
-      name: p.name,
-      price: String(p.price),
-      stock: String(p.stock),
-      description: p.description || "",
-      weight_kg: String(p.weight_kg),
+      name: p.name, price: String(p.price), stock: String(p.stock),
+      description: p.description || "", weight_kg: String(p.weight_kg),
+      length_cm: String(p.length_cm || 0), width_cm: String(p.width_cm || 0), height_cm: String(p.height_cm || 0),
     });
-    setImageFiles([]);
-    setVariants([]);
-    setOpen(true);
+    setImageFiles([]); setVariants([]); setOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,8 +82,18 @@ export default function MerchantProducts() {
     setLoading(true);
 
     try {
+      const productData = {
+        name: form.name.trim(),
+        description: form.description.trim() || null,
+        price: parseFloat(form.price) || 0,
+        stock: parseInt(form.stock) || 0,
+        weight_kg: parseFloat(form.weight_kg) || 1,
+        length_cm: parseFloat(form.length_cm) || 0,
+        width_cm: parseFloat(form.width_cm) || 0,
+        height_cm: parseFloat(form.height_cm) || 0,
+      };
+
       if (editingProduct) {
-        // UPDATE existing product
         let image_url = editingProduct.image_url;
         if (imageFiles.length > 0) {
           const ext = imageFiles[0].name.split(".").pop();
@@ -100,19 +104,10 @@ export default function MerchantProducts() {
           image_url = pub.publicUrl;
         }
 
-        const { error } = await supabase.from("products").update({
-          name: form.name.trim(),
-          description: form.description.trim() || null,
-          price: parseFloat(form.price) || 0,
-          stock: parseInt(form.stock) || 0,
-          image_url,
-          weight_kg: parseFloat(form.weight_kg) || 1,
-        }).eq("id", editingProduct.id);
-
+        const { error } = await supabase.from("products").update({ ...productData, image_url }).eq("id", editingProduct.id);
         if (error) { toast.error(error.message); setLoading(false); return; }
         toast.success("تم تعديل المنتج بنجاح!");
       } else {
-        // INSERT new product
         let image_url: string | null = null;
         const slug = generateSlug(form.name);
 
@@ -126,14 +121,7 @@ export default function MerchantProducts() {
         }
 
         const { data: product, error } = await supabase.from("products").insert({
-          merchant_id: user.id,
-          name: form.name.trim(),
-          description: form.description.trim() || null,
-          price: parseFloat(form.price) || 0,
-          stock: parseInt(form.stock) || 0,
-          image_url,
-          weight_kg: parseFloat(form.weight_kg) || 1,
-          slug,
+          merchant_id: user.id, ...productData, image_url, slug,
         } as any).select().single();
 
         if (error) { toast.error(error.message); setLoading(false); return; }
@@ -145,22 +133,15 @@ export default function MerchantProducts() {
             const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFiles[i]);
             if (!upErr) {
               const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
-              await supabase.from("product_images").insert({
-                product_id: (product as any).id,
-                image_url: pub.publicUrl,
-                sort_order: i,
-              } as any);
+              await supabase.from("product_images").insert({ product_id: (product as any).id, image_url: pub.publicUrl, sort_order: i } as any);
             }
           }
         }
 
         if (product && variants.length > 0) {
           const variantRows = variants.map(v => ({
-            product_id: (product as any).id,
-            variant_type: v.variant_type,
-            variant_value: v.variant_value,
-            price_adjustment: v.price_adjustment,
-            stock: v.stock,
+            product_id: (product as any).id, variant_type: v.variant_type,
+            variant_value: v.variant_value, price_adjustment: v.price_adjustment, stock: v.stock,
           }));
           await supabase.from("product_variants" as any).insert(variantRows as any);
         }
@@ -168,12 +149,8 @@ export default function MerchantProducts() {
         toast.success("تم إضافة المنتج بنجاح!");
       }
 
-      resetForm();
-      setOpen(false);
-      fetchProducts();
-    } catch (err) {
-      toast.error("حدث خطأ غير متوقع");
-    }
+      resetForm(); setOpen(false); fetchProducts();
+    } catch (err) { toast.error("حدث خطأ غير متوقع"); }
     setLoading(false);
   };
 
@@ -205,7 +182,7 @@ export default function MerchantProducts() {
             <DialogTrigger asChild>
               <Button className="gap-2 glow-btn" onClick={openAddDialog}><Plus className="h-4 w-4" /> إضافة منتج</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg" dir="rtl">
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
               <DialogHeader><DialogTitle>{editingProduct ? "تعديل المنتج" : "منتج جديد"}</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -230,13 +207,31 @@ export default function MerchantProducts() {
                     <Input type="number" min="0.1" step="0.1" value={form.weight_kg} onChange={e => setForm({...form, weight_kg: e.target.value})} required />
                   </div>
                 </div>
+
+                {/* Dimensions for volumetric weight */}
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs">أبعاد الطرد (سم) — لحساب الوزن الحجمي</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">الطول</Label>
+                      <Input type="number" min="0" step="1" value={form.length_cm} onChange={e => setForm({...form, length_cm: e.target.value})} placeholder="سم" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">العرض</Label>
+                      <Input type="number" min="0" step="1" value={form.width_cm} onChange={e => setForm({...form, width_cm: e.target.value})} placeholder="سم" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">الارتفاع</Label>
+                      <Input type="number" min="0" step="1" value={form.height_cm} onChange={e => setForm({...form, height_cm: e.target.value})} placeholder="سم" />
+                    </div>
+                  </div>
+                </div>
+
                 {!editingProduct && <ProductVariantsForm variants={variants} onChange={setVariants} />}
                 <div className="space-y-2">
                   <Label>{editingProduct ? "تغيير صورة المنتج (اختياري)" : "صور المنتج (يمكنك اختيار عدة صور)"}</Label>
                   <Input type="file" accept="image/*" multiple={!editingProduct} onChange={e => setImageFiles(Array.from(e.target.files || []))} />
-                  {imageFiles.length > 0 && (
-                    <p className="text-xs text-muted-foreground">{imageFiles.length} صورة محددة</p>
-                  )}
+                  {imageFiles.length > 0 && <p className="text-xs text-muted-foreground">{imageFiles.length} صورة محددة</p>}
                 </div>
                 <Button type="submit" disabled={loading} className="w-full glow-btn">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : editingProduct ? <Pencil className="h-4 w-4 ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
@@ -264,9 +259,7 @@ export default function MerchantProducts() {
                     <ImagePlus className="h-10 w-10 text-muted-foreground/30" />
                   )}
                   {images.length > 1 && (
-                    <span className="absolute bottom-2 left-2 bg-foreground/70 text-background text-xs px-2 py-0.5 rounded-full">
-                      +{images.length - 1}
-                    </span>
+                    <span className="absolute bottom-2 left-2 bg-foreground/70 text-background text-xs px-2 py-0.5 rounded-full">+{images.length - 1}</span>
                   )}
                 </div>
                 <CardContent className="p-4 space-y-2">

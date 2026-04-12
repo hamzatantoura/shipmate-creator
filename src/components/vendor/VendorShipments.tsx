@@ -105,12 +105,14 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
         .from("wallets").select("*").eq("merchant_id", shipment.merchant_id).single();
       if (wallet) {
         const codAmount = Number(shipment.cod_amount);
-        const shippingFee = Number(shipment.shipping_fee || 0) + 2000;
-        const net = codAmount - shippingFee;
+        const merchantShippingFee = Number((shipment as any).merchant_shipping_fee || shipment.shipping_fee || 0);
+        const collectionFee = Number((shipment as any).collection_fee || 0);
+        const totalCost = merchantShippingFee + collectionFee;
+        const net = codAmount - totalCost;
         await supabase.from("wallets").update({ balance: Number(wallet.balance) + net } as any).eq("id", wallet.id);
         await supabase.from("wallet_transactions").insert([
           { wallet_id: wallet.id, type: "cod_settlement", amount: codAmount, description: `تسوية COD - ${shipment.tracking_number}`, reference_id: shipment.id },
-          { wallet_id: wallet.id, type: "shipping_fee", amount: -shippingFee, description: `رسوم شحن - ${shipment.tracking_number}`, reference_id: shipment.id },
+          { wallet_id: wallet.id, type: "shipping_fee", amount: -totalCost, description: `رسوم شحن + تحصيل - ${shipment.tracking_number}`, reference_id: shipment.id },
         ] as any);
       }
       toast.success("تم التسليم وتسوية المبلغ!");
@@ -228,9 +230,17 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
                         <p className="text-xs text-muted-foreground">{s.detailed_address}</p>
                       </div>
                     </div>
-                    <div className="bg-muted/30 rounded-md px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">COD</span>
-                      <span className="font-display font-bold text-foreground">{Number(s.cod_amount).toLocaleString()} ل.س</span>
+                    <div className="bg-muted/30 rounded-md px-3 py-2 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">COD</span>
+                        <span className="font-display font-bold text-foreground">{Number(s.cod_amount).toLocaleString()} ل.س</span>
+                      </div>
+                      {(s as any).carrier_fee != null && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">رسوم الشحن</span>
+                          <span className="font-display font-semibold text-foreground">{Number((s as any).carrier_fee).toLocaleString()} ل.س</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
