@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { enqueueStatusUpdate } from "@/lib/offline-sync";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,15 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
     if (!ns) return;
     setUpdatingId(shipment.id);
 
+    // If offline, queue the update for later sync
+    if (!navigator.onLine) {
+      enqueueStatusUpdate(shipment.id, shipment.status, ns);
+      toast.info("تم حفظ التحديث — سيتم المزامنة عند عودة الإنترنت");
+      setUpdatingId(null);
+      setStatusMap(prev => ({ ...prev, [shipment.id]: "" }));
+      return;
+    }
+
     await supabase.from("shipment_status_history").insert({
       shipment_id: shipment.id,
       old_status: shipment.status,
@@ -103,7 +113,6 @@ export default function VendorShipments({ selectedMerchantId, onSelectMerchant, 
 
     await supabase.from("shipments").update({ status: ns }).eq("id", shipment.id);
 
-    // Wallet settlement is handled automatically by database trigger
     if (ns === "delivered") {
       toast.success("تم التسليم وتسوية المبلغ تلقائياً!");
     } else if (ns === "returned") {
