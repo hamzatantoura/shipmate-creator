@@ -13,6 +13,7 @@ import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowD
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
+import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
