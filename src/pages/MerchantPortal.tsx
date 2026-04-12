@@ -1,11 +1,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, ShoppingCart, Wallet, Truck } from "lucide-react";
+import { Package, ShoppingCart, Wallet, Truck, Settings } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MerchantProducts from "@/components/merchant/MerchantProducts";
 import MerchantOrders from "@/components/merchant/MerchantOrders";
 import MerchantWallet from "@/components/merchant/MerchantWallet";
 import MerchantShipments from "@/components/merchant/MerchantShipments";
+import MerchantShippingSettings from "@/components/merchant/MerchantShippingSettings";
 import { useAuth } from "@/hooks/use-auth";
 import { useSearchParams } from "react-router-dom";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
