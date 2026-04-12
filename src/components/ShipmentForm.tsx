@@ -135,7 +135,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handlePhoneChange = (val: string) => {
     setForm({ ...form, phone_number: val });
-    setPhoneError(val && !validatePhone(val) ? "صيغة الرقم غير صحيحة. مثال: 0912345678 أو +963912345678" : "");
+    setPhoneError(val && !validatePhone(val) ? "صيغة الرقم غير صحيحة. مثال: +905xxxxxxxxx أو 0912345678" : "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

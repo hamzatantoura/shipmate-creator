@@ -145,7 +145,7 @@ export default function ProductPage() {
 
   const handlePhoneChange = (val: string) => {
     setForm({ ...form, phone_number: val });
-    setPhoneError(val && !validatePhone(val) ? "صيغة الرقم غير صحيحة. مثال: 0912345678" : "");
+    setPhoneError(val && !validatePhone(val) ? "صيغة الرقم غير صحيحة. مثال: +905xxxxxxxxx" : "");
   };
 
   const handleOrder = async (e: React.FormEvent) => {

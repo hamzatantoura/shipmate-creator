@@ -65,8 +65,8 @@ export default function MerchantShippingSettings() {
     if (!user) return;
     if (!storeName.trim()) { toast.error("اسم المتجر مطلوب"); return; }
     if (!contactPerson.trim()) { toast.error("اسم التاجر مطلوب"); return; }
-    if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم الهاتف غير صحيح — مثال: 0912345678"); return; }
-    if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح"); return; }
+    if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم الهاتف غير صحيح — مثال: +905xxxxxxxxx"); return; }
+    if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح — مثال: +905xxxxxxxxx"); return; }
     if (!city.trim()) { toast.error("يرجى اختيار المحافظة"); return; }
 
     setSaving(true);
