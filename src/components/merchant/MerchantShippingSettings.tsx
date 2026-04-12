@@ -12,9 +12,10 @@ import { toast } from "sonner";
 
 type ShippingPolicy = "customer_pays" | "free_all" | "free_above";
 
-const SYRIA_PHONE_REGEX = /^(\+?963|0)?9\d{8}$/;
+// Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
+const INTL_PHONE_REGEX = /^\+?\d{7,15}$/;
 function isValidPhone(phone: string): boolean {
-  return SYRIA_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
+  return INTL_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
 }
 
 export default function MerchantShippingSettings() {
@@ -64,8 +65,8 @@ export default function MerchantShippingSettings() {
     if (!user) return;
     if (!storeName.trim()) { toast.error("اسم المتجر مطلوب"); return; }
     if (!contactPerson.trim()) { toast.error("اسم التاجر مطلوب"); return; }
-    if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم الهاتف غير صحيح — مثال: 0912345678"); return; }
-    if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح"); return; }
+    if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم الهاتف غير صحيح — مثال: +905xxxxxxxxx"); return; }
+    if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح — مثال: +905xxxxxxxxx"); return; }
     if (!city.trim()) { toast.error("يرجى اختيار المحافظة"); return; }
 
     setSaving(true);
