@@ -26,7 +26,7 @@ export default function Signup() {
     if (!city) { toast.error("الرجاء اختيار المدينة"); return; }
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -40,12 +40,29 @@ export default function Signup() {
       },
     });
 
-    setLoading(false);
     if (error) {
       toast.error(error.message);
-    } else {
-      setSuccess(true);
+      setLoading(false);
+      return;
     }
+
+    // Send branded confirmation email via Resend
+    if (data?.user) {
+      try {
+        await supabase.functions.invoke("send-signup-email", {
+          body: {
+            email,
+            storeName,
+            userId: data.user.id,
+          },
+        });
+      } catch (e) {
+        console.warn("Custom email sending failed:", e);
+      }
+    }
+
+    setLoading(false);
+    setSuccess(true);
   };
 
   if (success) {
