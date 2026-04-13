@@ -924,6 +924,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_public_merchant_info: {
+        Args: { p_merchant_user_id: string }
+        Returns: Json
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -934,6 +938,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      track_shipment_public: {
+        Args: { p_tracking_number: string }
+        Returns: Json
       }
     }
     Enums: {

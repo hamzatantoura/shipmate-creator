@@ -25,27 +25,26 @@ export default function Storefront() {
 
   useEffect(() => {
     if (!merchantId) return;
-    // Check merchant is verified & active via anon policy
-    supabase.from("merchants").select("store_name, city, phone, verification_status, is_active")
-      .eq("user_id", merchantId).single().then(({ data: m, error }) => {
-        if (error || !m) {
-          setMerchantBlocked(true);
+    // Use secure RPC function — returns only safe public fields (no phone, no balance, no docs)
+    supabase.rpc("get_public_merchant_info", { p_merchant_user_id: merchantId }).then(({ data: m, error }) => {
+      if (error || !m) {
+        setMerchantBlocked(true);
+        setLoading(false);
+        return;
+      }
+      const merchant = m as any;
+      if (!merchant.is_active || merchant.verification_status !== "verified") {
+        setMerchantBlocked(true);
+        setLoading(false);
+        return;
+      }
+      setMerchant({ store_name: merchant.store_name, city: merchant.city, phone: null });
+      supabase.from("products").select("*").eq("merchant_id", merchantId).eq("is_active", true)
+        .order("created_at", { ascending: false }).then(({ data: prods }) => {
+          if (prods) setProducts(prods as any);
           setLoading(false);
-          return;
-        }
-        const merchant = m as any;
-        if (merchant.verification_status !== "verified" || !merchant.is_active) {
-          setMerchantBlocked(true);
-          setLoading(false);
-          return;
-        }
-        setMerchant({ store_name: merchant.store_name, city: merchant.city, phone: merchant.phone });
-        supabase.from("products").select("*").eq("merchant_id", merchantId).eq("is_active", true)
-          .order("created_at", { ascending: false }).then(({ data: prods }) => {
-            if (prods) setProducts(prods as any);
-            setLoading(false);
-          });
-      });
+        });
+    });
   }, [merchantId]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
