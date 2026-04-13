@@ -73,12 +73,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        // Handle token refresh failure — sign out gracefully
+        if (event === "TOKEN_REFRESHED" && !session) {
+          void supabase.auth.signOut();
+          return;
+        }
+        if (event === "SIGNED_OUT") {
+          setState({ user: null, role: null, profile: null, loading: false });
+          return;
+        }
         void syncAuthState(session?.user ?? null);
       }
     );
 
-    void supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Session expired or invalid — sign out cleanly
+        console.warn("Session error, signing out:", error.message);
+        void supabase.auth.signOut();
+        return;
+      }
       void syncAuthState(session?.user ?? null);
     });
 
