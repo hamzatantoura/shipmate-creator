@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
@@ -290,6 +290,9 @@ export default function AdminLogistics() {
             </TabsTrigger>
             <TabsTrigger value="merchants" className="gap-1.5">
               <User className="h-3.5 w-3.5" /> التجار
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="gap-1.5">
+              <Wallet className="h-3.5 w-3.5" /> سجل الحركات
             </TabsTrigger>
           </TabsList>
 
