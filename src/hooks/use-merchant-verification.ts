@@ -44,8 +44,8 @@ export function useMerchantVerification() {
     if (!user) return;
 
     (async () => {
-        // Check email confirmation from auth session
-      const emailConfirmed = !!user.email_confirmed_at;
+      // Check email confirmation from merchants table (set by verify-email edge function)
+      const emailConfirmedFromAuth = !!user.email_confirmed_at;
 
       const { data: merchant } = await supabase
         .from("merchants")
@@ -55,8 +55,9 @@ export function useMerchantVerification() {
 
       const m = merchant as any;
       if (m) {
+        const emailConfirmed = m.email_confirmed || emailConfirmedFromAuth;
         // Sync email_confirmed from auth to merchants table
-        if (emailConfirmed && !m.email_confirmed) {
+        if (emailConfirmedFromAuth && !m.email_confirmed) {
           await supabase
             .from("merchants")
             .update({ email_confirmed: true } as any)
