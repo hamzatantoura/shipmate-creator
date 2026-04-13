@@ -67,17 +67,20 @@ export default function TrackShipment() {
     setLoading(true);
     setSearched(true);
 
-    const { data } = await supabase.from("shipments").select("*").eq("tracking_number", trackingNum.trim()).single();
+    // Use secure RPC function — returns only safe public fields
+    const { data } = await supabase.rpc("track_shipment_public", { p_tracking_number: trackingNum.trim() });
     if (data) {
-      setShipment(data);
-      // Fetch audit logs
-      const { data: logs } = await supabase.from("audit_logs").select("*").eq("shipment_id", data.id).order("created_at", { ascending: true });
-      if (logs) setHistory(logs as StatusLog[]);
-      // Fetch carrier info
-      if (data.carrier_id) {
-        const { data: c } = await supabase.from("carriers").select("name_ar").eq("id", data.carrier_id).single();
-        if (c) setCarrier(c as CarrierInfo);
-      }
+      const d = data as any;
+      setShipment({
+        tracking_number: d.tracking_number,
+        status: d.status,
+        city: d.city,
+        created_at: d.created_at,
+        updated_at: d.updated_at,
+      } as any);
+      setHistory((d.history || []).map((h: any, i: number) => ({ id: String(i), ...h })));
+      if (d.carrier_name) setCarrier({ name_ar: d.carrier_name });
+      else setCarrier(null);
     } else {
       setShipment(null);
       setHistory([]);
@@ -194,11 +197,7 @@ export default function TrackShipment() {
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-foreground">{CITY_AR[shipment.city] || shipment.city} — {shipment.detailed_address}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-foreground" dir="ltr">{shipment.phone_number}</span>
+                  <span className="text-foreground">{CITY_AR[shipment.city] || shipment.city}</span>
                 </div>
               </div>
 
