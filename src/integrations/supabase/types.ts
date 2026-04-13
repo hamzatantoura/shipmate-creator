@@ -924,6 +924,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_payout: {
+        Args: { p_new_status: string; p_payout_id: string }
+        Returns: undefined
+      }
       get_public_merchant_info: {
         Args: { p_merchant_user_id: string }
         Returns: Json

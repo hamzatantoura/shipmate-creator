@@ -90,31 +90,11 @@ export default function AdminPayouts() {
 
   const updatePayoutStatus = async () => {
     if (!selectedPayout || !newStatus) return;
-    await supabase
-      .from("payout_requests")
-      .update({ status: newStatus } as any)
-      .eq("id", selectedPayout.id);
-
-    // If completed, deduct from wallet
-    if (newStatus === "completed") {
-      const { data: wallet } = await supabase
-        .from("wallets")
-        .select("*")
-        .eq("merchant_id", selectedPayout.merchant_id)
-        .single();
-      if (wallet) {
-        const newBalance = Number(wallet.balance) - selectedPayout.amount;
-        await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
-        await supabase.from("wallet_transactions").insert({
-          wallet_id: wallet.id,
-          type: "payout",
-          amount: -selectedPayout.amount,
-          description: `تسوية مالية - ${METHOD_AR[selectedPayout.method] || selectedPayout.method}`,
-          reference_id: selectedPayout.id,
-        } as any);
-      }
-    }
-
+    const { error } = await supabase.rpc("complete_payout", {
+      p_payout_id: selectedPayout.id,
+      p_new_status: newStatus,
+    });
+    if (error) { toast.error(error.message); return; }
     toast.success("تم تحديث حالة طلب التسوية");
     setSelectedPayout(null);
     setNewStatus("");

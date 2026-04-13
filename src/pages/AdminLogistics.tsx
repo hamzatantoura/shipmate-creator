@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
 import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
+import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
@@ -142,18 +143,11 @@ export default function AdminLogistics() {
   // Payout handlers
   const updatePayoutStatus = async () => {
     if (!selectedPayout || !newStatus) return;
-    await supabase.from("payout_requests").update({ status: newStatus } as any).eq("id", selectedPayout.id);
-    if (newStatus === "completed") {
-      const { data: wallet } = await supabase.from("wallets").select("*").eq("merchant_id", selectedPayout.merchant_id).single();
-      if (wallet) {
-        const newBalance = Number(wallet.balance) - selectedPayout.amount;
-        await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
-        await supabase.from("wallet_transactions").insert({
-          wallet_id: wallet.id, type: "payout", amount: -selectedPayout.amount,
-          description: `تسوية مالية - ${METHOD_AR[selectedPayout.method] || selectedPayout.method}`, reference_id: selectedPayout.id,
-        } as any);
-      }
-    }
+    const { error } = await supabase.rpc("complete_payout", {
+      p_payout_id: selectedPayout.id,
+      p_new_status: newStatus,
+    });
+    if (error) { toast.error(error.message); return; }
     toast.success("تم تحديث حالة طلب التسوية");
     setSelectedPayout(null); setNewStatus(""); fetchData();
   };
@@ -297,6 +291,9 @@ export default function AdminLogistics() {
             </TabsTrigger>
             <TabsTrigger value="merchants" className="gap-1.5">
               <User className="h-3.5 w-3.5" /> التجار
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="gap-1.5">
+              <Wallet className="h-3.5 w-3.5" /> سجل الحركات
             </TabsTrigger>
           </TabsList>
 
@@ -449,6 +446,9 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="merchants" className="mt-4">
             <AdminMerchantApproval />
+          </TabsContent>
+          <TabsContent value="transactions" className="mt-4">
+            <WalletTransactionsLog showAll />
           </TabsContent>
         </Tabs>
 
