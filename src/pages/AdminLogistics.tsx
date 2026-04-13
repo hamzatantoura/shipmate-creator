@@ -447,6 +447,9 @@ export default function AdminLogistics() {
           <TabsContent value="merchants" className="mt-4">
             <AdminMerchantApproval />
           </TabsContent>
+          <TabsContent value="transactions" className="mt-4">
+            <WalletTransactionsLog showAll />
+          </TabsContent>
         </Tabs>
 
         {/* Payout detail dialog */}
