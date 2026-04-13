@@ -89,6 +89,7 @@ export function useMerchantVerification() {
         setState(vs);
 
         const c: VerificationCheck[] = [
+          { key: "email_confirmed", label: "تأكيد البريد الإلكتروني", ok: emailConfirmed },
           { key: "store_name", label: "اسم المتجر", ok: !!m.store_name?.trim() },
           { key: "contact_person", label: "اسم التاجر", ok: !!m.contact_person?.trim() },
           { key: "city", label: "المحافظة", ok: !!m.city?.trim() },
