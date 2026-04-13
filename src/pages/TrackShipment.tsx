@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Search, Package, MapPin, Phone, Clock, Truck, ArrowRight, MessageCircle } from "lucide-react";
+import { Search, Package, MapPin, Clock, Truck, ArrowRight } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { useEffect } from "react";
 
