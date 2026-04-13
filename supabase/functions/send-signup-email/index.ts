@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,19 +13,37 @@ serve(async (req) => {
 
   try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not configured");
-    }
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
-    const { email, storeName, confirmationUrl } = await req.json();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
-    if (!email || !confirmationUrl) {
-      return new Response(JSON.stringify({ error: "Missing email or confirmationUrl" }), {
+    const { email, storeName, userId } = await req.json();
+
+    if (!email || !userId) {
+      return new Response(JSON.stringify({ error: "Missing email or userId" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Create verification token
+    const { data: tokenRow, error: tokenErr } = await supabase
+      .from("email_verification_tokens")
+      .insert({ user_id: userId, email })
+      .select("token")
+      .single();
+
+    if (tokenErr || !tokenRow) {
+      console.error("Token creation error:", tokenErr);
+      return new Response(JSON.stringify({ error: "Failed to create verification token" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const verifyUrl = `${supabaseUrl}/functions/v1/verify-email?token=${tokenRow.token}&redirect_to=/login`;
     const merchantName = storeName || "التاجر";
     const year = new Date().getFullYear();
 
@@ -51,12 +70,13 @@ serve(async (req) => {
             لتأكيد بريدك الإلكتروني وتفعيل حسابك، اضغط على الزر أدناه:
           </p>
           <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-            <a href="${confirmationUrl}" style="display:inline-block;background:linear-gradient(135deg,#FF8C00,#e67e00);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:10px;font-size:16px;font-weight:bold;box-shadow:0 4px 15px rgba(255,140,0,0.3);">
+            <a href="${verifyUrl}" style="display:inline-block;background:linear-gradient(135deg,#FF8C00,#e67e00);color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:10px;font-size:16px;font-weight:bold;box-shadow:0 4px 15px rgba(255,140,0,0.3);">
               تأكيد البريد الإلكتروني ✉️
             </a>
           </td></tr></table>
           <p style="color:#64748b;font-size:13px;line-height:1.6;margin:25px 0 0;text-align:center;">
-            إذا لم تقم بإنشاء حساب في صِلة، تجاهل هذه الرسالة.
+            إذا لم تقم بإنشاء حساب في صِلة، تجاهل هذه الرسالة.<br/>
+            ينتهي هذا الرابط خلال 24 ساعة.
           </p>
         </td></tr>
         <tr><td style="padding:20px 40px 30px;border-top:1px solid rgba(255,140,0,0.1);text-align:center;">
