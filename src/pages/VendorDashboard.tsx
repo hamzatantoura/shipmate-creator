@@ -1,11 +1,12 @@
 import { Component, type ReactNode, useState, useCallback, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Map, Package, Users, ScanLine } from "lucide-react";
+import { Map, Package, Users, ScanLine, Wallet } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import VendorOperationsMap from "@/components/vendor/VendorOperationsMap";
 import VendorShipments from "@/components/vendor/VendorShipments";
 import VendorCouriers from "@/components/vendor/VendorCouriers";
 import BarcodeScanner from "@/components/vendor/BarcodeScanner";
+import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import { useAuth } from "@/hooks/use-auth";
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications";
 import { setupOfflineSync } from "@/lib/offline-sync";
@@ -84,6 +85,9 @@ export default function VendorDashboard() {
             <TabsTrigger value="scanner" className="gap-1.5">
               <ScanLine className="h-3.5 w-3.5" /> ماسح الباركود
             </TabsTrigger>
+            <TabsTrigger value="transactions" className="gap-1.5">
+              <Wallet className="h-3.5 w-3.5" /> سجل الحركات
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="map">
@@ -107,6 +111,9 @@ export default function VendorDashboard() {
           </TabsContent>
           <TabsContent value="couriers"><VendorCouriers /></TabsContent>
           <TabsContent value="scanner"><BarcodeScanner /></TabsContent>
+          <TabsContent value="transactions">
+            <WalletTransactionsLog showAll />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
