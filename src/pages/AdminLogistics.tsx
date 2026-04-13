@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
 import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
+import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
