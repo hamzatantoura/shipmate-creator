@@ -48,19 +48,16 @@ export default function Signup() {
 
     // Send branded confirmation email via Resend
     if (data?.user) {
-      const siteUrl = window.location.origin;
-      const confirmationUrl = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/verify?token=${data.user.confirmation_sent_at ? '' : ''}&type=signup&redirect_to=${siteUrl}/login`;
-      
       try {
         await supabase.functions.invoke("send-signup-email", {
           body: {
             email,
             storeName,
-            confirmationUrl: `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/verify?type=signup&token_hash=${encodeURIComponent(email)}&redirect_to=${encodeURIComponent(siteUrl + '/login')}`,
+            userId: data.user.id,
           },
         });
       } catch (e) {
-        console.warn("Custom email failed, default email sent:", e);
+        console.warn("Custom email sending failed:", e);
       }
     }
 
