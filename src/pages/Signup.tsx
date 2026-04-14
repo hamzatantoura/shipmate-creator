@@ -46,21 +46,6 @@ export default function Signup() {
       return;
     }
 
-    // Send branded confirmation email via Resend
-    if (data?.user) {
-      try {
-        await supabase.functions.invoke("send-signup-email", {
-          body: {
-            email,
-            storeName,
-            userId: data.user.id,
-          },
-        });
-      } catch (e) {
-        console.warn("Custom email sending failed:", e);
-      }
-    }
-
     setLoading(false);
     setSuccess(true);
   };

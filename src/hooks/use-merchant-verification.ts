@@ -44,7 +44,9 @@ export function useMerchantVerification() {
     if (!user) return;
 
     // Source of truth: Supabase Auth email_confirmed_at
-    const emailConfirmed = !!user.email_confirmed_at;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const freshUser = sessionData?.session?.user;
+    const emailConfirmed = !!(freshUser?.email_confirmed_at || user.email_confirmed_at);
 
     const { data: merchant } = await supabase
       .from("merchants")

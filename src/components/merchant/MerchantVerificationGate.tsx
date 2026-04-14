@@ -43,6 +43,7 @@ export default function MerchantVerificationGate({ children }: Props) {
       });
       if (error) throw error;
       toast.success("تم إرسال رابط التأكيد إلى بريدك الإلكتروني");
+      toast.info("تحقق من مجلد البريد الوارد أو الرسائل غير المرغوب فيها");
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ أثناء إرسال الرابط");
     } finally {
