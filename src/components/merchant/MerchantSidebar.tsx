@@ -14,7 +14,7 @@ import {
 
 const items = [
   { title: "الرئيسية", url: "/merchant/dashboard", icon: Home },
-  { title: "الطلبات", url: "/merchant?tab=orders", icon: ShoppingCart },
+  { title: "الطلبات", url: "/merchant/orders", icon: ShoppingCart },
   { title: "المحفظة", url: "/merchant?tab=wallet", icon: Wallet },
   { title: "المتجر", url: "/merchant?tab=products", icon: Store },
   { title: "الإعدادات", url: "/merchant?tab=settings", icon: Settings },
