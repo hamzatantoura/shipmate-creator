@@ -1,0 +1,471 @@
+import { useState } from "react";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+import { Plus, Printer, Trash2, Package, Lock } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import silaLogo from "@/assets/sila-logo.png";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
+
+type OrderStatus = "draft" | "in_transit" | "returned" | "delivered" | "locked";
+
+interface DummyOrder {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  district: string;
+  status: OrderStatus;
+  silaCode: string;
+  carrierCode: string | null;
+  codAmount: number;
+  locked: boolean;
+}
+
+const DISTRICTS = [
+  "دمشق - المزة",
+  "دمشق - الميدان",
+  "حلب - الفرقان",
+  "حلب - السليمانية",
+  "حمص - الإنشاءات",
+  "اللاذقية - الزراعة",
+  "حماة - العصيدة",
+  "طرطوس - المركز",
+];
+
+const STATUS_META: Record<OrderStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "مسودة", variant: "outline" },
+  in_transit: { label: "قيد التوصيل", variant: "default" },
+  returned: { label: "مرتجع", variant: "destructive" },
+  delivered: { label: "تم التوصيل", variant: "secondary" },
+  locked: { label: "معتمد", variant: "secondary" },
+};
+
+const INITIAL_ORDERS: DummyOrder[] = [
+  {
+    id: "1",
+    customerName: "أحمد العلي",
+    customerPhone: "0991234567",
+    district: "دمشق - المزة",
+    status: "draft",
+    silaCode: "SL1001",
+    carrierCode: null,
+    codAmount: 250000,
+    locked: false,
+  },
+  {
+    id: "2",
+    customerName: "ليلى حسن",
+    customerPhone: "0987654321",
+    district: "حلب - الفرقان",
+    status: "in_transit",
+    silaCode: "SL1002",
+    carrierCode: "QDM-44521",
+    codAmount: 480000,
+    locked: true,
+  },
+  {
+    id: "3",
+    customerName: "سامي خوري",
+    customerPhone: "0944112233",
+    district: "حمص - الإنشاءات",
+    status: "returned",
+    silaCode: "SL1003",
+    carrierCode: "EXP-99812",
+    codAmount: 175000,
+    locked: true,
+  },
+  {
+    id: "4",
+    customerName: "نور الدين",
+    customerPhone: "0933887766",
+    district: "اللاذقية - الزراعة",
+    status: "draft",
+    silaCode: "SL1004",
+    carrierCode: null,
+    codAmount: 320000,
+    locked: false,
+  },
+];
+
+interface BoxItem {
+  id: string;
+  weight: string;
+}
+
+const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
+
+export default function MerchantOrdersPage() {
+  const { profile, signOut } = useAuth();
+  const [orders, setOrders] = useState<DummyOrder[]>(INITIAL_ORDERS);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
+
+  // Form state
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    district: "",
+    cod: "",
+  });
+  const [boxes, setBoxes] = useState<BoxItem[]>([
+    { id: crypto.randomUUID(), weight: "" },
+  ]);
+
+  const resetForm = () => {
+    setForm({ name: "", phone: "", address: "", district: "", cod: "" });
+    setBoxes([{ id: crypto.randomUUID(), weight: "" }]);
+  };
+
+  const addBox = () => setBoxes((b) => [...b, { id: crypto.randomUUID(), weight: "" }]);
+  const removeBox = (id: string) =>
+    setBoxes((b) => (b.length > 1 ? b.filter((x) => x.id !== id) : b));
+  const updateBox = (id: string, weight: string) =>
+    setBoxes((b) => b.map((x) => (x.id === id ? { ...x, weight } : x)));
+
+  const handleCreate = () => {
+    if (!form.name || !form.phone || !form.district) {
+      toast.error("يرجى تعبئة الحقول المطلوبة");
+      return;
+    }
+    const next: DummyOrder = {
+      id: crypto.randomUUID(),
+      customerName: form.name,
+      customerPhone: form.phone,
+      district: form.district,
+      status: "draft",
+      silaCode: `SL${1000 + orders.length + 1}`,
+      carrierCode: null,
+      codAmount: Number(form.cod) || 0,
+      locked: false,
+    };
+    setOrders((o) => [next, ...o]);
+    toast.success("تم إنشاء الطلب");
+    resetForm();
+    setCreateOpen(false);
+  };
+
+  const confirmPrint = () => {
+    if (!printConfirmId) return;
+    setOrders((o) =>
+      o.map((x) =>
+        x.id === printConfirmId ? { ...x, locked: true, status: x.status === "draft" ? "in_transit" : x.status } : x,
+      ),
+    );
+    toast.success("تم اعتماد الطلب وطباعة البوليصة");
+    setPrintConfirmId(null);
+  };
+
+  return (
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background" dir="rtl">
+        <MerchantSidebar />
+
+        <div className="flex-1 flex flex-col">
+          <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger />
+              <Link to="/" className="flex items-center gap-2">
+                <img src={silaLogo} alt="Sila" className="h-7 w-7" />
+                <span className="font-display font-bold text-lg text-primary">صلة</span>
+              </Link>
+            </div>
+            <div className="flex items-center gap-3">
+              {profile?.store_name && (
+                <span className="text-xs text-muted-foreground hidden md:inline">
+                  {profile.store_name}
+                </span>
+              )}
+              <button
+                onClick={signOut}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                خروج
+              </button>
+            </div>
+          </header>
+
+          <main className="flex-1 p-4 md:p-6 space-y-6 max-w-7xl w-full mx-auto">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h1 className="text-2xl font-display font-bold text-foreground">الطلبات</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  إدارة طلبات الزبائن وطباعة البوالص
+                </p>
+              </div>
+              <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) resetForm(); }}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    إضافة طلب جديد
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+                  <DialogHeader>
+                    <DialogTitle>إضافة طلب جديد</DialogTitle>
+                    <DialogDescription>
+                      أدخل بيانات الزبون والطرود لإنشاء طلب جديد
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-5 py-2">
+                    {/* Customer */}
+                    <section className="space-y-3">
+                      <h3 className="text-sm font-semibold text-foreground">بيانات الزبون</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="name">اسم الزبون *</Label>
+                          <Input
+                            id="name"
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            placeholder="مثال: أحمد العلي"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="phone">رقم الهاتف *</Label>
+                          <Input
+                            id="phone"
+                            value={form.phone}
+                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                            placeholder="09xxxxxxxx"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                          <Label htmlFor="address">العنوان التفصيلي</Label>
+                          <Textarea
+                            id="address"
+                            value={form.address}
+                            onChange={(e) => setForm({ ...form, address: e.target.value })}
+                            placeholder="الشارع، رقم البناء، الطابق..."
+                            rows={2}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="district">المحافظة / المنطقة *</Label>
+                          <Select
+                            value={form.district}
+                            onValueChange={(v) => setForm({ ...form, district: v })}
+                          >
+                            <SelectTrigger id="district">
+                              <SelectValue placeholder="اختر المنطقة" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {DISTRICTS.map((d) => (
+                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cod">المبلغ المطلوب تحصيله (ل.س)</Label>
+                          <Input
+                            id="cod"
+                            type="number"
+                            value={form.cod}
+                            onChange={(e) => setForm({ ...form, cod: e.target.value })}
+                            placeholder="0"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Boxes */}
+                    <section className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          الطرود ({boxes.length})
+                        </h3>
+                        <Button type="button" variant="outline" size="sm" onClick={addBox} className="gap-1">
+                          <Plus className="h-3.5 w-3.5" />
+                          إضافة طرد
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        {boxes.map((box, i) => (
+                          <Card key={box.id} className="p-3 flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                              {i + 1}
+                            </div>
+                            <div className="flex-1">
+                              <Label htmlFor={`w-${box.id}`} className="text-xs text-muted-foreground">
+                                الوزن (كغ)
+                              </Label>
+                              <Input
+                                id={`w-${box.id}`}
+                                type="number"
+                                step="0.1"
+                                value={box.weight}
+                                onChange={(e) => updateBox(box.id, e.target.value)}
+                                placeholder="0.0"
+                                dir="ltr"
+                                className="mt-1"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeBox(box.id)}
+                              disabled={boxes.length === 1}
+                              className="text-destructive hover:text-destructive shrink-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </Card>
+                        ))}
+                      </div>
+                    </section>
+                  </div>
+
+                  <DialogFooter className="gap-2">
+                    <Button variant="outline" onClick={() => setCreateOpen(false)}>إلغاء</Button>
+                    <Button onClick={handleCreate}>إنشاء الطلب</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Orders Table */}
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-right">الزبون</TableHead>
+                      <TableHead className="text-right">المحافظة</TableHead>
+                      <TableHead className="text-right">حالة الطلب</TableHead>
+                      <TableHead className="text-right">كود صِلة</TableHead>
+                      <TableHead className="text-right">بوليصة الناقل</TableHead>
+                      <TableHead className="text-right">المبلغ</TableHead>
+                      <TableHead className="text-right">الإجراءات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => {
+                      const meta = STATUS_META[order.status];
+                      return (
+                        <TableRow key={order.id}>
+                          <TableCell>
+                            <div className="font-medium text-foreground">{order.customerName}</div>
+                            <div className="text-xs text-muted-foreground" dir="ltr">{order.customerPhone}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">{order.district}</TableCell>
+                          <TableCell>
+                            <Badge variant={meta.variant} className="gap-1">
+                              {order.locked && <Lock className="h-3 w-3" />}
+                              {meta.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-xs text-primary font-semibold" dir="ltr">
+                              {order.silaCode}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {order.carrierCode ? (
+                              <span className="font-mono text-xs text-muted-foreground" dir="ltr">
+                                {order.carrierCode}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {fmtSYP(order.codAmount)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant={order.locked ? "outline" : "default"}
+                              onClick={() => setPrintConfirmId(order.id)}
+                              className="gap-1.5"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              {order.locked ? "إعادة طباعة" : "طباعة البوليصة"}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {orders.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          لا توجد طلبات بعد
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
+          </main>
+        </div>
+
+        {/* Print confirmation */}
+        <AlertDialog open={!!printConfirmId} onOpenChange={(o) => !o && setPrintConfirmId(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-amber-500" />
+                هل أنت متأكد؟
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                طباعة البوليصة ستؤدي إلى اعتماد الطلب ولا يمكن تعديل بياناته بعد الآن.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmPrint}>
+                نعم، اعتمد واطبع
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </SidebarProvider>
+  );
+}
