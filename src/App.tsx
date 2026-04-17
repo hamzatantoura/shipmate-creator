@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import MerchantPortal from "./pages/MerchantPortal";
 import MerchantDashboard from "./pages/MerchantDashboard";
+import MerchantOrdersPage from "./pages/MerchantOrdersPage";
 import VendorDashboard from "./pages/VendorDashboard";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
@@ -51,6 +52,11 @@ const App = () => (
           <Route path="/merchant/dashboard" element={
             <AuthGuard allowedRoles={["merchant"]}>
               <MerchantDashboard />
+            </AuthGuard>
+          } />
+          <Route path="/merchant/orders" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantOrdersPage />
             </AuthGuard>
           } />
           <Route path="/topup" element={
