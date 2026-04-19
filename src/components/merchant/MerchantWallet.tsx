@@ -56,30 +56,35 @@ interface PayoutReq {
 
 export default function MerchantWallet() {
   const { user } = useAuth();
-  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0); // legacy ledger balance (kept for payout cap)
+  const [availableBalance, setAvailableBalance] = useState(0); // delivered orders
+  const [pendingBalance, setPendingBalance] = useState(0); // processing/shipped/out_for_delivery
   const [txns, setTxns] = useState<WalletTx[]>([]);
   const [payouts, setPayouts] = useState<PayoutReq[]>([]);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutMethod, setPayoutMethod] = useState("");
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
-  const [pendingShipments, setPendingShipments] = useState(0);
+
+  const expectedBalance = availableBalance + pendingBalance;
 
   const fetchData = useCallback(async () => {
     if (!user) return;
 
-    // Fetch wallet, payouts, and pending shipments in parallel
-    const [walletRes, payoutRes, shipmentsRes] = await Promise.all([
+    const [walletRes, payoutRes, ordersRes] = await Promise.all([
       supabase.from("wallets").select("*").eq("merchant_id", user.id).single(),
       supabase.from("payout_requests").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("shipments").select("cod_amount").eq("merchant_id", user.id).not("status", "in", '("delivered","returned","cancelled")'),
+      supabase
+        .from("orders")
+        .select("status, total_amount, final_sale_price, delivery_fee")
+        .eq("merchant_id", user.id)
+        .is("deleted_at", null),
     ]);
 
     if (walletRes.data) {
       setWalletBalance(Number(walletRes.data.balance));
-      // Fetch transactions
       const { data: t } = await supabase
         .from("wallet_transactions")
         .select("*")
@@ -90,12 +95,38 @@ export default function MerchantWallet() {
     }
 
     if (payoutRes.data) setPayouts(payoutRes.data as PayoutReq[]);
-    if (shipmentsRes.data) {
-      setPendingShipments(shipmentsRes.data.reduce((sum, s) => sum + Number(s.cod_amount || 0), 0));
+
+    // Live computation from orders
+    if (ordersRes.data) {
+      const PENDING = new Set(["processing", "shipped", "out_for_delivery"]);
+      let avail = 0, pend = 0;
+      for (const o of ordersRes.data as any[]) {
+        const amount = Number(o.final_sale_price ?? o.total_amount ?? 0);
+        const fee = Number(o.delivery_fee ?? 0);
+        const net = amount - fee;
+        if (o.status === "delivered") avail += net;
+        else if (PENDING.has(o.status)) pend += net;
+      }
+      setAvailableBalance(avail);
+      setPendingBalance(pend);
     }
   }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Realtime: refresh balances when any of merchant's orders change
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`wallet-orders-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `merchant_id=eq.${user.id}` },
+        () => fetchData(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchData]);
 
   const submitPayout = async () => {
     if (!user) return;
@@ -152,17 +183,17 @@ export default function MerchantWallet() {
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className={`border-2 ${walletBalance >= 0 ? 'border-primary/30' : 'border-destructive/30'}`}>
+        <Card className={`border-2 ${availableBalance >= 0 ? 'border-primary/30' : 'border-destructive/30'}`}>
           <CardContent className="p-5 flex items-center gap-3">
-            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${walletBalance >= 0 ? 'bg-primary/10' : 'bg-destructive/10'}`}>
-              {walletBalance >= 0 ? <CheckCircle2 className="h-6 w-6 text-primary" /> : <AlertTriangle className="h-6 w-6 text-destructive" />}
+            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${availableBalance >= 0 ? 'bg-primary/10' : 'bg-destructive/10'}`}>
+              {availableBalance >= 0 ? <CheckCircle2 className="h-6 w-6 text-primary" /> : <AlertTriangle className="h-6 w-6 text-destructive" />}
             </div>
             <div>
               <p className="text-xs text-muted-foreground">الرصيد المتاح</p>
-              <p className={`text-2xl font-display font-bold ${walletBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                {walletBalance.toLocaleString()} ل.س
+              <p className={`text-2xl font-display font-bold ${availableBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                {availableBalance.toLocaleString()} ل.س
               </p>
-              {walletBalance < 0 && <p className="text-xs text-destructive mt-0.5">لديك دَين مستحق</p>}
+              <p className="text-[10px] text-muted-foreground mt-0.5">الطلبات المُسلَّمة (صافي بعد الشحن)</p>
             </div>
           </CardContent>
         </Card>
@@ -172,8 +203,9 @@ export default function MerchantWallet() {
               <Clock className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">قيد التوصيل (COD معلّق)</p>
-              <p className="text-2xl font-display font-bold text-warning">{pendingShipments.toLocaleString()} ل.س</p>
+              <p className="text-xs text-muted-foreground">بانتظار التحويل</p>
+              <p className="text-2xl font-display font-bold text-warning">{pendingBalance.toLocaleString()} ل.س</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">قيد المعالجة / الشحن / التوصيل</p>
             </div>
           </CardContent>
         </Card>
@@ -183,8 +215,9 @@ export default function MerchantWallet() {
               <Wallet className="h-6 w-6 text-foreground" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">الإجمالي المتوقع</p>
-              <p className="text-2xl font-display font-bold text-foreground">{(walletBalance + pendingShipments).toLocaleString()} ل.س</p>
+              <p className="text-xs text-muted-foreground">الرصيد المتوقع</p>
+              <p className="text-2xl font-display font-bold text-foreground">{expectedBalance.toLocaleString()} ل.س</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">المتاح + بانتظار التحويل</p>
             </div>
           </CardContent>
         </Card>
