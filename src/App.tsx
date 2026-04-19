@@ -16,6 +16,7 @@ import MerchantOrdersPage from "./pages/MerchantOrdersPage";
 import VendorDashboard from "./pages/VendorDashboard";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
+import AdminDistricts from "./pages/AdminDistricts";
 import TrackShipment from "./pages/TrackShipment";
 import Storefront from "./pages/Storefront";
 import ProductPage from "./pages/ProductPage";
@@ -76,6 +77,11 @@ const App = () => (
           <Route path="/admin" element={
             <AuthGuard allowedRoles={["admin"]}>
               <AdminLogistics />
+            </AuthGuard>
+          } />
+          <Route path="/admin/districts" element={
+            <AuthGuard allowedRoles={["admin"]}>
+              <AdminDistricts />
             </AuthGuard>
           } />
 
