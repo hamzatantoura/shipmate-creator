@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
 import { Button } from "@/components/ui/button";
@@ -61,16 +62,12 @@ interface DummyOrder {
   locked: boolean;
 }
 
-const DISTRICTS = [
-  "دمشق - المزة",
-  "دمشق - الميدان",
-  "حلب - الفرقان",
-  "حلب - السليمانية",
-  "حمص - الإنشاءات",
-  "اللاذقية - الزراعة",
-  "حماة - العصيدة",
-  "طرطوس - المركز",
-];
+interface DistrictRow {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  delivery_fee: number;
+}
 
 const STATUS_META: Record<OrderStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "مسودة", variant: "outline" },
@@ -140,12 +137,25 @@ export default function MerchantOrdersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
 
+  // Districts (real data)
+  const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
+  useEffect(() => {
+    supabase
+      .from("districts")
+      .select("id, name, parent_id, delivery_fee")
+      .order("name", { ascending: true })
+      .then(({ data }) => setAllDistricts((data || []) as DistrictRow[]));
+  }, []);
+  const provinces = allDistricts.filter(d => !d.parent_id);
+  const areasOf = (provId: string) => allDistricts.filter(d => d.parent_id === provId);
+
   // Form state
   const [form, setForm] = useState({
     name: "",
     phone: "",
     address: "",
-    district: "",
+    provinceId: "",
+    districtId: "",
     cod: "",
   });
   const [boxes, setBoxes] = useState<BoxItem[]>([
@@ -153,7 +163,7 @@ export default function MerchantOrdersPage() {
   ]);
 
   const resetForm = () => {
-    setForm({ name: "", phone: "", address: "", district: "", cod: "" });
+    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "" });
     setBoxes([{ id: crypto.randomUUID(), weight: "" }]);
   };
 
@@ -164,15 +174,19 @@ export default function MerchantOrdersPage() {
     setBoxes((b) => b.map((x) => (x.id === id ? { ...x, weight } : x)));
 
   const handleCreate = () => {
-    if (!form.name || !form.phone || !form.district) {
+    if (!form.name || !form.phone || !form.provinceId) {
       toast.error("يرجى تعبئة الحقول المطلوبة");
       return;
     }
+    const prov = provinces.find(p => p.id === form.provinceId);
+    const area = allDistricts.find(d => d.id === form.districtId);
+    const districtLabel = area ? `${prov?.name} - ${area.name}` : prov?.name || "";
+
     const next: DummyOrder = {
       id: crypto.randomUUID(),
       customerName: form.name,
       customerPhone: form.phone,
-      district: form.district,
+      district: districtLabel,
       status: "draft",
       silaCode: `SL${1000 + orders.length + 1}`,
       carrierCode: null,
@@ -283,17 +297,40 @@ export default function MerchantOrdersPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="district">المحافظة / المنطقة *</Label>
+                          <Label htmlFor="province">المحافظة *</Label>
                           <Select
-                            value={form.district}
-                            onValueChange={(v) => setForm({ ...form, district: v })}
+                            value={form.provinceId}
+                            onValueChange={(v) => setForm({ ...form, provinceId: v, districtId: "" })}
                           >
-                            <SelectTrigger id="district">
-                              <SelectValue placeholder="اختر المنطقة" />
+                            <SelectTrigger id="province">
+                              <SelectValue placeholder="اختر المحافظة" />
                             </SelectTrigger>
                             <SelectContent>
-                              {DISTRICTS.map((d) => (
-                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              {provinces.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="district">المنطقة / الحي</Label>
+                          <Select
+                            value={form.districtId}
+                            onValueChange={(v) => setForm({ ...form, districtId: v })}
+                            disabled={!form.provinceId || areasOf(form.provinceId).length === 0}
+                          >
+                            <SelectTrigger id="district">
+                              <SelectValue placeholder={
+                                !form.provinceId ? "اختر محافظة أولاً" :
+                                areasOf(form.provinceId).length === 0 ? "لا توجد مناطق" :
+                                "اختر المنطقة"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {areasOf(form.provinceId).map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.name} <span className="text-xs text-muted-foreground mr-2">({fmtSYP(a.delivery_fee)})</span>
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>

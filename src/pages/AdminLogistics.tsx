@@ -13,6 +13,7 @@ import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowD
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
+import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
 import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import type { Database } from "@/integrations/supabase/types";
@@ -289,6 +290,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="zones" className="gap-1.5">
               <MapPin className="h-3.5 w-3.5" /> مناطق الشحن
             </TabsTrigger>
+            <TabsTrigger value="districts" className="gap-1.5">
+              <MapPin className="h-3.5 w-3.5" /> إدارة المناطق
+            </TabsTrigger>
             <TabsTrigger value="merchants" className="gap-1.5">
               <User className="h-3.5 w-3.5" /> التجار
             </TabsTrigger>
@@ -443,6 +447,9 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="zones" className="mt-4">
             <AdminZonesManagement />
+          </TabsContent>
+          <TabsContent value="districts" className="mt-4">
+            <AdminDistrictsManagement />
           </TabsContent>
           <TabsContent value="merchants" className="mt-4">
             <AdminMerchantApproval />
