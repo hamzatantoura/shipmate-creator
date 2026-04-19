@@ -297,17 +297,40 @@ export default function MerchantOrdersPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="district">المحافظة / المنطقة *</Label>
+                          <Label htmlFor="province">المحافظة *</Label>
                           <Select
-                            value={form.district}
-                            onValueChange={(v) => setForm({ ...form, district: v })}
+                            value={form.provinceId}
+                            onValueChange={(v) => setForm({ ...form, provinceId: v, districtId: "" })}
                           >
-                            <SelectTrigger id="district">
-                              <SelectValue placeholder="اختر المنطقة" />
+                            <SelectTrigger id="province">
+                              <SelectValue placeholder="اختر المحافظة" />
                             </SelectTrigger>
                             <SelectContent>
-                              {DISTRICTS.map((d) => (
-                                <SelectItem key={d} value={d}>{d}</SelectItem>
+                              {provinces.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="district">المنطقة / الحي</Label>
+                          <Select
+                            value={form.districtId}
+                            onValueChange={(v) => setForm({ ...form, districtId: v })}
+                            disabled={!form.provinceId || areasOf(form.provinceId).length === 0}
+                          >
+                            <SelectTrigger id="district">
+                              <SelectValue placeholder={
+                                !form.provinceId ? "اختر محافظة أولاً" :
+                                areasOf(form.provinceId).length === 0 ? "لا توجد مناطق" :
+                                "اختر المنطقة"
+                              } />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {areasOf(form.provinceId).map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.name} <span className="text-xs text-muted-foreground mr-2">({fmtSYP(a.delivery_fee)})</span>
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
