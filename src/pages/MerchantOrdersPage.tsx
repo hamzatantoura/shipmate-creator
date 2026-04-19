@@ -191,15 +191,49 @@ export default function MerchantOrdersPage() {
     if (!printConfirmId) return;
     const order = orders.find(o => o.id === printConfirmId);
     if (!order) return;
-    const newStatus = order.status === "new" ? "processing" : order.status;
-    const { error } = await supabase.from("orders")
-      .update({ status: newStatus } as any)
-      .eq("id", printConfirmId);
-    if (error) { toast.error("تعذر اعتماد الطلب"); return; }
-    toast.success("تم اعتماد الطلب وطباعة البوليصة");
+
+    const prov = provinces.find(p => p.id === order.district_id) || allDistricts.find(d => d.id === order.district_id && !d.parent_id);
+    const area = allDistricts.find(d => d.id === order.district_id && d.parent_id);
+    const districtName = area?.name || null;
+
+    try {
+      printShippingLabel({
+        silaCode: silaCodeOf(order.id),
+        createdAt: order.created_at,
+        sender: {
+          storeName: profile?.store_name || "متجر التاجر",
+          phone: profile?.phone || null,
+          city: profile?.city || null,
+        },
+        receiver: {
+          name: order.receiver_name,
+          phone: order.phone_number,
+          city: order.city,
+          district: districtName,
+          address: order.detailed_address,
+        },
+        cod: Number(order.final_sale_price ?? order.total_amount),
+        notes: order.notes,
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر فتح نافذة الطباعة");
+      return;
+    }
+
+    // Lock the order in DB only if not already locked
+    if (!order.label_printed_at) {
+      const newStatus = order.status === "new" ? "processing" : order.status;
+      const { error } = await supabase.from("orders")
+        .update({ label_printed_at: new Date().toISOString(), status: newStatus } as any)
+        .eq("id", printConfirmId);
+      if (error) { toast.error("تم فتح البوليصة لكن تعذر قفل الطلب"); }
+      else { toast.success("تم اعتماد الطلب وقفله للتعديل"); }
+    } else {
+      toast.success("إعادة طباعة البوليصة");
+    }
+
     setPrintConfirmId(null);
     fetchOrders();
-    setTimeout(() => window.print(), 300);
   };
 
   return (
