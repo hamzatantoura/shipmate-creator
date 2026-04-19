@@ -48,18 +48,20 @@ import silaLogo from "@/assets/sila-logo.png";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-type OrderStatus = "draft" | "in_transit" | "returned" | "delivered" | "locked";
+type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
-interface DummyOrder {
+interface OrderRow {
   id: string;
-  customerName: string;
-  customerPhone: string;
-  district: string;
-  status: OrderStatus;
-  silaCode: string;
-  carrierCode: string | null;
-  codAmount: number;
-  locked: boolean;
+  receiver_name: string;
+  phone_number: string;
+  city: string;
+  detailed_address: string;
+  district_id: string | null;
+  status: string;
+  total_amount: number;
+  final_sale_price: number | null;
+  shipment_id: string | null;
+  created_at: string;
 }
 
 interface DistrictRow {
@@ -69,60 +71,15 @@ interface DistrictRow {
   delivery_fee: number;
 }
 
-const STATUS_META: Record<OrderStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "مسودة", variant: "outline" },
-  in_transit: { label: "قيد التوصيل", variant: "default" },
-  returned: { label: "مرتجع", variant: "destructive" },
+const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  new: { label: "جديد", variant: "outline" },
+  processing: { label: "قيد المعالجة", variant: "default" },
+  shipped: { label: "قيد التوصيل", variant: "default" },
+  out_for_delivery: { label: "خرج للتوصيل", variant: "default" },
   delivered: { label: "تم التوصيل", variant: "secondary" },
-  locked: { label: "معتمد", variant: "secondary" },
+  returned: { label: "مرتجع", variant: "destructive" },
+  cancelled: { label: "ملغى", variant: "destructive" },
 };
-
-const INITIAL_ORDERS: DummyOrder[] = [
-  {
-    id: "1",
-    customerName: "أحمد العلي",
-    customerPhone: "0991234567",
-    district: "دمشق - المزة",
-    status: "draft",
-    silaCode: "SL1001",
-    carrierCode: null,
-    codAmount: 250000,
-    locked: false,
-  },
-  {
-    id: "2",
-    customerName: "ليلى حسن",
-    customerPhone: "0987654321",
-    district: "حلب - الفرقان",
-    status: "in_transit",
-    silaCode: "SL1002",
-    carrierCode: "QDM-44521",
-    codAmount: 480000,
-    locked: true,
-  },
-  {
-    id: "3",
-    customerName: "سامي خوري",
-    customerPhone: "0944112233",
-    district: "حمص - الإنشاءات",
-    status: "returned",
-    silaCode: "SL1003",
-    carrierCode: "EXP-99812",
-    codAmount: 175000,
-    locked: true,
-  },
-  {
-    id: "4",
-    customerName: "نور الدين",
-    customerPhone: "0933887766",
-    district: "اللاذقية - الزراعة",
-    status: "draft",
-    silaCode: "SL1004",
-    carrierCode: null,
-    codAmount: 320000,
-    locked: false,
-  },
-];
 
 interface BoxItem {
   id: string;
@@ -130,11 +87,15 @@ interface BoxItem {
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
+const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
+const isLocked = (o: OrderRow) => !!o.shipment_id || ["shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
 
 export default function MerchantOrdersPage() {
-  const { profile, signOut } = useAuth();
-  const [orders, setOrders] = useState<DummyOrder[]>(INITIAL_ORDERS);
+  const { profile, signOut, user } = useAuth();
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
 
   // Districts (real data)
@@ -148,6 +109,22 @@ export default function MerchantOrdersPage() {
   }, []);
   const provinces = allDistricts.filter(d => !d.parent_id);
   const areasOf = (provId: string) => allDistricts.filter(d => d.parent_id === provId);
+
+  // Fetch real orders
+  const fetchOrders = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, status, total_amount, final_sale_price, shipment_id, created_at")
+      .eq("merchant_id", user.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
+    if (error) toast.error("تعذر تحميل الطلبات");
+    else setOrders((data || []) as OrderRow[]);
+    setLoading(false);
+  };
+  useEffect(() => { fetchOrders(); }, [user?.id]);
 
   // Form state
   const [form, setForm] = useState({
