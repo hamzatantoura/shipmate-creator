@@ -62,6 +62,8 @@ interface OrderRow {
   final_sale_price: number | null;
   shipment_id: string | null;
   created_at: string;
+  label_printed_at: string | null;
+  notes: string | null;
 }
 
 interface DistrictRow {
