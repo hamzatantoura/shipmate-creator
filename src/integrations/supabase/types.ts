@@ -174,7 +174,7 @@ export type Database = {
           delivery_fee: number
           id: string
           is_active: boolean
-          name: string | null
+          name: string
           parent_id: string | null
           province: string
           province_ar: string
@@ -186,7 +186,7 @@ export type Database = {
           delivery_fee?: number
           id?: string
           is_active?: boolean
-          name?: string | null
+          name: string
           parent_id?: string | null
           province: string
           province_ar: string
@@ -198,7 +198,7 @@ export type Database = {
           delivery_fee?: number
           id?: string
           is_active?: boolean
-          name?: string | null
+          name?: string
           parent_id?: string | null
           province?: string
           province_ar?: string
