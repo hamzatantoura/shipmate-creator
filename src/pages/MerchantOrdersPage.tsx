@@ -411,53 +411,58 @@ export default function MerchantOrdersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => {
-                      const meta = STATUS_META[order.status];
+                    {loading && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          جاري التحميل...
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!loading && orders.map((order) => {
+                      const meta = STATUS_META[order.status] || { label: order.status, variant: "outline" as const };
+                      const locked = isLocked(order);
+                      const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
+                      const display = districtName ? `${order.city} - ${districtName}` : order.city;
+                      const amount = order.final_sale_price ?? order.total_amount;
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
-                            <div className="font-medium text-foreground">{order.customerName}</div>
-                            <div className="text-xs text-muted-foreground" dir="ltr">{order.customerPhone}</div>
+                            <div className="font-medium text-foreground">{order.receiver_name}</div>
+                            <div className="text-xs text-muted-foreground" dir="ltr">{order.phone_number}</div>
                           </TableCell>
-                          <TableCell className="text-sm">{order.district}</TableCell>
+                          <TableCell className="text-sm">{display}</TableCell>
                           <TableCell>
                             <Badge variant={meta.variant} className="gap-1">
-                              {order.locked && <Lock className="h-3 w-3" />}
+                              {locked && <Lock className="h-3 w-3" />}
                               {meta.label}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <span className="font-mono text-xs text-primary font-semibold" dir="ltr">
-                              {order.silaCode}
+                              {silaCodeOf(order.id)}
                             </span>
                           </TableCell>
                           <TableCell>
-                            {order.carrierCode ? (
-                              <span className="font-mono text-xs text-muted-foreground" dir="ltr">
-                                {order.carrierCode}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
-                            )}
+                            <span className="text-xs text-muted-foreground">—</span>
                           </TableCell>
                           <TableCell className="text-sm font-medium">
-                            {fmtSYP(order.codAmount)}
+                            {fmtSYP(Number(amount))}
                           </TableCell>
                           <TableCell>
                             <Button
                               size="sm"
-                              variant={order.locked ? "outline" : "default"}
+                              variant={locked ? "outline" : "default"}
                               onClick={() => setPrintConfirmId(order.id)}
                               className="gap-1.5"
                             >
                               <Printer className="h-3.5 w-3.5" />
-                              {order.locked ? "إعادة طباعة" : "طباعة البوليصة"}
+                              {locked ? "إعادة طباعة" : "طباعة البوليصة"}
                             </Button>
                           </TableCell>
                         </TableRow>
                       );
                     })}
-                    {orders.length === 0 && (
+                    {!loading && orders.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           لا توجد طلبات بعد
