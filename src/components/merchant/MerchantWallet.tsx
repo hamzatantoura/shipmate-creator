@@ -183,17 +183,17 @@ export default function MerchantWallet() {
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className={`border-2 ${walletBalance >= 0 ? 'border-primary/30' : 'border-destructive/30'}`}>
+        <Card className={`border-2 ${availableBalance >= 0 ? 'border-primary/30' : 'border-destructive/30'}`}>
           <CardContent className="p-5 flex items-center gap-3">
-            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${walletBalance >= 0 ? 'bg-primary/10' : 'bg-destructive/10'}`}>
-              {walletBalance >= 0 ? <CheckCircle2 className="h-6 w-6 text-primary" /> : <AlertTriangle className="h-6 w-6 text-destructive" />}
+            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${availableBalance >= 0 ? 'bg-primary/10' : 'bg-destructive/10'}`}>
+              {availableBalance >= 0 ? <CheckCircle2 className="h-6 w-6 text-primary" /> : <AlertTriangle className="h-6 w-6 text-destructive" />}
             </div>
             <div>
               <p className="text-xs text-muted-foreground">الرصيد المتاح</p>
-              <p className={`text-2xl font-display font-bold ${walletBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                {walletBalance.toLocaleString()} ل.س
+              <p className={`text-2xl font-display font-bold ${availableBalance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                {availableBalance.toLocaleString()} ل.س
               </p>
-              {walletBalance < 0 && <p className="text-xs text-destructive mt-0.5">لديك دَين مستحق</p>}
+              <p className="text-[10px] text-muted-foreground mt-0.5">الطلبات المُسلَّمة (صافي بعد الشحن)</p>
             </div>
           </CardContent>
         </Card>
@@ -203,8 +203,9 @@ export default function MerchantWallet() {
               <Clock className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">قيد التوصيل (COD معلّق)</p>
-              <p className="text-2xl font-display font-bold text-warning">{pendingShipments.toLocaleString()} ل.س</p>
+              <p className="text-xs text-muted-foreground">بانتظار التحويل</p>
+              <p className="text-2xl font-display font-bold text-warning">{pendingBalance.toLocaleString()} ل.س</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">قيد المعالجة / الشحن / التوصيل</p>
             </div>
           </CardContent>
         </Card>
@@ -214,8 +215,9 @@ export default function MerchantWallet() {
               <Wallet className="h-6 w-6 text-foreground" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">الإجمالي المتوقع</p>
-              <p className="text-2xl font-display font-bold text-foreground">{(walletBalance + pendingShipments).toLocaleString()} ل.س</p>
+              <p className="text-xs text-muted-foreground">الرصيد المتوقع</p>
+              <p className="text-2xl font-display font-bold text-foreground">{expectedBalance.toLocaleString()} ل.س</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">المتاح + بانتظار التحويل</p>
             </div>
           </CardContent>
         </Card>
