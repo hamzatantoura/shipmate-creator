@@ -150,41 +150,53 @@ export default function MerchantOrdersPage() {
   const updateBox = (id: string, weight: string) =>
     setBoxes((b) => b.map((x) => (x.id === id ? { ...x, weight } : x)));
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
+    if (!user) { toast.error("يجب تسجيل الدخول"); return; }
     if (!form.name || !form.phone || !form.provinceId) {
       toast.error("يرجى تعبئة الحقول المطلوبة");
       return;
     }
     const prov = provinces.find(p => p.id === form.provinceId);
     const area = allDistricts.find(d => d.id === form.districtId);
-    const districtLabel = area ? `${prov?.name} - ${area.name}` : prov?.name || "";
+    const finalDistrictId = area?.id || prov?.id || null;
+    const cityLabel = prov?.name || "";
+    const cod = Number(form.cod) || 0;
+    const deliveryFee = area?.delivery_fee ?? prov?.delivery_fee ?? 0;
 
-    const next: DummyOrder = {
-      id: crypto.randomUUID(),
-      customerName: form.name,
-      customerPhone: form.phone,
-      district: districtLabel,
-      status: "draft",
-      silaCode: `SL${1000 + orders.length + 1}`,
-      carrierCode: null,
-      codAmount: Number(form.cod) || 0,
-      locked: false,
-    };
-    setOrders((o) => [next, ...o]);
+    setSubmitting(true);
+    const { error } = await supabase.from("orders").insert({
+      merchant_id: user.id,
+      receiver_name: form.name,
+      phone_number: form.phone,
+      city: cityLabel,
+      detailed_address: form.address || "",
+      district_id: finalDistrictId,
+      total_amount: cod,
+      delivery_fee: deliveryFee,
+      status: "new",
+    } as any);
+    setSubmitting(false);
+
+    if (error) { toast.error(error.message || "تعذر إنشاء الطلب"); return; }
     toast.success("تم إنشاء الطلب");
     resetForm();
     setCreateOpen(false);
+    fetchOrders();
   };
 
-  const confirmPrint = () => {
+  const confirmPrint = async () => {
     if (!printConfirmId) return;
-    setOrders((o) =>
-      o.map((x) =>
-        x.id === printConfirmId ? { ...x, locked: true, status: x.status === "draft" ? "in_transit" : x.status } : x,
-      ),
-    );
+    const order = orders.find(o => o.id === printConfirmId);
+    if (!order) return;
+    const newStatus = order.status === "new" ? "processing" : order.status;
+    const { error } = await supabase.from("orders")
+      .update({ status: newStatus } as any)
+      .eq("id", printConfirmId);
+    if (error) { toast.error("تعذر اعتماد الطلب"); return; }
     toast.success("تم اعتماد الطلب وطباعة البوليصة");
     setPrintConfirmId(null);
+    fetchOrders();
+    setTimeout(() => window.print(), 300);
   };
 
   return (
