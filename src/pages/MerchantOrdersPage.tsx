@@ -47,6 +47,7 @@ import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { printShippingLabel } from "@/lib/print-label";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
@@ -62,6 +63,8 @@ interface OrderRow {
   final_sale_price: number | null;
   shipment_id: string | null;
   created_at: string;
+  label_printed_at: string | null;
+  notes: string | null;
 }
 
 interface DistrictRow {
@@ -88,7 +91,7 @@ interface BoxItem {
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
-const isLocked = (o: OrderRow) => !!o.shipment_id || ["shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
+const isLocked = (o: OrderRow) => !!o.label_printed_at || !!o.shipment_id || ["processing", "shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
 
 export default function MerchantOrdersPage() {
   const { profile, signOut, user } = useAuth();
@@ -116,7 +119,7 @@ export default function MerchantOrdersPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, status, total_amount, final_sale_price, shipment_id, created_at")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -188,15 +191,49 @@ export default function MerchantOrdersPage() {
     if (!printConfirmId) return;
     const order = orders.find(o => o.id === printConfirmId);
     if (!order) return;
-    const newStatus = order.status === "new" ? "processing" : order.status;
-    const { error } = await supabase.from("orders")
-      .update({ status: newStatus } as any)
-      .eq("id", printConfirmId);
-    if (error) { toast.error("تعذر اعتماد الطلب"); return; }
-    toast.success("تم اعتماد الطلب وطباعة البوليصة");
+
+    const prov = provinces.find(p => p.id === order.district_id) || allDistricts.find(d => d.id === order.district_id && !d.parent_id);
+    const area = allDistricts.find(d => d.id === order.district_id && d.parent_id);
+    const districtName = area?.name || null;
+
+    try {
+      printShippingLabel({
+        silaCode: silaCodeOf(order.id),
+        createdAt: order.created_at,
+        sender: {
+          storeName: profile?.store_name || "متجر التاجر",
+          phone: profile?.phone || null,
+          city: profile?.city || null,
+        },
+        receiver: {
+          name: order.receiver_name,
+          phone: order.phone_number,
+          city: order.city,
+          district: districtName,
+          address: order.detailed_address,
+        },
+        cod: Number(order.final_sale_price ?? order.total_amount),
+        notes: order.notes,
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر فتح نافذة الطباعة");
+      return;
+    }
+
+    // Lock the order in DB only if not already locked
+    if (!order.label_printed_at) {
+      const newStatus = order.status === "new" ? "processing" : order.status;
+      const { error } = await supabase.from("orders")
+        .update({ label_printed_at: new Date().toISOString(), status: newStatus } as any)
+        .eq("id", printConfirmId);
+      if (error) { toast.error("تم فتح البوليصة لكن تعذر قفل الطلب"); }
+      else { toast.success("تم اعتماد الطلب وقفله للتعديل"); }
+    } else {
+      toast.success("إعادة طباعة البوليصة");
+    }
+
     setPrintConfirmId(null);
     fetchOrders();
-    setTimeout(() => window.print(), 300);
   };
 
   return (

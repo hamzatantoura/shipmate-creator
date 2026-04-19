@@ -319,6 +319,7 @@ export type Database = {
           district_id: string | null
           final_sale_price: number | null
           id: string
+          label_printed_at: string | null
           merchant_id: string
           net_amount: number
           notes: string | null
@@ -344,6 +345,7 @@ export type Database = {
           district_id?: string | null
           final_sale_price?: number | null
           id?: string
+          label_printed_at?: string | null
           merchant_id: string
           net_amount?: number
           notes?: string | null
@@ -369,6 +371,7 @@ export type Database = {
           district_id?: string | null
           final_sale_price?: number | null
           id?: string
+          label_printed_at?: string | null
           merchant_id?: string
           net_amount?: number
           notes?: string | null
