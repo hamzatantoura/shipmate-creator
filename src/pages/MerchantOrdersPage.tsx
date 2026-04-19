@@ -119,7 +119,7 @@ export default function MerchantOrdersPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, status, total_amount, final_sale_price, shipment_id, created_at")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
