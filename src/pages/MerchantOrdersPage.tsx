@@ -389,7 +389,7 @@ export default function MerchantOrdersPage() {
 
                   <DialogFooter className="gap-2">
                     <Button variant="outline" onClick={() => setCreateOpen(false)}>إلغاء</Button>
-                    <Button onClick={handleCreate}>إنشاء الطلب</Button>
+                    <Button onClick={handleCreate} disabled={submitting}>{submitting ? "جاري الحفظ..." : "إنشاء الطلب"}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
