@@ -91,7 +91,7 @@ interface BoxItem {
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
-const isLocked = (o: OrderRow) => !!o.shipment_id || ["shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
+const isLocked = (o: OrderRow) => !!o.label_printed_at || !!o.shipment_id || ["processing", "shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
 
 export default function MerchantOrdersPage() {
   const { profile, signOut, user } = useAuth();
