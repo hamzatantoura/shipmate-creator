@@ -47,6 +47,7 @@ import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { printShippingLabel } from "@/lib/print-label";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
