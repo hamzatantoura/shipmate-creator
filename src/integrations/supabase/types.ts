@@ -174,6 +174,8 @@ export type Database = {
           delivery_fee: number
           id: string
           is_active: boolean
+          name: string | null
+          parent_id: string | null
           province: string
           province_ar: string
         }
@@ -184,6 +186,8 @@ export type Database = {
           delivery_fee?: number
           id?: string
           is_active?: boolean
+          name?: string | null
+          parent_id?: string | null
           province: string
           province_ar: string
         }
@@ -194,10 +198,20 @@ export type Database = {
           delivery_fee?: number
           id?: string
           is_active?: boolean
+          name?: string | null
+          parent_id?: string | null
           province?: string
           province_ar?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "districts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_verification_tokens: {
         Row: {
