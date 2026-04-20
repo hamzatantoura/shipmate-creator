@@ -236,6 +236,7 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       <div class="info-row"><span class="lbl">الاسم</span><span class="val">${shipment.receiver_name}</span></div>
       <div class="info-row"><span class="lbl">الهاتف</span><span class="val" style="direction:ltr;text-align:right">${shipment.phone_number}</span></div>
       <div class="info-row"><span class="lbl">المدينة</span><span class="val">${CITY_AR[shipment.city] || shipment.city}</span></div>
+      ${districtName ? `<div class="info-row"><span class="lbl">المنطقة / الحي</span><span class="val">${districtName}</span></div>` : ""}
       <div class="info-row"><span class="lbl">العنوان</span><span class="val">${shipment.detailed_address}</span></div>
     </div>
 
