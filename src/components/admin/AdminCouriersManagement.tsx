@@ -9,7 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Truck, Trash2, DollarSign, Settings2 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map, Package, Info, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
 interface Courier {
@@ -19,6 +22,7 @@ interface Courier {
   city: string | null;
   is_active: boolean;
   vendor_id: string | null;
+  services?: string[] | null;
 }
 
 interface VendorProfile {
