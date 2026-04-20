@@ -18,6 +18,8 @@ interface ShipmentData {
   merchant_id: string;
   status: string;
   notes?: string | null;
+  district_name?: string | null;
+  order_id?: string | null;
 }
 
 interface MerchantInfo {
