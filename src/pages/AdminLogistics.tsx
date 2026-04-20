@@ -15,6 +15,7 @@ import AppHeader from "@/components/AppHeader";
 import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
 import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
+import AdminCouriersManagement from "@/components/admin/AdminCouriersManagement";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import type { Database } from "@/integrations/supabase/types";
 
