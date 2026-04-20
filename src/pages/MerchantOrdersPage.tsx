@@ -170,13 +170,14 @@ export default function MerchantOrdersPage() {
     provinceId: "",
     districtId: "",
     cod: "",
+    courierId: "",
   });
   const [boxes, setBoxes] = useState<BoxItem[]>([
     { id: crypto.randomUUID(), weight: "" },
   ]);
 
   const resetForm = () => {
-    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "" });
+    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "", courierId: "" });
     setBoxes([{ id: crypto.randomUUID(), weight: "" }]);
   };
 
