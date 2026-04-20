@@ -84,30 +84,31 @@ export default function MerchantWallet() {
     ]);
 
     if (walletRes.data) {
-      setWalletBalance(Number(walletRes.data.balance));
       const { data: t } = await supabase
         .from("wallet_transactions")
         .select("*")
         .eq("wallet_id", walletRes.data.id)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(200);
       if (t) setTxns(t as WalletTx[]);
+      // Available balance = sum of ledger (single source of truth)
+      const ledgerSum = (t || []).reduce((s: number, x: any) => s + Number(x.amount), 0);
+      setWalletBalance(ledgerSum);
+      setAvailableBalance(ledgerSum);
     }
 
     if (payoutRes.data) setPayouts(payoutRes.data as PayoutReq[]);
 
-    // Live computation from orders
+    // Pending = orders not yet delivered (informational only, not part of available balance)
     if (ordersRes.data) {
       const PENDING = new Set(["processing", "shipped", "out_for_delivery"]);
-      let avail = 0, pend = 0;
+      let pend = 0;
       for (const o of ordersRes.data as any[]) {
         const amount = Number(o.final_sale_price ?? o.total_amount ?? 0);
         const fee = Number(o.delivery_fee ?? 0);
         const net = amount - fee;
-        if (o.status === "delivered") avail += net;
-        else if (PENDING.has(o.status)) pend += net;
+        if (PENDING.has(o.status)) pend += net;
       }
-      setAvailableBalance(avail);
       setPendingBalance(pend);
     }
   }, [user]);

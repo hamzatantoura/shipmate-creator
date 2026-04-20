@@ -11,6 +11,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Package, LogOut, RefreshCw } from "lucide-react";
 import silaLogo from "@/assets/sila-logo.png";
@@ -27,6 +31,9 @@ interface CourierOrderRow {
   delivery_fee: number;
   created_at: string;
   notes: string | null;
+  return_reason?: string | null;
+  couriers?: { name: string } | null;
+  districts?: { name: string } | null;
 }
 
 const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -45,6 +52,14 @@ const NEXT_STATUSES = [
   { value: "returned", label: "مرتجع" },
 ];
 
+const RETURN_REASONS = [
+  { value: "customer_refused", label: "رفض المستلم" },
+  { value: "no_answer", label: "لا يرد" },
+  { value: "wrong_address", label: "عنوان خاطئ" },
+  { value: "damaged", label: "تالف" },
+  { value: "other", label: "أخرى" },
+];
+
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
 
@@ -53,6 +68,8 @@ export default function CourierOrders() {
   const [orders, setOrders] = useState<CourierOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
+  const [returnReason, setReturnReason] = useState<string>("");
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
@@ -60,7 +77,7 @@ export default function CourierOrders() {
     // RLS handles courier_id scoping — courier sees only orders assigned to their courier company record
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, notes")
+      .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, notes, return_reason, couriers(name), districts(name)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (error) toast.error("تعذر تحميل الطلبات");
@@ -80,11 +97,18 @@ export default function CourierOrders() {
     return () => { supabase.removeChannel(ch); };
   }, [user, fetchOrders]);
 
-  const updateStatus = async (id: string, newStatus: string) => {
+  const updateStatus = async (id: string, newStatus: string, reason?: string) => {
+    if (newStatus === "returned" && !reason) {
+      setReturnDialog({ orderId: id });
+      setReturnReason("");
+      return;
+    }
     setUpdatingId(id);
+    const patch: any = { status: newStatus };
+    if (newStatus === "returned" && reason) patch.return_reason = reason;
     const { error } = await supabase
       .from("orders")
-      .update({ status: newStatus })
+      .update(patch)
       .eq("id", id);
     setUpdatingId(null);
     if (error) {
@@ -92,7 +116,8 @@ export default function CourierOrders() {
       return;
     }
     toast.success("تم تحديث الحالة");
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus, return_reason: reason ?? o.return_reason } : o));
+    setReturnDialog(null);
   };
 
   return (
@@ -191,6 +216,35 @@ export default function CourierOrders() {
           )}
         </Card>
       </main>
+
+      <Dialog open={!!returnDialog} onOpenChange={(o) => !o && setReturnDialog(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>سبب الإرجاع</DialogTitle>
+            <DialogDescription>اختر سبب إرجاع الطلب — حقل إلزامي.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>السبب</Label>
+            <Select value={returnReason} onValueChange={setReturnReason}>
+              <SelectTrigger><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+              <SelectContent>
+                {RETURN_REASONS.map(r => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReturnDialog(null)}>إلغاء</Button>
+            <Button
+              disabled={!returnReason || !!updatingId}
+              onClick={() => returnDialog && updateStatus(returnDialog.orderId, "returned", returnReason)}
+            >
+              تأكيد الإرجاع
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
