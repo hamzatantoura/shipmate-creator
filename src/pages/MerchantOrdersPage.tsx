@@ -633,6 +633,16 @@ export default function MerchantOrdersPage() {
                               )}
                               <Button
                                 size="sm"
+                                variant="ghost"
+                                onClick={() => sendTrackingViaWhatsApp(order)}
+                                className="gap-1.5 text-primary hover:text-primary"
+                                title="إرسال رابط التتبع للعميل عبر واتساب"
+                              >
+                                <Send className="h-3.5 w-3.5" />
+                                إرسال للعميل
+                              </Button>
+                              <Button
+                                size="sm"
                                 variant={locked ? "outline" : "default"}
                                 onClick={() => setPrintConfirmId(order.id)}
                                 className="gap-1.5"
