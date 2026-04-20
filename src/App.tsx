@@ -19,6 +19,7 @@ import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
 import AdminDistricts from "./pages/AdminDistricts";
 import TrackShipment from "./pages/TrackShipment";
+import TrackOrderPage from "./pages/TrackOrderPage";
 import Storefront from "./pages/Storefront";
 import ProductPage from "./pages/ProductPage";
 import NotFound from "./pages/NotFound";
@@ -38,8 +39,9 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/track" element={<TrackShipment />} />
-          <Route path="/track/:trackingId" element={<TrackShipment />} />
+          <Route path="/track" element={<TrackOrderPage />} />
+          <Route path="/track-shipment" element={<TrackShipment />} />
+          <Route path="/track-shipment/:trackingId" element={<TrackShipment />} />
 
           {/* Public storefront & product pages */}
           <Route path="/store/:merchantId" element={<Storefront />} />

@@ -1042,6 +1042,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      track_order_by_sila_code: { Args: { p_code: string }; Returns: Json }
       track_shipment_public: {
         Args: { p_tracking_number: string }
         Returns: Json
