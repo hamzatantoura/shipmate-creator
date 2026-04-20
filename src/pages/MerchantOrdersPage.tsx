@@ -407,6 +407,28 @@ export default function MerchantOrdersPage() {
                             dir="ltr"
                           />
                         </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                          <Label htmlFor="courier">شركة الشحن (اختياري)</Label>
+                          <Select
+                            value={form.courierId}
+                            onValueChange={(v) => setForm({ ...form, courierId: v })}
+                          >
+                            <SelectTrigger id="courier">
+                              <SelectValue placeholder={couriers.length === 0 ? "لا توجد شركات شحن مفعلة" : "اختر شركة شحن"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {couriers.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {form.provinceId && (
+                            <p className="text-xs text-muted-foreground">
+                              رسوم الشحن المحسوبة: <span className="font-semibold text-primary">{fmtSYP(resolveDeliveryFee(form.districtId || null, form.provinceId, form.courierId || null))}</span>
+                              {form.courierId && " (سعر مخصص للشركة إن وُجد)"}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </section>
 
