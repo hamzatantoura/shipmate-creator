@@ -21,6 +21,13 @@ interface Courier {
   vendor_id: string | null;
 }
 
+interface VendorProfile {
+  user_id: string;
+  contact_person: string | null;
+  phone: string | null;
+  store_name: string | null;
+}
+
 interface DistrictRow {
   id: string;
   name: string;
