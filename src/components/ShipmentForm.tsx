@@ -196,30 +196,21 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
-          <Select value={selectedProvince} onValueChange={setSelectedProvince}>
+          <Select value={selectedProvinceId} onValueChange={setSelectedProvinceId}>
             <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
-            <SelectContent>{provinces.map(([name, nameAr]) => <SelectItem key={name} value={name}>{nameAr}</SelectItem>)}</SelectContent>
+            <SelectContent>{provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.province_ar}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         {areas.length > 0 && (
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة</Label>
-            <Select value={selectedArea} onValueChange={setSelectedArea}>
+            <Select value={selectedAreaId} onValueChange={setSelectedAreaId}>
               <SelectTrigger><SelectValue placeholder="اختر المنطقة" /></SelectTrigger>
-              <SelectContent>{areas.map(([name, nameAr]) => <SelectItem key={name} value={name}>{nameAr}</SelectItem>)}</SelectContent>
+              <SelectContent>{areas.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         )}
-        {neighborhoods.length > 0 && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي</Label>
-            <Select value={selectedNeighborhood} onValueChange={setSelectedNeighborhood}>
-              <SelectTrigger><SelectValue placeholder="اختر الحي" /></SelectTrigger>
-              <SelectContent>{neighborhoods.map(n => <SelectItem key={n.name} value={n.name}>{n.name_ar}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-        )}
-        {selectedProvince && areas.length === 0 && (
+        {selectedProvinceId && areas.length === 0 && (
           <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>لا توجد مناطق فرعية لهذه المحافظة. سيتم احتساب رسوم المحافظة الأساسية.</span>
