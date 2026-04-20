@@ -64,6 +64,23 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
     };
   }
 
+  // Resolve district/area name from the linked order if not passed in
+  let districtName: string | null = shipment.district_name ?? null;
+  if (!districtName) {
+    const orderId = shipment.order_id;
+    const { data: order } = orderId
+      ? await supabase.from("orders").select("district_id").eq("id", orderId).maybeSingle()
+      : await supabase.from("orders").select("district_id").eq("shipment_id", shipment.id).maybeSingle();
+    if (order?.district_id) {
+      const { data: d } = await supabase
+        .from("districts")
+        .select("name, parent_id")
+        .eq("id", order.district_id)
+        .maybeSingle();
+      if (d?.parent_id) districtName = d.name; // only show area, not province
+    }
+  }
+
   // Generate QR & Barcode
   const qrDataUrl = await QRCode.toDataURL(trackingNum, { width: 100, margin: 1 });
   const barcodeDataUrl = generateBarcodeDataUrl(trackingNum);
