@@ -18,6 +18,8 @@ interface ShipmentData {
   merchant_id: string;
   status: string;
   notes?: string | null;
+  district_name?: string | null;
+  order_id?: string | null;
 }
 
 interface MerchantInfo {
@@ -60,6 +62,23 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       phone: profile.phone,
       city: profile.city,
     };
+  }
+
+  // Resolve district/area name from the linked order if not passed in
+  let districtName: string | null = shipment.district_name ?? null;
+  if (!districtName) {
+    const orderId = shipment.order_id;
+    const { data: order } = orderId
+      ? await supabase.from("orders").select("district_id").eq("id", orderId).maybeSingle()
+      : await supabase.from("orders").select("district_id").eq("shipment_id", shipment.id).maybeSingle();
+    if (order?.district_id) {
+      const { data: d } = await supabase
+        .from("districts")
+        .select("name, parent_id")
+        .eq("id", order.district_id)
+        .maybeSingle();
+      if (d?.parent_id) districtName = d.name; // only show area, not province
+    }
   }
 
   // Generate QR & Barcode
@@ -217,6 +236,7 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       <div class="info-row"><span class="lbl">الاسم</span><span class="val">${shipment.receiver_name}</span></div>
       <div class="info-row"><span class="lbl">الهاتف</span><span class="val" style="direction:ltr;text-align:right">${shipment.phone_number}</span></div>
       <div class="info-row"><span class="lbl">المدينة</span><span class="val">${CITY_AR[shipment.city] || shipment.city}</span></div>
+      ${districtName ? `<div class="info-row"><span class="lbl">المنطقة / الحي</span><span class="val">${districtName}</span></div>` : ""}
       <div class="info-row"><span class="lbl">العنوان</span><span class="val">${shipment.detailed_address}</span></div>
     </div>
 
