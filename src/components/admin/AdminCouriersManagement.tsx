@@ -56,7 +56,7 @@ export default function AdminCouriersManagement() {
   const [vendors, setVendors] = useState<VendorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [ratesCourier, setRatesCourier] = useState<Courier | null>(null);
+  const [profileCourier, setProfileCourier] = useState<Courier | null>(null);
 
   const [form, setForm] = useState({ name: "", phone: "", city: "" });
 
@@ -71,7 +71,7 @@ export default function AdminCouriersManagement() {
   const fetchAll = async () => {
     setLoading(true);
     const [cRes, dRes, rRes, vRes] = await Promise.all([
-      supabase.from("couriers").select("id, name, phone, city, is_active, vendor_id").order("name"),
+      supabase.from("couriers").select("id, name, phone, city, is_active, vendor_id, services" as any).order("name"),
       supabase.from("districts").select("id, name, parent_id, province_ar, delivery_fee").order("name"),
       supabase.from("courier_district_rates" as any).select("id, courier_id, district_id, custom_delivery_fee"),
       supabase.from("profiles").select("user_id, contact_person, phone, store_name").eq("role", "vendor"),
