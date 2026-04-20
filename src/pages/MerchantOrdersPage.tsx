@@ -74,6 +74,17 @@ interface DistrictRow {
   delivery_fee: number;
 }
 
+interface CourierOption {
+  id: string;
+  name: string;
+}
+
+interface CourierRate {
+  courier_id: string;
+  district_id: string;
+  custom_delivery_fee: number;
+}
+
 const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   new: { label: "جديد", variant: "outline" },
   processing: { label: "قيد المعالجة", variant: "default" },
@@ -103,15 +114,37 @@ export default function MerchantOrdersPage() {
 
   // Districts (real data)
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
+  const [couriers, setCouriers] = useState<CourierOption[]>([]);
+  const [courierRates, setCourierRates] = useState<CourierRate[]>([]);
   useEffect(() => {
-    supabase
-      .from("districts")
-      .select("id, name, parent_id, delivery_fee")
-      .order("name", { ascending: true })
-      .then(({ data }) => setAllDistricts((data || []) as DistrictRow[]));
+    Promise.all([
+      supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
+      supabase.from("couriers").select("id, name").eq("is_active", true).order("name"),
+      supabase.from("courier_district_rates" as any).select("courier_id, district_id, custom_delivery_fee"),
+    ]).then(([dRes, cRes, rRes]) => {
+      setAllDistricts((dRes.data || []) as DistrictRow[]);
+      setCouriers((cRes.data || []) as CourierOption[]);
+      setCourierRates((rRes.data || []) as unknown as CourierRate[]);
+    });
   }, []);
   const provinces = allDistricts.filter(d => !d.parent_id);
   const areasOf = (provId: string) => allDistricts.filter(d => d.parent_id === provId);
+
+  // Resolve delivery fee: courier-specific rate (district → province fallback) → district default → province default
+  const resolveDeliveryFee = (districtId: string | null, provinceId: string | null, courierId: string | null): number => {
+    const dDefault = allDistricts.find(d => d.id === districtId)?.delivery_fee ?? 0;
+    const pDefault = allDistricts.find(d => d.id === provinceId)?.delivery_fee ?? 0;
+    if (!courierId) return dDefault || pDefault;
+    if (districtId) {
+      const r = courierRates.find(x => x.courier_id === courierId && x.district_id === districtId);
+      if (r) return Number(r.custom_delivery_fee);
+    }
+    if (provinceId) {
+      const r = courierRates.find(x => x.courier_id === courierId && x.district_id === provinceId);
+      if (r) return Number(r.custom_delivery_fee);
+    }
+    return dDefault || pDefault;
+  };
 
   // Fetch real orders
   const fetchOrders = async () => {
@@ -137,13 +170,14 @@ export default function MerchantOrdersPage() {
     provinceId: "",
     districtId: "",
     cod: "",
+    courierId: "",
   });
   const [boxes, setBoxes] = useState<BoxItem[]>([
     { id: crypto.randomUUID(), weight: "" },
   ]);
 
   const resetForm = () => {
-    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "" });
+    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "", courierId: "" });
     setBoxes([{ id: crypto.randomUUID(), weight: "" }]);
   };
 
@@ -164,7 +198,7 @@ export default function MerchantOrdersPage() {
     const finalDistrictId = area?.id || prov?.id || null;
     const cityLabel = prov?.name || "";
     const cod = Number(form.cod) || 0;
-    const deliveryFee = area?.delivery_fee ?? prov?.delivery_fee ?? 0;
+    const deliveryFee = resolveDeliveryFee(area?.id || null, prov?.id || null, form.courierId || null);
 
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
@@ -174,6 +208,7 @@ export default function MerchantOrdersPage() {
       city: cityLabel,
       detailed_address: form.address || "",
       district_id: finalDistrictId,
+      courier_id: form.courierId || null,
       total_amount: cod,
       delivery_fee: deliveryFee,
       status: "new",
@@ -371,6 +406,28 @@ export default function MerchantOrdersPage() {
                             placeholder="0"
                             dir="ltr"
                           />
+                        </div>
+                        <div className="space-y-1.5 md:col-span-2">
+                          <Label htmlFor="courier">شركة الشحن (اختياري)</Label>
+                          <Select
+                            value={form.courierId}
+                            onValueChange={(v) => setForm({ ...form, courierId: v })}
+                          >
+                            <SelectTrigger id="courier">
+                              <SelectValue placeholder={couriers.length === 0 ? "لا توجد شركات شحن مفعلة" : "اختر شركة شحن"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {couriers.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {form.provinceId && (
+                            <p className="text-xs text-muted-foreground">
+                              رسوم الشحن المحسوبة: <span className="font-semibold text-primary">{fmtSYP(resolveDeliveryFee(form.districtId || null, form.provinceId, form.courierId || null))}</span>
+                              {form.courierId && " (سعر مخصص للشركة إن وُجد)"}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </section>

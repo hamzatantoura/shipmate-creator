@@ -130,6 +130,48 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_district_rates: {
+        Row: {
+          courier_id: string
+          created_at: string
+          custom_delivery_fee: number
+          district_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          courier_id: string
+          created_at?: string
+          custom_delivery_fee?: number
+          district_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          courier_id?: string
+          created_at?: string
+          custom_delivery_fee?: number
+          district_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_district_rates_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_district_rates_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       couriers: {
         Row: {
           city: string | null
@@ -139,7 +181,7 @@ export type Database = {
           name: string
           phone: string | null
           user_id: string | null
-          vendor_id: string
+          vendor_id: string | null
           wallet_balance: number
         }
         Insert: {
@@ -150,7 +192,7 @@ export type Database = {
           name: string
           phone?: string | null
           user_id?: string | null
-          vendor_id: string
+          vendor_id?: string | null
           wallet_balance?: number
         }
         Update: {
@@ -161,7 +203,7 @@ export type Database = {
           name?: string
           phone?: string | null
           user_id?: string | null
-          vendor_id?: string
+          vendor_id?: string | null
           wallet_balance?: number
         }
         Relationships: []
