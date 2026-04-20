@@ -74,6 +74,17 @@ interface DistrictRow {
   delivery_fee: number;
 }
 
+interface CourierOption {
+  id: string;
+  name: string;
+}
+
+interface CourierRate {
+  courier_id: string;
+  district_id: string;
+  custom_delivery_fee: number;
+}
+
 const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   new: { label: "جديد", variant: "outline" },
   processing: { label: "قيد المعالجة", variant: "default" },
