@@ -198,7 +198,7 @@ export default function MerchantOrdersPage() {
     const finalDistrictId = area?.id || prov?.id || null;
     const cityLabel = prov?.name || "";
     const cod = Number(form.cod) || 0;
-    const deliveryFee = area?.delivery_fee ?? prov?.delivery_fee ?? 0;
+    const deliveryFee = resolveDeliveryFee(area?.id || null, prov?.id || null, form.courierId || null);
 
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
@@ -208,6 +208,7 @@ export default function MerchantOrdersPage() {
       city: cityLabel,
       detailed_address: form.address || "",
       district_id: finalDistrictId,
+      courier_id: form.courierId || null,
       total_amount: cod,
       delivery_fee: deliveryFee,
       status: "new",
