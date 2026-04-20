@@ -229,8 +229,8 @@ export default function AdminCouriersManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => setRatesCourier(c)} className="gap-1">
-                            <Settings2 className="h-3.5 w-3.5" /> الأسعار
+                          <Button variant="ghost" size="sm" onClick={() => setProfileCourier(c)} className="gap-1">
+                            <Settings2 className="h-3.5 w-3.5" /> ملف الشركة
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(c)} className="text-destructive">
                             <Trash2 className="h-4 w-4" />
@@ -246,14 +246,15 @@ export default function AdminCouriersManagement() {
         </Card>
       )}
 
-      {ratesCourier && (
-        <CourierRatesDialog
-          courier={ratesCourier}
+      {profileCourier && (
+        <CourierProfileSheet
+          courier={profileCourier}
           districts={districts}
           provinces={provinces}
           areasOf={areasOf}
-          rates={rates.filter(r => r.courier_id === ratesCourier.id)}
-          onClose={() => { setRatesCourier(null); fetchAll(); }}
+          rates={rates.filter(r => r.courier_id === profileCourier.id)}
+          onClose={() => { setProfileCourier(null); fetchAll(); }}
+          onRefresh={fetchAll}
         />
       )}
     </div>
