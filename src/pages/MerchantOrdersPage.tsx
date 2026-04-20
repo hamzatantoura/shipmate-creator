@@ -260,7 +260,7 @@ export default function MerchantOrdersPage() {
         },
         cod: Number(order.final_sale_price ?? order.total_amount),
         notes: order.notes,
-        courierName: courierNameOf(order.courier_id),
+        courierName: courierNameOf(order),
       });
     } catch (e: any) {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");
@@ -530,7 +530,7 @@ export default function MerchantOrdersPage() {
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
-                      const courierName = courierNameOf(order.courier_id);
+                      const courierName = courierNameOf(order);
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
