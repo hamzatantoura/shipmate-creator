@@ -166,9 +166,12 @@ export default function MerchantOrdersPage() {
   };
   useEffect(() => { fetchOrders(); }, [user?.id]);
 
-  // Helper to attach courier name to an order
-  const courierNameOf = (courierId: string | null) =>
-    courierId ? couriers.find(c => c.id === courierId)?.name || null : null;
+  // Resolve courier name: prefer joined relation, fallback to local couriers list
+  const courierNameOf = (order: OrderRow | null, courierId?: string | null) => {
+    if (order?.couriers?.name) return order.couriers.name;
+    const id = courierId ?? order?.courier_id ?? null;
+    return id ? couriers.find(c => c.id === id)?.name || null : null;
+  };
 
   // Form state
   const [form, setForm] = useState({
