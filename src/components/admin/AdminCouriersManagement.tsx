@@ -191,8 +191,20 @@ export default function AdminCouriersManagement() {
                   const count = rates.filter(r => r.courier_id === c.id).length;
                   const linked = vendorById(c.vendor_id);
                   return (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableRow key={c.id} className="cursor-pointer" onClick={(e) => {
+                      // ignore clicks on interactive cells
+                      const tag = (e.target as HTMLElement).closest('button, [role="combobox"], input, select, [data-no-row-click]');
+                      if (tag) return;
+                      setProfileCourier(c);
+                    }}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {c.name}
+                          {c.services && c.services.length > 0 && (
+                            <Badge variant="outline" className="text-[10px]">{c.services.length} خدمات</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell dir="ltr" className="text-sm">{c.phone || "—"}</TableCell>
                       <TableCell>{c.city || "—"}</TableCell>
                       <TableCell className="min-w-[220px]">
