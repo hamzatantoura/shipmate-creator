@@ -49,6 +49,7 @@ export default function AdminCouriersManagement() {
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [districts, setDistricts] = useState<DistrictRow[]>([]);
   const [rates, setRates] = useState<CourierRate[]>([]);
+  const [vendors, setVendors] = useState<VendorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [ratesCourier, setRatesCourier] = useState<Courier | null>(null);
@@ -58,20 +59,35 @@ export default function AdminCouriersManagement() {
   const provinces = useMemo(() => districts.filter(d => !d.parent_id), [districts]);
   const areasOf = (provId: string) => districts.filter(d => d.parent_id === provId);
 
+  const vendorLabel = (v: VendorProfile) =>
+    v.contact_person || v.store_name || v.phone || v.user_id.slice(0, 8);
+
+  const vendorById = (id: string | null) => vendors.find(v => v.user_id === id);
+
   const fetchAll = async () => {
     setLoading(true);
-    const [cRes, dRes, rRes] = await Promise.all([
+    const [cRes, dRes, rRes, vRes] = await Promise.all([
       supabase.from("couriers").select("id, name, phone, city, is_active, vendor_id").order("name"),
       supabase.from("districts").select("id, name, parent_id, province_ar, delivery_fee").order("name"),
       supabase.from("courier_district_rates" as any).select("id, courier_id, district_id, custom_delivery_fee"),
+      supabase.from("profiles").select("user_id, contact_person, phone, store_name").eq("role", "vendor"),
     ]);
     if (cRes.data) setCouriers(cRes.data as Courier[]);
     if (dRes.data) setDistricts(dRes.data as DistrictRow[]);
     if (rRes.data) setRates(rRes.data as unknown as CourierRate[]);
+    if (vRes.data) setVendors(vRes.data as VendorProfile[]);
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const assignVendor = async (courierId: string, vendorId: string | null) => {
+    const { error } = await supabase.from("couriers")
+      .update({ vendor_id: vendorId } as any).eq("id", courierId);
+    if (error) { toast.error(error.message); return; }
+    toast.success(vendorId ? "تم ربط الحساب بالشركة" : "تم فك الربط");
+    fetchAll();
+  };
 
   const handleCreate = async () => {
     if (!form.name.trim()) { toast.error("اسم شركة الشحن مطلوب"); return; }
