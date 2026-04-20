@@ -616,6 +616,17 @@ export default function MerchantOrdersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {editOrder && (
+          <EditOrderDialog
+            order={editOrder}
+            districts={allDistricts}
+            couriers={couriers}
+            courierRates={courierRates}
+            onClose={() => setEditOrder(null)}
+            onSaved={fetchOrders}
+          />
+        )}
       </div>
     </SidebarProvider>
   );
