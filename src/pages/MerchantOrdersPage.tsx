@@ -113,6 +113,7 @@ export default function MerchantOrdersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
+  const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
 
   // Districts (real data)
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
