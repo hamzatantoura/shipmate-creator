@@ -297,6 +297,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="merchants" className="gap-1.5">
               <User className="h-3.5 w-3.5" /> التجار
             </TabsTrigger>
+            <TabsTrigger value="couriers" className="gap-1.5">
+              <Truck className="h-3.5 w-3.5" /> شركات الشحن
+            </TabsTrigger>
             <TabsTrigger value="transactions" className="gap-1.5">
               <Wallet className="h-3.5 w-3.5" /> سجل الحركات
             </TabsTrigger>
