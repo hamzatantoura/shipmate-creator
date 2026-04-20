@@ -273,15 +273,20 @@ export default function AdminCouriersManagement() {
   );
 }
 
-function CourierRatesDialog({
-  courier, districts, provinces, areasOf, rates, onClose,
-}: {
+const SERVICE_OPTIONS = [
+  { id: "same_day", label: "توصيل في نفس اليوم" },
+  { id: "heavy", label: "شحن ثقيل" },
+  { id: "fragile", label: "قابل للكسر" },
+  { id: "refrigerated", label: "شحن مبرد" },
+];
+
+function RatesEditor({ courier, districts, provinces, areasOf, rates, onChanged }: {
   courier: Courier;
   districts: DistrictRow[];
   provinces: DistrictRow[];
   areasOf: (id: string) => DistrictRow[];
   rates: CourierRate[];
-  onClose: () => void;
+  onChanged: () => void;
 }) {
   const [selectedProv, setSelectedProv] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
@@ -314,27 +319,20 @@ function CourierRatesDialog({
     if (error) { toast.error(error.message); return; }
     toast.success("تم حفظ السعر المخصص");
     setSelectedProv(""); setSelectedDistrict(""); setFee("");
-    onClose();
+    onChanged();
   };
 
   const deleteRate = async (id: string) => {
     const { error } = await supabase.from("courier_district_rates" as any).delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("تم حذف السعر");
-    onClose();
+    onChanged();
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
-        <DialogHeader>
-          <DialogTitle>تسعيرات {courier.name}</DialogTitle>
-          <DialogDescription>
-            عيّن سعراً مخصصاً لمناطق محددة. المناطق غير المُعرّفة تستخدم السعر الافتراضي للمنصة.
-          </DialogDescription>
-        </DialogHeader>
-
-        <Card className="p-3 bg-muted/30">
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">عيّن سعراً مخصصاً لمناطق محددة. المناطق غير المُعرّفة تستخدم السعر الافتراضي.</p>
+      <Card className="p-3 bg-muted/30">
           <h4 className="text-sm font-semibold mb-3">إضافة / تحديث سعر</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             <Select value={selectedProv} onValueChange={(v) => { setSelectedProv(v); setSelectedDistrict(""); }}>
@@ -364,7 +362,7 @@ function CourierRatesDialog({
           </Button>
         </Card>
 
-        <div className="mt-4">
+        <div>
           <h4 className="text-sm font-semibold mb-2">الأسعار الحالية ({rates.length})</h4>
           {rates.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">لا توجد تسعيرات مخصصة بعد</p>
@@ -395,11 +393,263 @@ function CourierRatesDialog({
             </Table>
           )}
         </div>
+    </div>
+  );
+}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>إغلاق</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, onClose, onRefresh }: {
+  courier: Courier;
+  districts: DistrictRow[];
+  provinces: DistrictRow[];
+  areasOf: (id: string) => DistrictRow[];
+  rates: CourierRate[];
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  // Tab 1: Info & Services
+  const [name, setName] = useState(courier.name);
+  const [phone, setPhone] = useState(courier.phone || "");
+  const [city, setCity] = useState(courier.city || "");
+  const [services, setServices] = useState<string[]>(courier.services || []);
+  const [savingInfo, setSavingInfo] = useState(false);
+
+  // Tab 2: Onboarding
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [contact, setContact] = useState("");
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [copied, setCopied] = useState<"email" | "password" | null>(null);
+
+  // Tab 4: Assigned orders
+  const [assigned, setAssigned] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingOrders(true);
+      const { data } = await supabase
+        .from("orders")
+        .select("id, status, city, receiver_name, created_at")
+        .eq("courier_id", courier.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (!cancelled) {
+        setAssigned(data || []);
+        setLoadingOrders(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [courier.id]);
+
+  const toggleService = (id: string) => {
+    setServices(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+  };
+
+  const saveInfo = async () => {
+    if (!name.trim()) { toast.error("اسم الشركة مطلوب"); return; }
+    setSavingInfo(true);
+    const { error } = await supabase.from("couriers").update({
+      name: name.trim(),
+      phone: phone.trim() || null,
+      city: city.trim() || null,
+      services,
+    } as any).eq("id", courier.id);
+    setSavingInfo(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حفظ بيانات الشركة");
+    onRefresh();
+  };
+
+  const generateAccount = async () => {
+    if (!email.trim() || !password.trim() || !contact.trim()) {
+      toast.error("املأ البريد وكلمة المرور والاسم");
+      return;
+    }
+    if (password.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
+    setCreatingAccount(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: { role: "vendor", contact_person: contact.trim(), store_name: courier.name },
+        },
+      });
+      if (error) throw error;
+      const newUserId = data.user?.id;
+      if (!newUserId) throw new Error("فشل إنشاء الحساب");
+      const { error: linkErr } = await supabase.from("couriers")
+        .update({ vendor_id: newUserId } as any).eq("id", courier.id);
+      if (linkErr) throw linkErr;
+      setCredentials({ email: email.trim(), password });
+      toast.success("تم إنشاء حساب شركة الشحن وربطه");
+      onRefresh();
+    } catch (e: any) {
+      toast.error(e.message || "فشل إنشاء الحساب");
+    } finally {
+      setCreatingAccount(false);
+    }
+  };
+
+  const copyVal = async (val: string, kind: "email" | "password") => {
+    try { await navigator.clipboard.writeText(val); setCopied(kind); setTimeout(() => setCopied(null), 1500); } catch {}
+  };
+
+  const ORDER_STATUS_AR: Record<string, string> = {
+    new: "جديد", processing: "قيد المعالجة", shipped: "تم الشحن",
+    out_for_delivery: "خرج للتوصيل", delivered: "تم التسليم", returned: "مرتجع", cancelled: "ملغي",
+  };
+  const orderStatusColor = (s: string) => {
+    if (s === "delivered") return "bg-primary/15 text-primary border-primary/30";
+    if (s === "returned") return "bg-destructive/15 text-destructive border-destructive/30";
+    if (s === "out_for_delivery" || s === "shipped") return "bg-info/15 text-info border-info/30";
+    return "bg-muted text-muted-foreground border-border";
+  };
+
+  return (
+    <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="left" className="w-full sm:max-w-2xl overflow-y-auto" dir="rtl">
+        <SheetHeader className="text-right">
+          <SheetTitle className="flex items-center gap-2">
+            <Truck className="h-5 w-5 text-primary" /> ملف {courier.name}
+          </SheetTitle>
+          <SheetDescription>إدارة شاملة للشركة: البيانات، الحساب، التسعيرات والطلبات</SheetDescription>
+        </SheetHeader>
+
+        <Tabs defaultValue="info" dir="rtl" className="mt-4">
+          <TabsList className="w-full grid grid-cols-4">
+            <TabsTrigger value="info" className="gap-1 text-xs"><Info className="h-3.5 w-3.5" /> بيانات وخدمات</TabsTrigger>
+            <TabsTrigger value="account" className="gap-1 text-xs"><KeyRound className="h-3.5 w-3.5" /> حساب الدخول</TabsTrigger>
+            <TabsTrigger value="rates" className="gap-1 text-xs"><Map className="h-3.5 w-3.5" /> مناطق وتخفيضات</TabsTrigger>
+            <TabsTrigger value="orders" className="gap-1 text-xs"><Package className="h-3.5 w-3.5" /> الطلبات الحالية</TabsTrigger>
+          </TabsList>
+
+          {/* TAB 1 */}
+          <TabsContent value="info" className="mt-4 space-y-4">
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold">البيانات الأساسية</h4>
+              <div className="space-y-1.5"><Label>اسم الشركة *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>الهاتف</Label><Input value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" /></div>
+                <div className="space-y-1.5"><Label>المدينة</Label><Input value={city} onChange={e => setCity(e.target.value)} /></div>
+              </div>
+            </Card>
+
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold">الخدمات المقدّمة</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {SERVICE_OPTIONS.map(s => (
+                  <label key={s.id} className="flex items-center gap-2 cursor-pointer text-sm bg-muted/30 hover:bg-muted/50 transition rounded-md p-2 border border-border">
+                    <Checkbox checked={services.includes(s.id)} onCheckedChange={() => toggleService(s.id)} />
+                    <span>{s.label}</span>
+                  </label>
+                ))}
+              </div>
+            </Card>
+
+            <Button onClick={saveInfo} disabled={savingInfo} className="w-full">
+              {savingInfo ? "جاري الحفظ..." : "حفظ التعديلات"}
+            </Button>
+          </TabsContent>
+
+          {/* TAB 2 */}
+          <TabsContent value="account" className="mt-4 space-y-4">
+            {courier.vendor_id && !credentials ? (
+              <Card className="p-4 bg-primary/5 border-primary/30">
+                <div className="flex items-center gap-2 text-primary">
+                  <Check className="h-4 w-4" />
+                  <p className="text-sm font-semibold">حساب الشركة مُفعّل ومرتبط</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">معرّف المستخدم: <span dir="ltr" className="font-mono">{courier.vendor_id}</span></p>
+              </Card>
+            ) : credentials ? (
+              <Card className="p-4 space-y-3 bg-primary/5 border-primary/30">
+                <h4 className="text-sm font-semibold text-primary flex items-center gap-2"><Check className="h-4 w-4" /> تم إنشاء الحساب بنجاح</h4>
+                <p className="text-xs text-muted-foreground">انسخ هذه البيانات وأرسلها للشركة. لن تظهر مرة أخرى.</p>
+                <div className="space-y-2">
+                  {(["email", "password"] as const).map((k) => (
+                    <div key={k} className="flex items-center gap-2 bg-background border border-border rounded-md p-2">
+                      <span className="text-xs text-muted-foreground w-24">{k === "email" ? "البريد" : "كلمة المرور"}</span>
+                      <code dir="ltr" className="flex-1 text-sm font-mono">{credentials[k]}</code>
+                      <Button variant="ghost" size="icon" onClick={() => copyVal(credentials[k], k)}>
+                        {copied === k ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ) : (
+              <Card className="p-4 space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-2"><UserPlus className="h-4 w-4 text-primary" /> إنشاء حساب دخول للشركة</h4>
+                <p className="text-xs text-muted-foreground">سيتم إنشاء مستخدم بدور <code>vendor</code> وربطه تلقائياً بهذه الشركة.</p>
+                <div className="space-y-2">
+                  <div className="space-y-1.5"><Label>اسم جهة الاتصال</Label><Input value={contact} onChange={e => setContact(e.target.value)} placeholder="مدير العمليات" /></div>
+                  <div className="space-y-1.5"><Label>البريد الإلكتروني</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ops@company.com" dir="ltr" /></div>
+                  <div className="space-y-1.5"><Label>كلمة المرور (6+ أحرف)</Label><Input type="text" value={password} onChange={e => setPassword(e.target.value)} dir="ltr" /></div>
+                </div>
+                <Button onClick={generateAccount} disabled={creatingAccount} className="w-full gap-1.5">
+                  <UserPlus className="h-4 w-4" /> {creatingAccount ? "جاري الإنشاء..." : "إنشاء حساب"}
+                </Button>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* TAB 3 */}
+          <TabsContent value="rates" className="mt-4">
+            <RatesEditor
+              courier={courier}
+              districts={districts}
+              provinces={provinces}
+              areasOf={areasOf}
+              rates={rates}
+              onChanged={onRefresh}
+            />
+          </TabsContent>
+
+          {/* TAB 4 */}
+          <TabsContent value="orders" className="mt-4">
+            {loadingOrders ? (
+              <p className="text-center py-8 text-sm text-muted-foreground">جاري التحميل...</p>
+            ) : assigned.length === 0 ? (
+              <Card className="p-8 text-center">
+                <Package className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">لا توجد طلبات مُسندة لهذه الشركة حالياً</p>
+              </Card>
+            ) : (
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>كود صِلة</TableHead>
+                      <TableHead>المستلم</TableHead>
+                      <TableHead>المدينة</TableHead>
+                      <TableHead>الحالة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {assigned.map((o) => (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-mono text-xs">SL-{String(o.id).slice(0, 6).toUpperCase()}</TableCell>
+                        <TableCell className="text-sm">{o.receiver_name}</TableCell>
+                        <TableCell className="text-sm">{o.city}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={orderStatusColor(o.status)}>
+                            {ORDER_STATUS_AR[o.status] || o.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      </SheetContent>
+    </Sheet>
   );
 }
