@@ -443,6 +443,43 @@ export default function CourierOrders() {
                 <TabsTrigger value="returned" className="text-xs">مرتجع</TabsTrigger>
               </TabsList>
             </Tabs>
+
+            {selectedIds.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 animate-in fade-in slide-in-from-top-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="inline-flex items-center justify-center h-6 min-w-6 rounded-full bg-primary text-primary-foreground text-xs font-bold px-1.5">
+                    {selectedIds.length}
+                  </span>
+                  <span className="font-medium">طلب محدد</span>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={clearSelection} disabled={bulkLoading}>
+                    <X className="h-3.5 w-3.5" /> إلغاء التحديد
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={exportCsv} disabled={bulkLoading}>
+                    <Download className="h-3.5 w-3.5" /> تصدير CSV
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" className="h-8 gap-1.5" disabled={bulkLoading}>
+                        {bulkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        تحديث الحالة
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="text-xs">حالة جماعية</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => bulkUpdateStatus("out_for_delivery")}>
+                        <Truck className="h-4 w-4" /> قيد التوصيل
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => bulkUpdateStatus("delivered")}>
+                        <CheckCircle2 className="h-4 w-4" /> تم التسليم
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            )}
           </CardHeader>
 
           <CardContent className="p-0">
@@ -459,6 +496,13 @@ export default function CourierOrders() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                          onCheckedChange={(c) => toggleAllVisible(!!c)}
+                          aria-label="تحديد الكل"
+                        />
+                      </TableHead>
                       <TableHead className="text-xs">الكود</TableHead>
                       <TableHead className="text-xs">المستلم</TableHead>
                       <TableHead className="text-xs">الهاتف</TableHead>
@@ -472,8 +516,16 @@ export default function CourierOrders() {
                     {filtered.map((o) => {
                       const cod = o.final_sale_price ?? o.total_amount;
                       const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
+                      const checked = selectedIds.includes(o.id);
                       return (
-                        <TableRow key={o.id} className="hover:bg-muted/30">
+                        <TableRow key={o.id} className={`hover:bg-muted/30 ${checked ? "bg-primary/5" : ""}`}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(c) => toggleOne(o.id, !!c)}
+                              aria-label={`تحديد ${silaCodeOf(o.id)}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-mono text-[11px] text-muted-foreground">{silaCodeOf(o.id)}</TableCell>
                           <TableCell className="font-medium text-sm">{o.receiver_name}</TableCell>
                           <TableCell dir="ltr" className="text-xs text-muted-foreground">{o.phone_number}</TableCell>
