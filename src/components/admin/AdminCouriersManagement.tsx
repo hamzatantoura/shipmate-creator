@@ -176,7 +176,8 @@ export default function AdminCouriersManagement() {
                   <TableHead>الشركة</TableHead>
                   <TableHead>الهاتف</TableHead>
                   <TableHead>المدينة</TableHead>
-                  <TableHead>تسعيرات مخصصة</TableHead>
+                  <TableHead>الحساب المرتبط</TableHead>
+                  <TableHead>تسعيرات</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead className="text-left">إجراءات</TableHead>
                 </TableRow>
@@ -184,11 +185,36 @@ export default function AdminCouriersManagement() {
               <TableBody>
                 {couriers.map(c => {
                   const count = rates.filter(r => r.courier_id === c.id).length;
+                  const linked = vendorById(c.vendor_id);
                   return (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell dir="ltr" className="text-sm">{c.phone || "—"}</TableCell>
                       <TableCell>{c.city || "—"}</TableCell>
+                      <TableCell className="min-w-[220px]">
+                        <Select
+                          value={c.vendor_id || "__none__"}
+                          onValueChange={(v) => assignVendor(c.id, v === "__none__" ? null : v)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="غير مرتبط">
+                              {linked ? (
+                                <span className="truncate">{vendorLabel(linked)}</span>
+                              ) : (
+                                <span className="text-muted-foreground">غير مرتبط</span>
+                              )}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— فك الربط —</SelectItem>
+                            {vendors.map(v => (
+                              <SelectItem key={v.user_id} value={v.user_id}>
+                                {vendorLabel(v)}{v.phone ? ` · ${v.phone}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="gap-1">
                           <DollarSign className="h-3 w-3" /> {count}
