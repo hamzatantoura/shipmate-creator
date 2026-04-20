@@ -7,6 +7,7 @@ export interface LabelData {
   receiver: { name: string; phone: string; city: string; district?: string | null; address: string };
   cod: number;
   notes?: string | null;
+  courierName?: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
