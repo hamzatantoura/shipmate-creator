@@ -255,6 +255,7 @@ export default function MerchantOrdersPage() {
         },
         cod: Number(order.final_sale_price ?? order.total_amount),
         notes: order.notes,
+        courierName: courierNameOf(order.courier_id),
       });
     } catch (e: any) {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");
