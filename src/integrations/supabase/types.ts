@@ -180,6 +180,7 @@ export type Database = {
           is_active: boolean
           name: string
           phone: string | null
+          services: string[]
           user_id: string | null
           vendor_id: string | null
           wallet_balance: number
@@ -191,6 +192,7 @@ export type Database = {
           is_active?: boolean
           name: string
           phone?: string | null
+          services?: string[]
           user_id?: string | null
           vendor_id?: string | null
           wallet_balance?: number
@@ -202,6 +204,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           phone?: string | null
+          services?: string[]
           user_id?: string | null
           vendor_id?: string | null
           wallet_balance?: number
