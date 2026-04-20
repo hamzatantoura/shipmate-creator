@@ -76,7 +76,7 @@ export default function AdminCouriersManagement() {
       supabase.from("courier_district_rates" as any).select("id, courier_id, district_id, custom_delivery_fee"),
       supabase.from("profiles").select("user_id, contact_person, phone, store_name").eq("role", "vendor"),
     ]);
-    if (cRes.data) setCouriers(cRes.data as Courier[]);
+    if (cRes.data) setCouriers(cRes.data as unknown as Courier[]);
     if (dRes.data) setDistricts(dRes.data as DistrictRow[]);
     if (rRes.data) setRates(rRes.data as unknown as CourierRate[]);
     if (vRes.data) setVendors(vRes.data as VendorProfile[]);
