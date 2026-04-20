@@ -238,9 +238,11 @@ export default function MerchantOrdersPage() {
     const order = orders.find(o => o.id === printConfirmId);
     if (!order) return;
 
-    const prov = provinces.find(p => p.id === order.district_id) || allDistricts.find(d => d.id === order.district_id && !d.parent_id);
-    const area = allDistricts.find(d => d.id === order.district_id && d.parent_id);
-    const districtName = area?.name || null;
+    // Resolve area/neighborhood name from districts table.
+    // If district_id points to a child (has parent_id) → it's the area name.
+    // If it points to a parent (province-level) → no specific area to print.
+    const matched = allDistricts.find(d => d.id === order.district_id);
+    const districtName = matched?.parent_id ? matched.name : null;
 
     try {
       printShippingLabel({
