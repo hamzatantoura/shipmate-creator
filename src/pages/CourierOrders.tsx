@@ -216,6 +216,35 @@ export default function CourierOrders() {
           )}
         </Card>
       </main>
+
+      <Dialog open={!!returnDialog} onOpenChange={(o) => !o && setReturnDialog(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>سبب الإرجاع</DialogTitle>
+            <DialogDescription>اختر سبب إرجاع الطلب — حقل إلزامي.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>السبب</Label>
+            <Select value={returnReason} onValueChange={setReturnReason}>
+              <SelectTrigger><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+              <SelectContent>
+                {RETURN_REASONS.map(r => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReturnDialog(null)}>إلغاء</Button>
+            <Button
+              disabled={!returnReason || !!updatingId}
+              onClick={() => returnDialog && updateStatus(returnDialog.orderId, "returned", returnReason)}
+            >
+              تأكيد الإرجاع
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
