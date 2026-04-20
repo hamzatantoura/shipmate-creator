@@ -156,7 +156,7 @@ export default function MerchantOrdersPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, couriers(name)")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -166,9 +166,12 @@ export default function MerchantOrdersPage() {
   };
   useEffect(() => { fetchOrders(); }, [user?.id]);
 
-  // Helper to attach courier name to an order
-  const courierNameOf = (courierId: string | null) =>
-    courierId ? couriers.find(c => c.id === courierId)?.name || null : null;
+  // Resolve courier name: prefer joined relation, fallback to local couriers list
+  const courierNameOf = (order: OrderRow | null, courierId?: string | null) => {
+    if (order?.couriers?.name) return order.couriers.name;
+    const id = courierId ?? order?.courier_id ?? null;
+    return id ? couriers.find(c => c.id === id)?.name || null : null;
+  };
 
   // Form state
   const [form, setForm] = useState({
@@ -257,7 +260,7 @@ export default function MerchantOrdersPage() {
         },
         cod: Number(order.final_sale_price ?? order.total_amount),
         notes: order.notes,
-        courierName: courierNameOf(order.courier_id),
+        courierName: courierNameOf(order),
       });
     } catch (e: any) {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");
@@ -527,7 +530,7 @@ export default function MerchantOrdersPage() {
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
-                      const courierName = courierNameOf(order.courier_id);
+                      const courierName = courierNameOf(order);
                       return (
                         <TableRow key={order.id}>
                           <TableCell>

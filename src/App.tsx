@@ -14,6 +14,7 @@ import MerchantPortal from "./pages/MerchantPortal";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import MerchantOrdersPage from "./pages/MerchantOrdersPage";
 import VendorDashboard from "./pages/VendorDashboard";
+import CourierOrders from "./pages/CourierOrders";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
 import AdminDistricts from "./pages/AdminDistricts";
@@ -66,10 +67,15 @@ const App = () => (
             </AuthGuard>
           } />
 
-          {/* Protected: Vendor */}
+          {/* Protected: Vendor / Courier company */}
           <Route path="/vendor" element={
             <AuthGuard allowedRoles={["vendor"]}>
               <VendorDashboard />
+            </AuthGuard>
+          } />
+          <Route path="/courier/orders" element={
+            <AuthGuard allowedRoles={["vendor"]}>
+              <CourierOrders />
             </AuthGuard>
           } />
 
