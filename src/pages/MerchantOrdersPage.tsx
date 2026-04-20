@@ -42,7 +42,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 import { Link } from "react-router-dom";
@@ -67,6 +68,7 @@ interface OrderRow {
   created_at: string;
   label_printed_at: string | null;
   notes: string | null;
+  return_reason: string | null;
   couriers?: { name: string } | null;
 }
 
@@ -96,6 +98,14 @@ const STATUS_META: Record<string, { label: string; variant: "default" | "seconda
   delivered: { label: "تم التوصيل", variant: "secondary" },
   returned: { label: "مرتجع", variant: "destructive" },
   cancelled: { label: "ملغى", variant: "destructive" },
+};
+
+const RETURN_REASON_AR: Record<string, string> = {
+  customer_refused: "رفض المستلم",
+  no_answer: "لا يرد",
+  wrong_address: "عنوان خاطئ",
+  damaged: "تالف",
+  other: "أخرى",
 };
 
 interface BoxItem {
@@ -156,7 +166,7 @@ export default function MerchantOrdersPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, couriers(name)")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name)")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -548,10 +558,27 @@ export default function MerchantOrdersPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant={meta.variant} className="gap-1">
-                              {locked && <Lock className="h-3 w-3" />}
-                              {meta.label}
-                            </Badge>
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant={meta.variant} className="gap-1">
+                                {locked && <Lock className="h-3 w-3" />}
+                                {meta.label}
+                              </Badge>
+                              {order.status === "returned" && order.return_reason && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex items-center gap-1 text-[11px] text-destructive/90 cursor-help">
+                                        <Info className="h-3 w-3" />
+                                        {RETURN_REASON_AR[order.return_reason] || order.return_reason}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="text-xs">سبب الإرجاع المسجَّل من شركة الشحن</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span className="font-mono text-xs text-primary font-semibold" dir="ltr">
