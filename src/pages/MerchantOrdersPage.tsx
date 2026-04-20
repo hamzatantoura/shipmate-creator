@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
@@ -116,6 +116,37 @@ interface BoxItem {
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
 const isLocked = (o: OrderRow) => !!o.label_printed_at || !!o.shipment_id || ["processing", "shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
+
+// Format Syrian phone to international E.164-like (no +): 963XXXXXXXXX
+const toIntlSyrianPhone = (raw: string): string => {
+  let p = (raw || "").replace(/[^\d]/g, "");
+  if (!p) return "";
+  if (p.startsWith("00963")) p = p.slice(5);
+  else if (p.startsWith("963")) p = p.slice(3);
+  p = p.replace(/^0+/, "");
+  return "963" + p;
+};
+
+const buildTrackingShareUrl = (silaCode: string) => {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}/track?code=${encodeURIComponent(silaCode)}`;
+};
+
+const sendTrackingViaWhatsApp = (order: OrderRow) => {
+  const phone = toIntlSyrianPhone(order.phone_number);
+  if (!phone || phone.length < 10) {
+    toast.error("رقم هاتف الزبون غير صالح");
+    return;
+  }
+  const sila = silaCodeOf(order.id);
+  const url = buildTrackingShareUrl(sila);
+  const message =
+    `مرحباً ${order.receiver_name}، طلبك جاهز! 📦\n\n` +
+    `يمكنك تتبع حالة شحنتك عبر منصة صِلة من هنا:\n${url}\n\n` +
+    `رمز التتبع: ${sila}`;
+  const wa = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  window.open(wa, "_blank", "noopener,noreferrer");
+};
 
 export default function MerchantOrdersPage() {
   const { profile, signOut, user } = useAuth();
