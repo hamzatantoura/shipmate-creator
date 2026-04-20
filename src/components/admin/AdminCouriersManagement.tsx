@@ -21,6 +21,13 @@ interface Courier {
   vendor_id: string | null;
 }
 
+interface VendorProfile {
+  user_id: string;
+  contact_person: string | null;
+  phone: string | null;
+  store_name: string | null;
+}
+
 interface DistrictRow {
   id: string;
   name: string;
@@ -42,6 +49,7 @@ export default function AdminCouriersManagement() {
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [districts, setDistricts] = useState<DistrictRow[]>([]);
   const [rates, setRates] = useState<CourierRate[]>([]);
+  const [vendors, setVendors] = useState<VendorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [ratesCourier, setRatesCourier] = useState<Courier | null>(null);
@@ -51,20 +59,35 @@ export default function AdminCouriersManagement() {
   const provinces = useMemo(() => districts.filter(d => !d.parent_id), [districts]);
   const areasOf = (provId: string) => districts.filter(d => d.parent_id === provId);
 
+  const vendorLabel = (v: VendorProfile) =>
+    v.contact_person || v.store_name || v.phone || v.user_id.slice(0, 8);
+
+  const vendorById = (id: string | null) => vendors.find(v => v.user_id === id);
+
   const fetchAll = async () => {
     setLoading(true);
-    const [cRes, dRes, rRes] = await Promise.all([
+    const [cRes, dRes, rRes, vRes] = await Promise.all([
       supabase.from("couriers").select("id, name, phone, city, is_active, vendor_id").order("name"),
       supabase.from("districts").select("id, name, parent_id, province_ar, delivery_fee").order("name"),
       supabase.from("courier_district_rates" as any).select("id, courier_id, district_id, custom_delivery_fee"),
+      supabase.from("profiles").select("user_id, contact_person, phone, store_name").eq("role", "vendor"),
     ]);
     if (cRes.data) setCouriers(cRes.data as Courier[]);
     if (dRes.data) setDistricts(dRes.data as DistrictRow[]);
     if (rRes.data) setRates(rRes.data as unknown as CourierRate[]);
+    if (vRes.data) setVendors(vRes.data as VendorProfile[]);
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
+
+  const assignVendor = async (courierId: string, vendorId: string | null) => {
+    const { error } = await supabase.from("couriers")
+      .update({ vendor_id: vendorId } as any).eq("id", courierId);
+    if (error) { toast.error(error.message); return; }
+    toast.success(vendorId ? "تم ربط الحساب بالشركة" : "تم فك الربط");
+    fetchAll();
+  };
 
   const handleCreate = async () => {
     if (!form.name.trim()) { toast.error("اسم شركة الشحن مطلوب"); return; }
@@ -153,7 +176,8 @@ export default function AdminCouriersManagement() {
                   <TableHead>الشركة</TableHead>
                   <TableHead>الهاتف</TableHead>
                   <TableHead>المدينة</TableHead>
-                  <TableHead>تسعيرات مخصصة</TableHead>
+                  <TableHead>الحساب المرتبط</TableHead>
+                  <TableHead>تسعيرات</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead className="text-left">إجراءات</TableHead>
                 </TableRow>
@@ -161,11 +185,36 @@ export default function AdminCouriersManagement() {
               <TableBody>
                 {couriers.map(c => {
                   const count = rates.filter(r => r.courier_id === c.id).length;
+                  const linked = vendorById(c.vendor_id);
                   return (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell dir="ltr" className="text-sm">{c.phone || "—"}</TableCell>
                       <TableCell>{c.city || "—"}</TableCell>
+                      <TableCell className="min-w-[220px]">
+                        <Select
+                          value={c.vendor_id || "__none__"}
+                          onValueChange={(v) => assignVendor(c.id, v === "__none__" ? null : v)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="غير مرتبط">
+                              {linked ? (
+                                <span className="truncate">{vendorLabel(linked)}</span>
+                              ) : (
+                                <span className="text-muted-foreground">غير مرتبط</span>
+                              )}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— فك الربط —</SelectItem>
+                            {vendors.map(v => (
+                              <SelectItem key={v.user_id} value={v.user_id}>
+                                {vendorLabel(v)}{v.phone ? ` · ${v.phone}` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="gap-1">
                           <DollarSign className="h-3 w-3" /> {count}
