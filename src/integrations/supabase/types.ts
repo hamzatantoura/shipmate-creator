@@ -370,6 +370,7 @@ export type Database = {
           product_id: string | null
           quantity: number
           receiver_name: string
+          return_reason: string | null
           shipment_id: string | null
           status: string
           total_amount: number
@@ -396,6 +397,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           receiver_name: string
+          return_reason?: string | null
           shipment_id?: string | null
           status?: string
           total_amount?: number
@@ -422,6 +424,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           receiver_name?: string
+          return_reason?: string | null
           shipment_id?: string | null
           status?: string
           total_amount?: number
