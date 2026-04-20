@@ -107,6 +107,8 @@ export function printShippingLabel(data: LabelData) {
       <div class="amount">${fmtSYP(data.cod)}</div>
     </div>
 
+    ${data.courierName ? `<div class="section" style="margin-top:4px;"><div class="label-tag">الناقل</div><div class="value">${escapeHtml(data.courierName)}</div></div>` : ""}
+
     <div class="barcode">
       ${barcodeSvg}
       <div class="barcode-text">${escapeHtml(data.silaCode)}</div>
