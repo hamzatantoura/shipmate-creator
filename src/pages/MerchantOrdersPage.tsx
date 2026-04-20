@@ -114,15 +114,37 @@ export default function MerchantOrdersPage() {
 
   // Districts (real data)
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
+  const [couriers, setCouriers] = useState<CourierOption[]>([]);
+  const [courierRates, setCourierRates] = useState<CourierRate[]>([]);
   useEffect(() => {
-    supabase
-      .from("districts")
-      .select("id, name, parent_id, delivery_fee")
-      .order("name", { ascending: true })
-      .then(({ data }) => setAllDistricts((data || []) as DistrictRow[]));
+    Promise.all([
+      supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
+      supabase.from("couriers").select("id, name").eq("is_active", true).order("name"),
+      supabase.from("courier_district_rates" as any).select("courier_id, district_id, custom_delivery_fee"),
+    ]).then(([dRes, cRes, rRes]) => {
+      setAllDistricts((dRes.data || []) as DistrictRow[]);
+      setCouriers((cRes.data || []) as CourierOption[]);
+      setCourierRates((rRes.data || []) as unknown as CourierRate[]);
+    });
   }, []);
   const provinces = allDistricts.filter(d => !d.parent_id);
   const areasOf = (provId: string) => allDistricts.filter(d => d.parent_id === provId);
+
+  // Resolve delivery fee: courier-specific rate (district → province fallback) → district default → province default
+  const resolveDeliveryFee = (districtId: string | null, provinceId: string | null, courierId: string | null): number => {
+    const dDefault = allDistricts.find(d => d.id === districtId)?.delivery_fee ?? 0;
+    const pDefault = allDistricts.find(d => d.id === provinceId)?.delivery_fee ?? 0;
+    if (!courierId) return dDefault || pDefault;
+    if (districtId) {
+      const r = courierRates.find(x => x.courier_id === courierId && x.district_id === districtId);
+      if (r) return Number(r.custom_delivery_fee);
+    }
+    if (provinceId) {
+      const r = courierRates.find(x => x.courier_id === courierId && x.district_id === provinceId);
+      if (r) return Number(r.custom_delivery_fee);
+    }
+    return dDefault || pDefault;
+  };
 
   // Fetch real orders
   const fetchOrders = async () => {
