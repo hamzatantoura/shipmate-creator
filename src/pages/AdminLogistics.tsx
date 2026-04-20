@@ -458,6 +458,9 @@ export default function AdminLogistics() {
           <TabsContent value="merchants" className="mt-4">
             <AdminMerchantApproval />
           </TabsContent>
+          <TabsContent value="couriers" className="mt-4">
+            <AdminCouriersManagement />
+          </TabsContent>
           <TabsContent value="transactions" className="mt-4">
             <WalletTransactionsLog showAll />
           </TabsContent>
