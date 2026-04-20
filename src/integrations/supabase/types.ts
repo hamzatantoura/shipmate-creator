@@ -429,6 +429,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "orders_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
