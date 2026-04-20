@@ -148,13 +148,13 @@ export default function MerchantOrdersPage() {
     return dDefault || pDefault;
   };
 
-  // Fetch real orders
+  // Fetch real orders (with courier name resolved client-side from couriers state)
   const fetchOrders = async () => {
     if (!user) return;
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -163,6 +163,10 @@ export default function MerchantOrdersPage() {
     setLoading(false);
   };
   useEffect(() => { fetchOrders(); }, [user?.id]);
+
+  // Helper to attach courier name to an order
+  const courierNameOf = (courierId: string | null) =>
+    courierId ? couriers.find(c => c.id === courierId)?.name || null : null;
 
   // Form state
   const [form, setForm] = useState({
