@@ -16,7 +16,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, MapPin, Loader2, Search } from "lucide-react";
+import { MapPin, Loader2, Search, ArrowLeft, Info } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface ShippingZone {
   id: string;
@@ -54,10 +55,6 @@ export default function AdminZonesManagement() {
   const [zones, setZones] = useState<ShippingZone[]>([]);
   const [carriers, setCarriers] = useState<Carrier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingZone, setEditingZone] = useState<ShippingZone | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
   const [search, setSearch] = useState("");
   const [filterProvince, setFilterProvince] = useState("all");
 

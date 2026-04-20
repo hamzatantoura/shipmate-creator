@@ -75,18 +75,43 @@ export default function MerchantOrders() {
     setEditPrice(String(o.final_sale_price || o.total_amount));
   };
 
-  // Look up carrier fee + carrier_id from shipping_zones based on order city
   const [carrierFeeForOrder, setCarrierFeeForOrder] = useState(0);
   const [carrierIdForOrder, setCarrierIdForOrder] = useState<string | null>(null);
   useEffect(() => {
     if (!confirmOrder) { setCarrierFeeForOrder(0); setCarrierIdForOrder(null); return; }
-    supabase.from("shipping_zones").select("delivery_fee, carrier_id")
-      .eq("province_name_ar", confirmOrder.city).eq("is_active", true)
-      .is("area_name", null).is("neighborhood_name", null)
-      .limit(1).then(({ data }) => {
-        setCarrierFeeForOrder(data?.[0]?.delivery_fee || 0);
-        setCarrierIdForOrder(data?.[0]?.carrier_id || null);
-      });
+    // Source of truth: districts (hierarchical). Fallback to order's saved delivery_fee.
+    (async () => {
+      let fee = Number(confirmOrder.delivery_fee || 0);
+      const orderAny = confirmOrder as any;
+      if (orderAny.district_id) {
+        const { data: d } = await supabase
+          .from("districts")
+          .select("delivery_fee, parent_id")
+          .eq("id", orderAny.district_id)
+          .maybeSingle();
+        if (d) {
+          fee = Number(d.delivery_fee) || fee;
+          if ((!fee || fee <= 0) && d.parent_id) {
+            const { data: parent } = await supabase
+              .from("districts").select("delivery_fee").eq("id", d.parent_id).maybeSingle();
+            if (parent) fee = Number(parent.delivery_fee) || fee;
+          }
+        }
+      } else if (confirmOrder.city) {
+        const { data: prov } = await supabase
+          .from("districts").select("delivery_fee")
+          .eq("province_ar", confirmOrder.city)
+          .is("parent_id", null)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (prov) fee = Number(prov.delivery_fee) || fee;
+      }
+      // Default carrier: first active courier (vendor) — admin can refine later via courier_district_rates
+      const { data: courier } = await supabase
+        .from("couriers").select("id").eq("is_active", true).limit(1).maybeSingle();
+      setCarrierFeeForOrder(fee);
+      setCarrierIdForOrder(courier?.id || null);
+    })();
   }, [confirmOrder]);
 
   const confirmPricing = (() => {
