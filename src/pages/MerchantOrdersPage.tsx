@@ -48,6 +48,7 @@ import silaLogo from "@/assets/sila-logo.png";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { printShippingLabel } from "@/lib/print-label";
+import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
@@ -58,6 +59,7 @@ interface OrderRow {
   city: string;
   detailed_address: string;
   district_id: string | null;
+  courier_id: string | null;
   status: string;
   total_amount: number;
   final_sale_price: number | null;
@@ -65,6 +67,7 @@ interface OrderRow {
   created_at: string;
   label_printed_at: string | null;
   notes: string | null;
+  couriers?: { name: string } | null;
 }
 
 interface DistrictRow {
@@ -111,6 +114,7 @@ export default function MerchantOrdersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
+  const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
 
   // Districts (real data)
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
@@ -146,13 +150,13 @@ export default function MerchantOrdersPage() {
     return dDefault || pDefault;
   };
 
-  // Fetch real orders
+  // Fetch real orders (with courier name resolved client-side from couriers state)
   const fetchOrders = async () => {
     if (!user) return;
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -161,6 +165,10 @@ export default function MerchantOrdersPage() {
     setLoading(false);
   };
   useEffect(() => { fetchOrders(); }, [user?.id]);
+
+  // Helper to attach courier name to an order
+  const courierNameOf = (courierId: string | null) =>
+    courierId ? couriers.find(c => c.id === courierId)?.name || null : null;
 
   // Form state
   const [form, setForm] = useState({
@@ -249,6 +257,7 @@ export default function MerchantOrdersPage() {
         },
         cod: Number(order.final_sale_price ?? order.total_amount),
         notes: order.notes,
+        courierName: courierNameOf(order.courier_id),
       });
     } catch (e: any) {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");
@@ -497,9 +506,9 @@ export default function MerchantOrdersPage() {
                     <TableRow>
                       <TableHead className="text-right">الزبون</TableHead>
                       <TableHead className="text-right">المحافظة</TableHead>
+                      <TableHead className="text-right">شركة الشحن</TableHead>
                       <TableHead className="text-right">حالة الطلب</TableHead>
                       <TableHead className="text-right">كود صِلة</TableHead>
-                      <TableHead className="text-right">بوليصة الناقل</TableHead>
                       <TableHead className="text-right">المبلغ</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
@@ -518,6 +527,7 @@ export default function MerchantOrdersPage() {
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
+                      const courierName = courierNameOf(order.courier_id);
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
@@ -525,6 +535,13 @@ export default function MerchantOrdersPage() {
                             <div className="text-xs text-muted-foreground" dir="ltr">{order.phone_number}</div>
                           </TableCell>
                           <TableCell className="text-sm">{display}</TableCell>
+                          <TableCell className="text-sm">
+                            {courierName ? (
+                              <span className="text-foreground">{courierName}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={meta.variant} className="gap-1">
                               {locked && <Lock className="h-3 w-3" />}
@@ -536,22 +553,31 @@ export default function MerchantOrdersPage() {
                               {silaCodeOf(order.id)}
                             </span>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-xs text-muted-foreground">—</span>
-                          </TableCell>
                           <TableCell className="text-sm font-medium">
                             {fmtSYP(Number(amount))}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant={locked ? "outline" : "default"}
-                              onClick={() => setPrintConfirmId(order.id)}
-                              className="gap-1.5"
-                            >
-                              <Printer className="h-3.5 w-3.5" />
-                              {locked ? "إعادة طباعة" : "طباعة البوليصة"}
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              {!locked && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditOrder(order)}
+                                  className="gap-1"
+                                >
+                                  تعديل
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant={locked ? "outline" : "default"}
+                                onClick={() => setPrintConfirmId(order.id)}
+                                className="gap-1.5"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                {locked ? "إعادة طباعة" : "طباعة البوليصة"}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -590,6 +616,17 @@ export default function MerchantOrdersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {editOrder && (
+          <EditOrderDialog
+            order={editOrder}
+            districts={allDistricts}
+            couriers={couriers}
+            courierRates={courierRates}
+            onClose={() => setEditOrder(null)}
+            onSaved={fetchOrders}
+          />
+        )}
       </div>
     </SidebarProvider>
   );

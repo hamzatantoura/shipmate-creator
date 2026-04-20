@@ -7,6 +7,7 @@ export interface LabelData {
   receiver: { name: string; phone: string; city: string; district?: string | null; address: string };
   cod: number;
   notes?: string | null;
+  courierName?: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
@@ -105,6 +106,8 @@ export function printShippingLabel(data: LabelData) {
       <div class="label-tag">المبلغ المطلوب تحصيله (COD)</div>
       <div class="amount">${fmtSYP(data.cod)}</div>
     </div>
+
+    ${data.courierName ? `<div class="section" style="margin-top:4px;"><div class="label-tag">الناقل</div><div class="value">${escapeHtml(data.courierName)}</div></div>` : ""}
 
     <div class="barcode">
       ${barcodeSvg}
