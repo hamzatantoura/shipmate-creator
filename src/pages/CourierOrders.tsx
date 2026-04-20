@@ -108,6 +108,8 @@ export default function CourierOrders() {
   const [returnReason, setReturnReason] = useState<string>("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabKey>("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!user) return;
@@ -204,6 +206,79 @@ export default function CourierOrders() {
       );
     });
   }, [orders, search, tab]);
+
+  // Keep selection valid against current filtered view
+  const filteredIds = useMemo(() => filtered.map(o => o.id), [filtered]);
+  const visibleSelectedCount = useMemo(
+    () => selectedIds.filter(id => filteredIds.includes(id)).length,
+    [selectedIds, filteredIds],
+  );
+  const allVisibleSelected = filteredIds.length > 0 && visibleSelectedCount === filteredIds.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
+  const toggleAllVisible = (checked: boolean) => {
+    setSelectedIds(prev => {
+      const set = new Set(prev);
+      if (checked) filteredIds.forEach(id => set.add(id));
+      else filteredIds.forEach(id => set.delete(id));
+      return Array.from(set);
+    });
+  };
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds(prev => checked ? Array.from(new Set([...prev, id])) : prev.filter(x => x !== id));
+  };
+  const clearSelection = () => setSelectedIds([]);
+
+  const exportCsv = () => {
+    const rows = orders.filter(o => selectedIds.includes(o.id));
+    if (rows.length === 0) { toast.error("لا توجد طلبات محددة"); return; }
+    const headers = ["رمز Sila", "اسم المستلم", "الهاتف", "العنوان", "قيمة COD", "الحالة"];
+    const escape = (v: unknown) => {
+      const s = String(v ?? "").replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [headers.join(",")];
+    for (const o of rows) {
+      const cod = o.final_sale_price ?? o.total_amount;
+      const addr = `${o.districts?.name || o.city} - ${o.detailed_address}`;
+      lines.push([
+        silaCodeOf(o.id),
+        o.receiver_name,
+        o.phone_number,
+        addr,
+        cod,
+        STATUS_LABEL[o.status] || o.status,
+      ].map(escape).join(","));
+    }
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sila-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`تم تصدير ${rows.length} طلب`);
+  };
+
+  const bulkUpdateStatus = async (newStatus: "out_for_delivery" | "delivered") => {
+    if (selectedIds.length === 0) return;
+    setBulkLoading(true);
+    const results = await Promise.all(
+      selectedIds.map(id => supabase.from("orders").update({ status: newStatus }).eq("id", id))
+    );
+    const failed = results.filter(r => r.error).length;
+    setBulkLoading(false);
+    if (failed === 0) {
+      toast.success(`تم تحديث ${selectedIds.length} طلب`);
+    } else {
+      toast.error(`فشل تحديث ${failed} من ${selectedIds.length} طلب`);
+    }
+    clearSelection();
+    fetchAll();
+  };
 
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
