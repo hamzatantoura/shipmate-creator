@@ -505,9 +505,9 @@ export default function MerchantOrdersPage() {
                     <TableRow>
                       <TableHead className="text-right">الزبون</TableHead>
                       <TableHead className="text-right">المحافظة</TableHead>
+                      <TableHead className="text-right">شركة الشحن</TableHead>
                       <TableHead className="text-right">حالة الطلب</TableHead>
                       <TableHead className="text-right">كود صِلة</TableHead>
-                      <TableHead className="text-right">بوليصة الناقل</TableHead>
                       <TableHead className="text-right">المبلغ</TableHead>
                       <TableHead className="text-right">الإجراءات</TableHead>
                     </TableRow>
@@ -526,6 +526,7 @@ export default function MerchantOrdersPage() {
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
+                      const courierName = courierNameOf(order.courier_id);
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
@@ -533,6 +534,13 @@ export default function MerchantOrdersPage() {
                             <div className="text-xs text-muted-foreground" dir="ltr">{order.phone_number}</div>
                           </TableCell>
                           <TableCell className="text-sm">{display}</TableCell>
+                          <TableCell className="text-sm">
+                            {courierName ? (
+                              <span className="text-foreground">{courierName}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={meta.variant} className="gap-1">
                               {locked && <Lock className="h-3 w-3" />}
@@ -544,22 +552,31 @@ export default function MerchantOrdersPage() {
                               {silaCodeOf(order.id)}
                             </span>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-xs text-muted-foreground">—</span>
-                          </TableCell>
                           <TableCell className="text-sm font-medium">
                             {fmtSYP(Number(amount))}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant={locked ? "outline" : "default"}
-                              onClick={() => setPrintConfirmId(order.id)}
-                              className="gap-1.5"
-                            >
-                              <Printer className="h-3.5 w-3.5" />
-                              {locked ? "إعادة طباعة" : "طباعة البوليصة"}
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                              {!locked && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setEditOrder(order)}
+                                  className="gap-1"
+                                >
+                                  تعديل
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant={locked ? "outline" : "default"}
+                                onClick={() => setPrintConfirmId(order.id)}
+                                className="gap-1.5"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                {locked ? "إعادة طباعة" : "طباعة البوليصة"}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
