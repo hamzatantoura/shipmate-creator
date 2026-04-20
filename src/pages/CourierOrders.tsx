@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -21,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
+  Download, ChevronDown, X, Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
@@ -103,6 +108,8 @@ export default function CourierOrders() {
   const [returnReason, setReturnReason] = useState<string>("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabKey>("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!user) return;
@@ -199,6 +206,79 @@ export default function CourierOrders() {
       );
     });
   }, [orders, search, tab]);
+
+  // Keep selection valid against current filtered view
+  const filteredIds = useMemo(() => filtered.map(o => o.id), [filtered]);
+  const visibleSelectedCount = useMemo(
+    () => selectedIds.filter(id => filteredIds.includes(id)).length,
+    [selectedIds, filteredIds],
+  );
+  const allVisibleSelected = filteredIds.length > 0 && visibleSelectedCount === filteredIds.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
+  const toggleAllVisible = (checked: boolean) => {
+    setSelectedIds(prev => {
+      const set = new Set(prev);
+      if (checked) filteredIds.forEach(id => set.add(id));
+      else filteredIds.forEach(id => set.delete(id));
+      return Array.from(set);
+    });
+  };
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds(prev => checked ? Array.from(new Set([...prev, id])) : prev.filter(x => x !== id));
+  };
+  const clearSelection = () => setSelectedIds([]);
+
+  const exportCsv = () => {
+    const rows = orders.filter(o => selectedIds.includes(o.id));
+    if (rows.length === 0) { toast.error("لا توجد طلبات محددة"); return; }
+    const headers = ["رمز Sila", "اسم المستلم", "الهاتف", "العنوان", "قيمة COD", "الحالة"];
+    const escape = (v: unknown) => {
+      const s = String(v ?? "").replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [headers.join(",")];
+    for (const o of rows) {
+      const cod = o.final_sale_price ?? o.total_amount;
+      const addr = `${o.districts?.name || o.city} - ${o.detailed_address}`;
+      lines.push([
+        silaCodeOf(o.id),
+        o.receiver_name,
+        o.phone_number,
+        addr,
+        cod,
+        STATUS_LABEL[o.status] || o.status,
+      ].map(escape).join(","));
+    }
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sila-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`تم تصدير ${rows.length} طلب`);
+  };
+
+  const bulkUpdateStatus = async (newStatus: "out_for_delivery" | "delivered") => {
+    if (selectedIds.length === 0) return;
+    setBulkLoading(true);
+    const results = await Promise.all(
+      selectedIds.map(id => supabase.from("orders").update({ status: newStatus }).eq("id", id))
+    );
+    const failed = results.filter(r => r.error).length;
+    setBulkLoading(false);
+    if (failed === 0) {
+      toast.success(`تم تحديث ${selectedIds.length} طلب`);
+    } else {
+      toast.error(`فشل تحديث ${failed} من ${selectedIds.length} طلب`);
+    }
+    clearSelection();
+    fetchAll();
+  };
 
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
@@ -363,6 +443,43 @@ export default function CourierOrders() {
                 <TabsTrigger value="returned" className="text-xs">مرتجع</TabsTrigger>
               </TabsList>
             </Tabs>
+
+            {selectedIds.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 animate-in fade-in slide-in-from-top-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="inline-flex items-center justify-center h-6 min-w-6 rounded-full bg-primary text-primary-foreground text-xs font-bold px-1.5">
+                    {selectedIds.length}
+                  </span>
+                  <span className="font-medium">طلب محدد</span>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={clearSelection} disabled={bulkLoading}>
+                    <X className="h-3.5 w-3.5" /> إلغاء التحديد
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={exportCsv} disabled={bulkLoading}>
+                    <Download className="h-3.5 w-3.5" /> تصدير CSV
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" className="h-8 gap-1.5" disabled={bulkLoading}>
+                        {bulkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        تحديث الحالة
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="text-xs">حالة جماعية</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => bulkUpdateStatus("out_for_delivery")}>
+                        <Truck className="h-4 w-4" /> قيد التوصيل
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => bulkUpdateStatus("delivered")}>
+                        <CheckCircle2 className="h-4 w-4" /> تم التسليم
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            )}
           </CardHeader>
 
           <CardContent className="p-0">
@@ -379,6 +496,13 @@ export default function CourierOrders() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                          onCheckedChange={(c) => toggleAllVisible(!!c)}
+                          aria-label="تحديد الكل"
+                        />
+                      </TableHead>
                       <TableHead className="text-xs">الكود</TableHead>
                       <TableHead className="text-xs">المستلم</TableHead>
                       <TableHead className="text-xs">الهاتف</TableHead>
@@ -392,8 +516,16 @@ export default function CourierOrders() {
                     {filtered.map((o) => {
                       const cod = o.final_sale_price ?? o.total_amount;
                       const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
+                      const checked = selectedIds.includes(o.id);
                       return (
-                        <TableRow key={o.id} className="hover:bg-muted/30">
+                        <TableRow key={o.id} className={`hover:bg-muted/30 ${checked ? "bg-primary/5" : ""}`}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(c) => toggleOne(o.id, !!c)}
+                              aria-label={`تحديد ${silaCodeOf(o.id)}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-mono text-[11px] text-muted-foreground">{silaCodeOf(o.id)}</TableCell>
                           <TableCell className="font-medium text-sm">{o.receiver_name}</TableCell>
                           <TableCell dir="ltr" className="text-xs text-muted-foreground">{o.phone_number}</TableCell>
