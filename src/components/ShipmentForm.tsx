@@ -12,16 +12,13 @@ import { Package, Loader2, MapPin, AlertCircle, ShieldAlert } from "lucide-react
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
 
-interface ShippingZone {
+interface District {
   id: string;
-  province_name: string;
-  province_name_ar: string;
-  area_name: string | null;
-  area_name_ar: string | null;
-  neighborhood_name: string | null;
-  neighborhood_name_ar: string | null;
+  name: string;
+  parent_id: string | null;
+  province: string;
+  province_ar: string;
   delivery_fee: number;
-  carrier_id: string | null;
 }
 
 interface ShipmentFormProps {
@@ -50,11 +47,10 @@ const CITY_MAP: Record<string, "Damascus" | "Aleppo" | "Homs" | "Lattakia" | "Ha
 export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [zones, setZones] = useState<ShippingZone[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
 
-  const [selectedProvince, setSelectedProvince] = useState("");
-  const [selectedArea, setSelectedArea] = useState("");
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState("");
+  const [selectedProvinceId, setSelectedProvinceId] = useState("");
+  const [selectedAreaId, setSelectedAreaId] = useState("");
 
   const [phoneError, setPhoneError] = useState("");
   const [form, setForm] = useState({
@@ -66,8 +62,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   });
 
   useEffect(() => {
-    supabase.from("shipping_zones").select("*").eq("is_active", true).order("province_name_ar")
-      .then(({ data }) => { if (data) setZones(data as any); });
+    supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee").eq("is_active", true)
+      .then(({ data }) => { if (data) setDistricts(data as any); });
   }, []);
 
   useEffect(() => {
@@ -77,53 +73,32 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         detailed_address: prefill.detailed_address || "", cod_amount: prefill.cod_amount || "",
         notes: "",
       });
-      if (prefill.city && zones.length > 0) {
-        const match = zones.find(z => z.province_name_ar === prefill.city || z.province_name === prefill.city);
-        if (match) setSelectedProvince(match.province_name);
+      if (prefill.city && districts.length > 0) {
+        const match = districts.find(d => !d.parent_id && (d.province_ar === prefill.city || d.province === prefill.city || d.name === prefill.city));
+        if (match) setSelectedProvinceId(match.id);
       }
     }
-  }, [prefill, zones]);
+  }, [prefill, districts]);
 
-  const provinces = useMemo(() => {
-    const map = new Map<string, string>();
-    zones.forEach(z => map.set(z.province_name, z.province_name_ar));
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "ar"));
-  }, [zones]);
+  const provinces = useMemo(
+    () => districts.filter(d => !d.parent_id).sort((a, b) => a.province_ar.localeCompare(b.province_ar, "ar")),
+    [districts]
+  );
 
-  const areas = useMemo(() => {
-    if (!selectedProvince) return [];
-    const map = new Map<string, string>();
-    zones.filter(z => z.province_name === selectedProvince && z.area_name)
-      .forEach(z => map.set(z.area_name!, z.area_name_ar!));
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "ar"));
-  }, [zones, selectedProvince]);
+  const areas = useMemo(
+    () => selectedProvinceId
+      ? districts.filter(d => d.parent_id === selectedProvinceId).sort((a, b) => a.name.localeCompare(b.name, "ar"))
+      : [],
+    [districts, selectedProvinceId]
+  );
 
-  const neighborhoods = useMemo(() => {
-    if (!selectedProvince || !selectedArea) return [];
-    return zones
-      .filter(z => z.province_name === selectedProvince && z.area_name === selectedArea && z.neighborhood_name)
-      .map(z => ({ name: z.neighborhood_name!, name_ar: z.neighborhood_name_ar! }))
-      .sort((a, b) => a.name_ar.localeCompare(b.name_ar, "ar"));
-  }, [zones, selectedProvince, selectedArea]);
+  useEffect(() => { setSelectedAreaId(""); }, [selectedProvinceId]);
 
-  useEffect(() => { setSelectedArea(""); setSelectedNeighborhood(""); }, [selectedProvince]);
-  useEffect(() => { setSelectedNeighborhood(""); }, [selectedArea]);
+  const selectedProvince = useMemo(() => provinces.find(p => p.id === selectedProvinceId) || null, [provinces, selectedProvinceId]);
+  const selectedArea = useMemo(() => areas.find(a => a.id === selectedAreaId) || null, [areas, selectedAreaId]);
 
-  const matchedZone = useMemo(() => {
-    if (!selectedProvince) return null;
-    if (selectedNeighborhood) {
-      const z = zones.find(z => z.province_name === selectedProvince && z.area_name === selectedArea && z.neighborhood_name === selectedNeighborhood);
-      if (z) return z;
-    }
-    if (selectedArea) {
-      const z = zones.find(z => z.province_name === selectedProvince && z.area_name === selectedArea && !z.neighborhood_name);
-      if (z) return z;
-    }
-    return zones.find(z => z.province_name === selectedProvince && !z.area_name && !z.neighborhood_name) || null;
-  }, [zones, selectedProvince, selectedArea, selectedNeighborhood]);
-
-  // Carrier fee from zone (this is the raw carrier price)
-  const carrierFee = matchedZone ? Number(matchedZone.delivery_fee) : 0;
+  // Carrier fee from selected area or fallback to province
+  const carrierFee = selectedArea ? Number(selectedArea.delivery_fee) : selectedProvince ? Number(selectedProvince.delivery_fee) : 0;
   const codAmount = parseFloat(form.cod_amount) || 0;
 
   // Use pricing engine — merchant sees merchant_shipping_fee + collection_fee
@@ -140,14 +115,15 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (!selectedProvinceId || !selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
     if (lossOrder) { toast.error("لا يمكن إتمام الطلب: تكلفة الشحن والتحصيل أكبر من قيمة الطلب"); return; }
 
     setLoading(true);
     const tracking = `SIL-${Date.now().toString(36).toUpperCase()}`;
-    const provinceAr = provinces.find(p => p[0] === selectedProvince)?.[1] || selectedProvince;
-    const cityEnum = CITY_MAP[selectedProvince] || "Damascus";
+    const provinceAr = selectedProvince.province_ar;
+    const cityEnum = CITY_MAP[selectedProvince.province] || "Damascus";
+    const finalDistrictId = selectedArea?.id || selectedProvince.id;
 
     // Order uses merchant-visible fees
     const { data: order, error: orderErr } = await supabase.from("orders").insert({
@@ -156,6 +132,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       phone_number: form.phone_number.trim(),
       city: provinceAr,
       detailed_address: form.detailed_address.trim(),
+      district_id: finalDistrictId,
       total_amount: codAmount,
       delivery_fee: pricing.merchant_shipping_fee,
       platform_fee: pricing.collection_fee,
@@ -183,7 +160,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       billable_weight: pricing.billable_weight,
       volumetric_weight: pricing.volumetric_weight,
       order_id: (order as any)?.id || prefill?.order_id || null,
-      carrier_id: matchedZone?.carrier_id || null,
+      carrier_id: null,
       notes: form.notes.trim() || null,
       status: "pending",
     } as any);
@@ -193,7 +170,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
     setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "", notes: "" });
-    setSelectedProvince(""); setSelectedArea(""); setSelectedNeighborhood("");
+    setSelectedProvinceId(""); setSelectedAreaId("");
     onCreated();
   };
 
