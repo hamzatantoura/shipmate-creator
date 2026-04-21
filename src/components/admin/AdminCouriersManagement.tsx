@@ -548,6 +548,12 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
   const [city, setCity] = useState(courier.city || "");
   const [services, setServices] = useState<string[]>(courier.services || []);
   const [savingInfo, setSavingInfo] = useState(false);
+  const [codFeeType, setCodFeeType] = useState<"fixed" | "percentage">(
+    (courier.cod_fee_type as any) || "percentage"
+  );
+  const [codFeeValue, setCodFeeValue] = useState<string>(
+    courier.cod_fee_value != null ? String(courier.cod_fee_value) : "0"
+  );
 
   // Tab 2: Onboarding
   const [email, setEmail] = useState("");
