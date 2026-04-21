@@ -604,7 +604,16 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                 <p className="text-xs text-muted-foreground">سيتم إنشاء مستخدم بدور <code>vendor</code> وربطه تلقائياً بهذه الشركة.</p>
                 <div className="space-y-2">
                   <div className="space-y-1.5"><Label>اسم جهة الاتصال</Label><Input value={contact} onChange={e => setContact(e.target.value)} placeholder="مدير العمليات" /></div>
-                  <div className="space-y-1.5"><Label>البريد الإلكتروني</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ops@company.com" dir="ltr" /></div>
+                  <div className="space-y-1.5">
+                    <Label>اسم المستخدم</Label>
+                    <Input
+                      value={email}
+                      onChange={e => setEmail(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      placeholder="fast_express"
+                      dir="ltr"
+                    />
+                    <p className="text-[11px] text-muted-foreground">أحرف إنجليزية صغيرة وأرقام و _ فقط (بدون مسافات أو @).</p>
+                  </div>
                   <div className="space-y-1.5"><Label>كلمة المرور (6+ أحرف)</Label><Input type="text" value={password} onChange={e => setPassword(e.target.value)} dir="ltr" /></div>
                 </div>
                 <Button onClick={generateAccount} disabled={creatingAccount} className="w-full gap-1.5">
