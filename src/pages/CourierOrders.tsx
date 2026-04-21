@@ -107,6 +107,7 @@ export default function CourierOrders() {
   const [companyName, setCompanyName] = useState<string>("");
   const [companyLoaded, setCompanyLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mainTab, setMainTab] = useState<"orders" | "scanner" | "wallet">("orders");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
   const [returnReason, setReturnReason] = useState<string>("");
