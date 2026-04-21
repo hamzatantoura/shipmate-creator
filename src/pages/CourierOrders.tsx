@@ -582,6 +582,7 @@ export default function CourierOrders() {
                       <TableHead className="text-xs">قيمة COD</TableHead>
                       <TableHead className="text-xs">الحالة</TableHead>
                       <TableHead className="w-[200px] text-xs">تحديث الحالة</TableHead>
+                      <TableHead className="w-[50px] text-xs"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -635,6 +636,27 @@ export default function CourierOrders() {
                                 </SelectContent>
                               </Select>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuLabel className="text-xs">إجراءات</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => openEditDialog(o)} disabled={isFinal}>
+                                  <Scale className="h-4 w-4" /> تعديل الوزن/القيمة
+                                </DropdownMenuItem>
+                                {isFinal && (
+                                  <DropdownMenuItem onClick={() => setRevertDialog(o)} className="text-amber-700 dark:text-amber-300 focus:text-amber-700">
+                                    <Undo2 className="h-4 w-4" /> تراجع عن الحالة
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );
