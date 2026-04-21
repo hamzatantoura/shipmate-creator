@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map, Package, Info, KeyRound } from "lucide-react";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Download, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Courier {
@@ -292,6 +292,117 @@ function RatesEditor({ courier, districts, provinces, areasOf, rates, onChanged 
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [fee, setFee] = useState("");
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const CSV_HEADERS = ["المحافظة","المنطقة","من_وزن","الى_وزن","اجرة_الشحن","المدة_المتوقعة"];
+
+  const downloadTemplate = () => {
+    const sample = [
+      CSV_HEADERS.join(","),
+      "دمشق,المزة,0,5,15000,1-2",
+      "حلب,الفرقان,0,10,20000,2-3",
+    ].join("\n");
+    // Prepend BOM so Excel opens Arabic correctly
+    const blob = new Blob(["\uFEFF" + sample], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `courier-rates-template-${courier.name}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCsv = (text: string): string[][] => {
+    const clean = text.replace(/^\uFEFF/, "");
+    const lines = clean.split(/\r?\n/).filter(l => l.trim().length > 0);
+    return lines.map(line => line.split(",").map(c => c.trim()));
+  };
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast.error("الملف يجب أن يكون بصيغة CSV");
+      return;
+    }
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+      if (rows.length < 2) {
+        toast.error("الملف فارغ أو لا يحتوي بيانات");
+        return;
+      }
+      const header = rows[0];
+      const idx = (k: string) => header.indexOf(k);
+      const iProv = idx("المحافظة"), iDist = idx("المنطقة"),
+            iMin = idx("من_وزن"), iMax = idx("الى_وزن"),
+            iFee = idx("اجرة_الشحن"), iDays = idx("المدة_المتوقعة");
+      if ([iProv, iDist, iFee].some(i => i < 0)) {
+        toast.error("ترويسة الملف غير صحيحة. حمّل القالب أولاً.");
+        return;
+      }
+
+      // Build lookup: province_ar -> id; (province_id|district_name) -> district_id
+      const provMap = new Map<string, string>();
+      provinces.forEach(p => provMap.set(p.name.trim(), p.id));
+      const distMap = new Map<string, string>();
+      districts.forEach(d => {
+        if (d.parent_id) distMap.set(`${d.parent_id}|${d.name.trim()}`, d.id);
+      });
+
+      const matched: any[] = [];
+      const failed: { row: number; reason: string }[] = [];
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const provName = (row[iProv] || "").trim();
+        const distName = (row[iDist] || "").trim();
+        const feeNum = Number(row[iFee]);
+        if (!provName || !distName || isNaN(feeNum) || feeNum < 0) {
+          failed.push({ row: r + 1, reason: "بيانات ناقصة" }); continue;
+        }
+        const provId = provMap.get(provName);
+        if (!provId) { failed.push({ row: r + 1, reason: `محافظة غير معروفة: ${provName}` }); continue; }
+        const distId = distMap.get(`${provId}|${distName}`);
+        if (!distId) { failed.push({ row: r + 1, reason: `منطقة غير معروفة: ${distName}` }); continue; }
+
+        const minW = iMin >= 0 && row[iMin] !== "" ? Number(row[iMin]) : 0;
+        const maxW = iMax >= 0 && row[iMax] !== "" ? Number(row[iMax]) : 999;
+        const days = iDays >= 0 ? (row[iDays] || "").trim() || null : null;
+
+        matched.push({
+          courier_id: courier.id,
+          district_id: distId,
+          custom_delivery_fee: feeNum,
+          min_weight_kg: isNaN(minW) ? 0 : minW,
+          max_weight_kg: isNaN(maxW) ? 999 : maxW,
+          estimated_days: days,
+        });
+      }
+
+      if (matched.length === 0) {
+        toast.error(`لم يتم استيراد أي صف. ${failed.length} فشل في المطابقة.`);
+        return;
+      }
+
+      const { error } = await supabase.from("courier_district_rates" as any).insert(matched as any);
+      if (error) { toast.error(error.message); return; }
+
+      if (failed.length > 0) {
+        toast.warning(`تم استيراد ${matched.length} سعراً. فشل ${failed.length} صف (تحقق من الأسماء).`);
+        console.warn("CSV import failures:", failed);
+      } else {
+        toast.success(`تم استيراد ${matched.length} سعراً بنجاح`);
+      }
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message || "فشل قراءة الملف");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const districtName = (id: string) => {
     const d = districts.find(x => x.id === id);
@@ -332,6 +443,29 @@ function RatesEditor({ courier, districts, provinces, areasOf, rates, onChanged 
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">عيّن سعراً مخصصاً لمناطق محددة. المناطق غير المُعرّفة تستخدم السعر الافتراضي.</p>
+
+      {/* CSV bulk import toolbar */}
+      <Card className="p-3 border-dashed bg-primary/5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-semibold flex items-center gap-1.5"><Upload className="h-4 w-4 text-primary" /> استيراد جماعي عبر CSV</h4>
+            <p className="text-[11px] text-muted-foreground mt-0.5">حمّل القالب، املأ التسعيرات بأسماء المحافظات والمناطق كما هي في النظام، ثم ارفع الملف.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" /> تحميل قالب CSV
+            </Button>
+            <Button asChild size="sm" disabled={importing} className="gap-1.5">
+              <label className="cursor-pointer">
+                {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {importing ? "جاري الاستيراد..." : "رفع تسعيرات CSV"}
+                <input type="file" accept=".csv,text/csv" hidden onChange={handleCsvUpload} disabled={importing} />
+              </label>
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       <Card className="p-3 bg-muted/30">
           <h4 className="text-sm font-semibold mb-3">إضافة / تحديث سعر</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -540,7 +674,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
           <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="info" className="gap-1 text-xs"><Info className="h-3.5 w-3.5" /> بيانات وخدمات</TabsTrigger>
             <TabsTrigger value="account" className="gap-1 text-xs"><KeyRound className="h-3.5 w-3.5" /> حساب الدخول</TabsTrigger>
-            <TabsTrigger value="rates" className="gap-1 text-xs"><Map className="h-3.5 w-3.5" /> مناطق وتخفيضات</TabsTrigger>
+            <TabsTrigger value="rates" className="gap-1 text-xs"><MapIcon className="h-3.5 w-3.5" /> مناطق وتخفيضات</TabsTrigger>
             <TabsTrigger value="orders" className="gap-1 text-xs"><Package className="h-3.5 w-3.5" /> الطلبات الحالية</TabsTrigger>
           </TabsList>
 
