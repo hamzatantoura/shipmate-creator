@@ -257,7 +257,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
           <Select value={selectedProvinceId} onValueChange={setSelectedProvinceId}>
@@ -265,19 +265,76 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             <SelectContent>{provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.province_ar}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        {areas.length > 0 && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة</Label>
-            <Select value={selectedAreaId} onValueChange={setSelectedAreaId}>
-              <SelectTrigger><SelectValue placeholder="اختر المنطقة" /></SelectTrigger>
-              <SelectContent>{areas.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" /> المنطقة
+            {areas.length > 0 && <span className="text-destructive">*</span>}
+          </Label>
+          <Select
+            value={selectedAreaId}
+            onValueChange={setSelectedAreaId}
+            disabled={!selectedProvinceId || areas.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={
+                !selectedProvinceId ? "اختر المحافظة أولاً" :
+                areas.length === 0 ? "لا مناطق فرعية" : "اختر المنطقة"
+              } />
+            </SelectTrigger>
+            <SelectContent>{areas.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Smart Routing: Courier selection bound to district rates */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5">
+          <Truck className="h-3.5 w-3.5" /> شركة الشحن <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          value={selectedCourierRateId}
+          onValueChange={setSelectedCourierRateId}
+          disabled={!finalDistrictId || loadingCouriers || courierOptions.length === 0}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={
+              !finalDistrictId ? "اختر المنطقة أولاً" :
+              loadingCouriers ? "جاري جلب الشركات..." :
+              courierOptions.length === 0 ? "لا تغطية لهذه المنطقة" :
+              "اختر شركة الشحن"
+            } />
+          </SelectTrigger>
+          <SelectContent>
+            {courierOptions.map(c => (
+              <SelectItem key={c.rate_id} value={c.rate_id}>
+                <div className="flex flex-col items-start gap-0.5 py-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{c.name}</span>
+                    <span className="text-primary font-bold">— {c.fee.toLocaleString()} ل.س</span>
+                  </div>
+                  {c.services.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {c.services.map(s => (
+                        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          {SERVICE_LABELS[s] || s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {loadingCouriers && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" /> جاري جلب الشركات المتاحة...
+          </p>
         )}
-        {selectedProvinceId && areas.length === 0 && (
-          <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground">
+        {finalDistrictId && !loadingCouriers && courierOptions.length === 0 && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>لا توجد مناطق فرعية لهذه المحافظة. سيتم احتساب رسوم المحافظة الأساسية.</span>
+            <p>عذراً، لا توجد شركات شحن تغطي هذه المنطقة حالياً. يرجى التواصل مع الإدارة.</p>
           </div>
         )}
       </div>
@@ -335,7 +392,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       )}
 
-      <Button type="submit" disabled={loading || lossOrder} className="w-full">
+      <Button type="submit" disabled={loading || lossOrder || !selectedCourier} className="w-full">
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
