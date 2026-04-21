@@ -84,14 +84,14 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Label htmlFor="email">البريد الإلكتروني أو اسم المستخدم</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="example@sila.sy"
+                placeholder="example@sila.sy أو fast_express"
                 className="text-left"
                 dir="ltr"
               />
