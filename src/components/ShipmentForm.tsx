@@ -145,39 +145,80 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   // Resolve final district id (area takes precedence, fallback to province row)
   const finalDistrictId = selectedArea?.id || selectedProvince?.id || "";
 
-  // Fetch couriers covering this district from courier_district_rates ONLY (no defaults / no fallbacks)
+  // Smart Routing V2: filter by destination district + weight range,
+  // and require courier to also operate in the merchant's origin province.
+  const weightNum = useMemo(() => {
+    const w = parseFloat(weight);
+    return isNaN(w) || w <= 0 ? 0 : w;
+  }, [weight]);
+  const codAmountNum = parseFloat(form.cod_amount) || 0;
+
   useEffect(() => {
     setSelectedCourierRateId("");
     setCourierOptions([]);
-    if (!finalDistrictId) return;
+    if (!finalDistrictId || !merchantProvinceId || weightNum <= 0) return;
     let cancelled = false;
     (async () => {
       setLoadingCouriers(true);
-      const { data, error } = await supabase
+
+      // Step 1: districts that belong to merchant's origin province (province row + its areas)
+      const originDistrictIds = districts
+        .filter(d => d.id === merchantProvinceId || d.parent_id === merchantProvinceId)
+        .map(d => d.id);
+
+      // Step 2: rates matching destination + weight range
+      const { data: destRates, error: destErr } = await supabase
         .from("courier_district_rates" as any)
-        .select("id, courier_id, custom_delivery_fee, couriers!inner(id, name, services, is_active)")
-        .eq("district_id", finalDistrictId);
+        .select("id, courier_id, custom_delivery_fee, min_weight_kg, max_weight_kg, estimated_days, couriers!inner(id, name, services, is_active, cod_fee_type, cod_fee_value)")
+        .eq("district_id", finalDistrictId)
+        .lte("min_weight_kg", weightNum)
+        .gte("max_weight_kg", weightNum);
+
       if (cancelled) return;
-      if (error) {
+      if (destErr) {
         toast.error("تعذر جلب شركات الشحن");
         setLoadingCouriers(false);
         return;
       }
-      const opts: CourierOption[] = (data || [])
-        .filter((r: any) => r.couriers?.is_active)
-        .map((r: any) => ({
-          rate_id: r.id,
-          courier_id: r.courier_id,
-          name: r.couriers.name,
-          services: r.couriers.services || [],
-          fee: Number(r.custom_delivery_fee) || 0,
-        }))
-        .sort((a, b) => a.fee - b.fee);
+
+      // Step 3: which couriers also operate in origin province?
+      const destCourierIds = Array.from(new Set((destRates || []).map((r: any) => r.courier_id)));
+      let originCourierIds = new Set<string>();
+      if (destCourierIds.length > 0 && originDistrictIds.length > 0) {
+        const { data: originRates } = await supabase
+          .from("courier_district_rates" as any)
+          .select("courier_id")
+          .in("courier_id", destCourierIds)
+          .in("district_id", originDistrictIds);
+        (originRates || []).forEach((r: any) => originCourierIds.add(r.courier_id));
+      }
+
+      const opts: CourierOption[] = (destRates || [])
+        .filter((r: any) => r.couriers?.is_active && originCourierIds.has(r.courier_id))
+        .map((r: any) => {
+          const feeType = (r.couriers.cod_fee_type as "fixed" | "percentage") || "percentage";
+          const feeVal = Number(r.couriers.cod_fee_value) || 0;
+          const codFee = codAmountNum > 0
+            ? (feeType === "percentage" ? (codAmountNum * feeVal / 100) : feeVal)
+            : 0;
+          return {
+            rate_id: r.id,
+            courier_id: r.courier_id,
+            name: r.couriers.name,
+            services: r.couriers.services || [],
+            fee: Number(r.custom_delivery_fee) || 0,
+            estimated_days: r.estimated_days || null,
+            cod_fee_type: feeType,
+            cod_fee_value: feeVal,
+            cod_fee: Math.round(codFee),
+          };
+        })
+        .sort((a, b) => (a.fee + a.cod_fee) - (b.fee + b.cod_fee));
       setCourierOptions(opts);
       setLoadingCouriers(false);
     })();
     return () => { cancelled = true; };
-  }, [finalDistrictId]);
+  }, [finalDistrictId, merchantProvinceId, weightNum, codAmountNum, districts]);
 
   const selectedCourier = useMemo(
     () => courierOptions.find(c => c.rate_id === selectedCourierRateId) || null,
