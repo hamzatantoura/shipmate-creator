@@ -184,7 +184,6 @@ export type Database = {
       couriers: {
         Row: {
           city: string | null
-          cod_fee_percentage: number
           cod_fee_type: string
           cod_fee_value: number
           created_at: string
@@ -199,7 +198,6 @@ export type Database = {
         }
         Insert: {
           city?: string | null
-          cod_fee_percentage?: number
           cod_fee_type?: string
           cod_fee_value?: number
           created_at?: string
@@ -214,7 +212,6 @@ export type Database = {
         }
         Update: {
           city?: string | null
-          cod_fee_percentage?: number
           cod_fee_type?: string
           cod_fee_value?: number
           created_at?: string
@@ -1074,6 +1071,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_vendor_courier: { Args: { _courier_id: string }; Returns: boolean }
       track_order_by_sila_code: { Args: { p_code: string }; Returns: Json }
       track_shipment_public: {
         Args: { p_tracking_number: string }
