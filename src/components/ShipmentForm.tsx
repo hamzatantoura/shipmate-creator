@@ -244,6 +244,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!merchantProvinceId) { toast.error("يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً."); return; }
+    if (weightNum <= 0) { toast.error("الرجاء إدخال وزن الشحنة بالكغ"); return; }
     if (!selectedProvinceId || !selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
     if (!selectedCourier) { toast.error("الرجاء اختيار شركة الشحن"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
@@ -264,9 +266,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       district_id: finalDistrictId,
       courier_id: selectedCourier.courier_id,
       total_amount: codAmount,
-      delivery_fee: pricing.merchant_shipping_fee,
-      platform_fee: pricing.collection_fee,
-      net_amount: pricing.net_to_merchant,
+      delivery_fee: selectedCourier.fee,
+      platform_fee: courierCodFee,
+      net_amount: codAmount - selectedCourier.fee - courierCodFee,
       notes: form.notes.trim() || null,
       status: "new",
     } as any).select().single();
