@@ -23,6 +23,8 @@ interface Courier {
   is_active: boolean;
   vendor_id: string | null;
   services?: string[] | null;
+  cod_fee_type?: "fixed" | "percentage" | null;
+  cod_fee_value?: number | null;
 }
 
 interface VendorProfile {
