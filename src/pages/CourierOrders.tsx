@@ -103,6 +103,7 @@ export default function CourierOrders() {
   const { user, signOut } = useAuth();
   const [orders, setOrders] = useState<CourierOrderRow[]>([]);
   const [companyName, setCompanyName] = useState<string>("");
+  const [companyLoaded, setCompanyLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
@@ -111,6 +112,12 @@ export default function CourierOrders() {
   const [tab, setTab] = useState<TabKey>("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [editDialog, setEditDialog] = useState<CourierOrderRow | null>(null);
+  const [editWeight, setEditWeight] = useState<string>("");
+  const [editPrice, setEditPrice] = useState<string>("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [revertDialog, setRevertDialog] = useState<CourierOrderRow | null>(null);
+  const [reverting, setReverting] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!user) return;
@@ -118,7 +125,7 @@ export default function CourierOrders() {
     const [ordersRes, courierRes] = await Promise.all([
       supabase
         .from("orders")
-        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, couriers(name), districts(name)")
+        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, couriers(name), districts(name)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       supabase
@@ -130,7 +137,11 @@ export default function CourierOrders() {
     ]);
     if (ordersRes.error) toast.error("تعذر تحميل الطلبات");
     else setOrders((ordersRes.data || []) as CourierOrderRow[]);
-    if (courierRes.data?.name) setCompanyName(courierRes.data.name);
+    if (courierRes.error) {
+      console.error("Courier fetch error:", courierRes.error);
+    }
+    setCompanyName(courierRes.data?.name ?? "");
+    setCompanyLoaded(true);
     setLoading(false);
   }, [user]);
 
