@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Package, Loader2, MapPin, AlertCircle, ShieldAlert } from "lucide-react";
+import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
 
@@ -20,6 +20,21 @@ interface District {
   province_ar: string;
   delivery_fee: number;
 }
+
+interface CourierOption {
+  rate_id: string;
+  courier_id: string;
+  name: string;
+  services: string[];
+  fee: number;
+}
+
+const SERVICE_LABELS: Record<string, string> = {
+  same_day: "نفس اليوم",
+  heavy: "ثقيل",
+  fragile: "قابل للكسر",
+  refrigerated: "مبرد",
+};
 
 interface ShipmentFormProps {
   onCreated: () => void;
@@ -51,6 +66,11 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState("");
+
+  // Smart Routing: couriers covering the selected district
+  const [courierOptions, setCourierOptions] = useState<CourierOption[]>([]);
+  const [loadingCouriers, setLoadingCouriers] = useState(false);
+  const [selectedCourierRateId, setSelectedCourierRateId] = useState("");
 
   const [phoneError, setPhoneError] = useState("");
   const [form, setForm] = useState({
@@ -97,8 +117,50 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const selectedProvince = useMemo(() => provinces.find(p => p.id === selectedProvinceId) || null, [provinces, selectedProvinceId]);
   const selectedArea = useMemo(() => areas.find(a => a.id === selectedAreaId) || null, [areas, selectedAreaId]);
 
-  // Carrier fee from selected area or fallback to province
-  const carrierFee = selectedArea ? Number(selectedArea.delivery_fee) : selectedProvince ? Number(selectedProvince.delivery_fee) : 0;
+  // Resolve final district id (area takes precedence, fallback to province row)
+  const finalDistrictId = selectedArea?.id || selectedProvince?.id || "";
+
+  // Fetch couriers covering this district from courier_district_rates ONLY (no defaults / no fallbacks)
+  useEffect(() => {
+    setSelectedCourierRateId("");
+    setCourierOptions([]);
+    if (!finalDistrictId) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingCouriers(true);
+      const { data, error } = await supabase
+        .from("courier_district_rates" as any)
+        .select("id, courier_id, custom_delivery_fee, couriers!inner(id, name, services, is_active)")
+        .eq("district_id", finalDistrictId);
+      if (cancelled) return;
+      if (error) {
+        toast.error("تعذر جلب شركات الشحن");
+        setLoadingCouriers(false);
+        return;
+      }
+      const opts: CourierOption[] = (data || [])
+        .filter((r: any) => r.couriers?.is_active)
+        .map((r: any) => ({
+          rate_id: r.id,
+          courier_id: r.courier_id,
+          name: r.couriers.name,
+          services: r.couriers.services || [],
+          fee: Number(r.custom_delivery_fee) || 0,
+        }))
+        .sort((a, b) => a.fee - b.fee);
+      setCourierOptions(opts);
+      setLoadingCouriers(false);
+    })();
+    return () => { cancelled = true; };
+  }, [finalDistrictId]);
+
+  const selectedCourier = useMemo(
+    () => courierOptions.find(c => c.rate_id === selectedCourierRateId) || null,
+    [courierOptions, selectedCourierRateId]
+  );
+
+  // Carrier fee comes EXCLUSIVELY from the selected courier's rate. No defaults.
+  const carrierFee = selectedCourier ? selectedCourier.fee : 0;
   const codAmount = parseFloat(form.cod_amount) || 0;
 
   // Use pricing engine — merchant sees merchant_shipping_fee + collection_fee
@@ -116,6 +178,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProvinceId || !selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (!selectedCourier) { toast.error("الرجاء اختيار شركة الشحن"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
     if (lossOrder) { toast.error("لا يمكن إتمام الطلب: تكلفة الشحن والتحصيل أكبر من قيمة الطلب"); return; }
 
@@ -123,7 +186,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     const tracking = `SIL-${Date.now().toString(36).toUpperCase()}`;
     const provinceAr = selectedProvince.province_ar;
     const cityEnum = CITY_MAP[selectedProvince.province] || "Damascus";
-    const finalDistrictId = selectedArea?.id || selectedProvince.id;
 
     // Order uses merchant-visible fees
     const { data: order, error: orderErr } = await supabase.from("orders").insert({
@@ -133,6 +195,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       city: provinceAr,
       detailed_address: form.detailed_address.trim(),
       district_id: finalDistrictId,
+      courier_id: selectedCourier.courier_id,
       total_amount: codAmount,
       delivery_fee: pricing.merchant_shipping_fee,
       platform_fee: pricing.collection_fee,
@@ -161,6 +224,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       volumetric_weight: pricing.volumetric_weight,
       order_id: (order as any)?.id || prefill?.order_id || null,
       carrier_id: null,
+      courier_id: selectedCourier.courier_id,
       notes: form.notes.trim() || null,
       status: "pending",
     } as any);
@@ -170,7 +234,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
     setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "", notes: "" });
-    setSelectedProvinceId(""); setSelectedAreaId("");
+    setSelectedProvinceId(""); setSelectedAreaId(""); setSelectedCourierRateId("");
     onCreated();
   };
 
@@ -193,7 +257,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
           <Select value={selectedProvinceId} onValueChange={setSelectedProvinceId}>
@@ -201,19 +265,76 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             <SelectContent>{provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.province_ar}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        {areas.length > 0 && (
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة</Label>
-            <Select value={selectedAreaId} onValueChange={setSelectedAreaId}>
-              <SelectTrigger><SelectValue placeholder="اختر المنطقة" /></SelectTrigger>
-              <SelectContent>{areas.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" /> المنطقة
+            {areas.length > 0 && <span className="text-destructive">*</span>}
+          </Label>
+          <Select
+            value={selectedAreaId}
+            onValueChange={setSelectedAreaId}
+            disabled={!selectedProvinceId || areas.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={
+                !selectedProvinceId ? "اختر المحافظة أولاً" :
+                areas.length === 0 ? "لا مناطق فرعية" : "اختر المنطقة"
+              } />
+            </SelectTrigger>
+            <SelectContent>{areas.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Smart Routing: Courier selection bound to district rates */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5">
+          <Truck className="h-3.5 w-3.5" /> شركة الشحن <span className="text-destructive">*</span>
+        </Label>
+        <Select
+          value={selectedCourierRateId}
+          onValueChange={setSelectedCourierRateId}
+          disabled={!finalDistrictId || loadingCouriers || courierOptions.length === 0}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={
+              !finalDistrictId ? "اختر المنطقة أولاً" :
+              loadingCouriers ? "جاري جلب الشركات..." :
+              courierOptions.length === 0 ? "لا تغطية لهذه المنطقة" :
+              "اختر شركة الشحن"
+            } />
+          </SelectTrigger>
+          <SelectContent>
+            {courierOptions.map(c => (
+              <SelectItem key={c.rate_id} value={c.rate_id}>
+                <div className="flex flex-col items-start gap-0.5 py-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{c.name}</span>
+                    <span className="text-primary font-bold">— {c.fee.toLocaleString()} ل.س</span>
+                  </div>
+                  {c.services.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {c.services.map(s => (
+                        <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          {SERVICE_LABELS[s] || s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {loadingCouriers && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" /> جاري جلب الشركات المتاحة...
+          </p>
         )}
-        {selectedProvinceId && areas.length === 0 && (
-          <div className="md:col-span-2 flex items-center gap-2 p-3 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground">
+        {finalDistrictId && !loadingCouriers && courierOptions.length === 0 && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>لا توجد مناطق فرعية لهذه المحافظة. سيتم احتساب رسوم المحافظة الأساسية.</span>
+            <p>عذراً، لا توجد شركات شحن تغطي هذه المنطقة حالياً. يرجى التواصل مع الإدارة.</p>
           </div>
         )}
       </div>
@@ -271,7 +392,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       )}
 
-      <Button type="submit" disabled={loading || lossOrder} className="w-full">
+      <Button type="submit" disabled={loading || lossOrder || !selectedCourier} className="w-full">
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
