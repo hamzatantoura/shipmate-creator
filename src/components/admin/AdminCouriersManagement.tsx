@@ -711,6 +711,40 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
               </div>
             </Card>
 
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" /> عمولة التحصيل (COD)
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>نوع عمولة التحصيل</Label>
+                  <Select value={codFeeType} onValueChange={(v) => setCodFeeType(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percentage">نسبة مئوية (%)</SelectItem>
+                      <SelectItem value="fixed">مبلغ ثابت (ل.س)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>قيمة عمولة التحصيل</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step={codFeeType === "percentage" ? "0.1" : "100"}
+                    value={codFeeValue}
+                    onChange={(e) => setCodFeeValue(e.target.value)}
+                    dir="ltr"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {codFeeType === "percentage"
+                      ? "مثال: 1 = 1٪ من قيمة التحصيل"
+                      : "مبلغ ثابت يُضاف على كل شحنة فيها تحصيل"}
+                  </p>
+                </div>
+              </div>
+            </Card>
+
             <Button onClick={saveInfo} disabled={savingInfo} className="w-full">
               {savingInfo ? "جاري الحفظ..." : "حفظ التعديلات"}
             </Button>
