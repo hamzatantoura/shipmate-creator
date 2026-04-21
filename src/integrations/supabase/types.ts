@@ -185,6 +185,8 @@ export type Database = {
         Row: {
           city: string | null
           cod_fee_percentage: number
+          cod_fee_type: string
+          cod_fee_value: number
           created_at: string
           id: string
           is_active: boolean
@@ -198,6 +200,8 @@ export type Database = {
         Insert: {
           city?: string | null
           cod_fee_percentage?: number
+          cod_fee_type?: string
+          cod_fee_value?: number
           created_at?: string
           id?: string
           is_active?: boolean
@@ -211,6 +215,8 @@ export type Database = {
         Update: {
           city?: string | null
           cod_fee_percentage?: number
+          cod_fee_type?: string
+          cod_fee_value?: number
           created_at?: string
           id?: string
           is_active?: boolean

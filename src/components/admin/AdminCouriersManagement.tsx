@@ -23,6 +23,8 @@ interface Courier {
   is_active: boolean;
   vendor_id: string | null;
   services?: string[] | null;
+  cod_fee_type?: "fixed" | "percentage" | null;
+  cod_fee_value?: number | null;
 }
 
 interface VendorProfile {
@@ -71,7 +73,7 @@ export default function AdminCouriersManagement() {
   const fetchAll = async () => {
     setLoading(true);
     const [cRes, dRes, rRes, vRes] = await Promise.all([
-      supabase.from("couriers").select("id, name, phone, city, is_active, vendor_id, services" as any).order("name"),
+      supabase.from("couriers").select("id, name, phone, city, is_active, vendor_id, services, cod_fee_type, cod_fee_value" as any).order("name"),
       supabase.from("districts").select("id, name, parent_id, province_ar, delivery_fee").order("name"),
       supabase.from("courier_district_rates" as any).select("id, courier_id, district_id, custom_delivery_fee"),
       supabase.from("profiles").select("user_id, contact_person, phone, store_name").eq("role", "vendor"),
@@ -546,6 +548,12 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
   const [city, setCity] = useState(courier.city || "");
   const [services, setServices] = useState<string[]>(courier.services || []);
   const [savingInfo, setSavingInfo] = useState(false);
+  const [codFeeType, setCodFeeType] = useState<"fixed" | "percentage">(
+    (courier.cod_fee_type as any) || "percentage"
+  );
+  const [codFeeValue, setCodFeeValue] = useState<string>(
+    courier.cod_fee_value != null ? String(courier.cod_fee_value) : "0"
+  );
 
   // Tab 2: Onboarding
   const [email, setEmail] = useState("");
@@ -600,6 +608,8 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
       phone: phone.trim() || null,
       city: city.trim() || null,
       services,
+      cod_fee_type: codFeeType,
+      cod_fee_value: Number(codFeeValue) || 0,
     } as any).eq("id", courier.id);
     setSavingInfo(false);
     if (error) { toast.error(error.message); return; }
@@ -698,6 +708,40 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                     <span>{s.label}</span>
                   </label>
                 ))}
+              </div>
+            </Card>
+
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" /> عمولة التحصيل (COD)
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>نوع عمولة التحصيل</Label>
+                  <Select value={codFeeType} onValueChange={(v) => setCodFeeType(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percentage">نسبة مئوية (%)</SelectItem>
+                      <SelectItem value="fixed">مبلغ ثابت (ل.س)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>قيمة عمولة التحصيل</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step={codFeeType === "percentage" ? "0.1" : "100"}
+                    value={codFeeValue}
+                    onChange={(e) => setCodFeeValue(e.target.value)}
+                    dir="ltr"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {codFeeType === "percentage"
+                      ? "مثال: 1 = 1٪ من قيمة التحصيل"
+                      : "مبلغ ثابت يُضاف على كل شحنة فيها تحصيل"}
+                  </p>
+                </div>
               </div>
             </Card>
 

@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck } from "lucide-react";
+import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
 
@@ -27,6 +27,10 @@ interface CourierOption {
   name: string;
   services: string[];
   fee: number;
+  estimated_days: string | null;
+  cod_fee_type: "fixed" | "percentage";
+  cod_fee_value: number;
+  cod_fee: number; // computed for current cod amount
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -67,6 +71,13 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState("");
 
+  // Merchant origin (must exist before form is usable)
+  const [merchantProvinceId, setMerchantProvinceId] = useState<string | null>(null);
+  const [merchantLoaded, setMerchantLoaded] = useState(false);
+
+  // Mandatory weight in KG
+  const [weight, setWeight] = useState<string>("1");
+
   // Smart Routing: couriers covering the selected district
   const [courierOptions, setCourierOptions] = useState<CourierOption[]>([]);
   const [loadingCouriers, setLoadingCouriers] = useState(false);
@@ -85,6 +96,20 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee").eq("is_active", true)
       .then(({ data }) => { if (data) setDistricts(data as any); });
   }, []);
+
+  // Load merchant origin province
+  useEffect(() => {
+    if (!user?.id) { setMerchantLoaded(true); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("merchants")
+        .select("province_id" as any)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setMerchantProvinceId((data as any)?.province_id || null);
+      setMerchantLoaded(true);
+    })();
+  }, [user?.id]);
 
   useEffect(() => {
     if (prefill) {
@@ -120,48 +145,90 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   // Resolve final district id (area takes precedence, fallback to province row)
   const finalDistrictId = selectedArea?.id || selectedProvince?.id || "";
 
-  // Fetch couriers covering this district from courier_district_rates ONLY (no defaults / no fallbacks)
+  // Smart Routing V2: filter by destination district + weight range,
+  // and require courier to also operate in the merchant's origin province.
+  const weightNum = useMemo(() => {
+    const w = parseFloat(weight);
+    return isNaN(w) || w <= 0 ? 0 : w;
+  }, [weight]);
+  const codAmountNum = parseFloat(form.cod_amount) || 0;
+
   useEffect(() => {
     setSelectedCourierRateId("");
     setCourierOptions([]);
-    if (!finalDistrictId) return;
+    if (!finalDistrictId || !merchantProvinceId || weightNum <= 0) return;
     let cancelled = false;
     (async () => {
       setLoadingCouriers(true);
-      const { data, error } = await supabase
+
+      // Step 1: districts that belong to merchant's origin province (province row + its areas)
+      const originDistrictIds = districts
+        .filter(d => d.id === merchantProvinceId || d.parent_id === merchantProvinceId)
+        .map(d => d.id);
+
+      // Step 2: rates matching destination + weight range
+      const { data: destRates, error: destErr } = await supabase
         .from("courier_district_rates" as any)
-        .select("id, courier_id, custom_delivery_fee, couriers!inner(id, name, services, is_active)")
-        .eq("district_id", finalDistrictId);
+        .select("id, courier_id, custom_delivery_fee, min_weight_kg, max_weight_kg, estimated_days, couriers!inner(id, name, services, is_active, cod_fee_type, cod_fee_value)")
+        .eq("district_id", finalDistrictId)
+        .lte("min_weight_kg", weightNum)
+        .gte("max_weight_kg", weightNum);
+
       if (cancelled) return;
-      if (error) {
+      if (destErr) {
         toast.error("تعذر جلب شركات الشحن");
         setLoadingCouriers(false);
         return;
       }
-      const opts: CourierOption[] = (data || [])
-        .filter((r: any) => r.couriers?.is_active)
-        .map((r: any) => ({
-          rate_id: r.id,
-          courier_id: r.courier_id,
-          name: r.couriers.name,
-          services: r.couriers.services || [],
-          fee: Number(r.custom_delivery_fee) || 0,
-        }))
-        .sort((a, b) => a.fee - b.fee);
+
+      // Step 3: which couriers also operate in origin province?
+      const destCourierIds = Array.from(new Set((destRates || []).map((r: any) => r.courier_id)));
+      let originCourierIds = new Set<string>();
+      if (destCourierIds.length > 0 && originDistrictIds.length > 0) {
+        const { data: originRates } = await supabase
+          .from("courier_district_rates" as any)
+          .select("courier_id")
+          .in("courier_id", destCourierIds)
+          .in("district_id", originDistrictIds);
+        (originRates || []).forEach((r: any) => originCourierIds.add(r.courier_id));
+      }
+
+      const opts: CourierOption[] = (destRates || [])
+        .filter((r: any) => r.couriers?.is_active && originCourierIds.has(r.courier_id))
+        .map((r: any) => {
+          const feeType = (r.couriers.cod_fee_type as "fixed" | "percentage") || "percentage";
+          const feeVal = Number(r.couriers.cod_fee_value) || 0;
+          const codFee = codAmountNum > 0
+            ? (feeType === "percentage" ? (codAmountNum * feeVal / 100) : feeVal)
+            : 0;
+          return {
+            rate_id: r.id,
+            courier_id: r.courier_id,
+            name: r.couriers.name,
+            services: r.couriers.services || [],
+            fee: Number(r.custom_delivery_fee) || 0,
+            estimated_days: r.estimated_days || null,
+            cod_fee_type: feeType,
+            cod_fee_value: feeVal,
+            cod_fee: Math.round(codFee),
+          };
+        })
+        .sort((a, b) => (a.fee + a.cod_fee) - (b.fee + b.cod_fee));
       setCourierOptions(opts);
       setLoadingCouriers(false);
     })();
     return () => { cancelled = true; };
-  }, [finalDistrictId]);
+  }, [finalDistrictId, merchantProvinceId, weightNum, codAmountNum, districts]);
 
   const selectedCourier = useMemo(
     () => courierOptions.find(c => c.rate_id === selectedCourierRateId) || null,
     [courierOptions, selectedCourierRateId]
   );
 
-  // Carrier fee comes EXCLUSIVELY from the selected courier's rate. No defaults.
+  // Carrier fee + COD fee come EXCLUSIVELY from the selected courier's rate. No defaults.
   const carrierFee = selectedCourier ? selectedCourier.fee : 0;
-  const codAmount = parseFloat(form.cod_amount) || 0;
+  const courierCodFee = selectedCourier ? selectedCourier.cod_fee : 0;
+  const codAmount = codAmountNum;
 
   // Use pricing engine — merchant sees merchant_shipping_fee + collection_fee
   const pricing = useMemo(() => {
@@ -177,6 +244,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!merchantProvinceId) { toast.error("يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً."); return; }
+    if (weightNum <= 0) { toast.error("الرجاء إدخال وزن الشحنة بالكغ"); return; }
     if (!selectedProvinceId || !selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
     if (!selectedCourier) { toast.error("الرجاء اختيار شركة الشحن"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
@@ -197,9 +266,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       district_id: finalDistrictId,
       courier_id: selectedCourier.courier_id,
       total_amount: codAmount,
-      delivery_fee: pricing.merchant_shipping_fee,
-      platform_fee: pricing.collection_fee,
-      net_amount: pricing.net_to_merchant,
+      delivery_fee: selectedCourier.fee,
+      platform_fee: courierCodFee,
+      net_amount: codAmount - selectedCourier.fee - courierCodFee,
       notes: form.notes.trim() || null,
       status: "new",
     } as any).select().single();
@@ -245,6 +314,16 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         <h2 className="text-lg font-display font-semibold text-foreground">طلب شحنة جديدة</h2>
       </div>
 
+      {merchantLoaded && !merchantProvinceId && (
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+          <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">العنوان غير مكتمل</p>
+            <p className="text-xs mt-1">يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً قبل إنشاء أي طلب شحن.</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>اسم المستلم <span className="text-destructive">*</span></Label>
@@ -289,16 +368,36 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       {/* Smart Routing: Courier selection bound to district rates */}
       <div className="space-y-2">
         <Label className="flex items-center gap-1.5">
+          <Weight className="h-3.5 w-3.5" /> وزن الشحنة (كغ) <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          type="number"
+          min="0.1"
+          step="0.1"
+          value={weight}
+          onChange={e => setWeight(e.target.value)}
+          required
+          dir="ltr"
+          placeholder="1"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          الوزن مطلوب لتحديد شركات الشحن المتاحة لهذه الفئة الوزنية.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5">
           <Truck className="h-3.5 w-3.5" /> شركة الشحن <span className="text-destructive">*</span>
         </Label>
         <Select
           value={selectedCourierRateId}
           onValueChange={setSelectedCourierRateId}
-          disabled={!finalDistrictId || loadingCouriers || courierOptions.length === 0}
+          disabled={!finalDistrictId || weightNum <= 0 || loadingCouriers || courierOptions.length === 0}
         >
           <SelectTrigger>
             <SelectValue placeholder={
               !finalDistrictId ? "اختر المنطقة أولاً" :
+              weightNum <= 0 ? "أدخل وزن الشحنة أولاً" :
               loadingCouriers ? "جاري جلب الشركات..." :
               courierOptions.length === 0 ? "لا تغطية لهذه المنطقة" :
               "اختر شركة الشحن"
@@ -307,10 +406,22 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
           <SelectContent>
             {courierOptions.map(c => (
               <SelectItem key={c.rate_id} value={c.rate_id}>
-                <div className="flex flex-col items-start gap-0.5 py-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{c.name}</span>
-                    <span className="text-primary font-bold">— {c.fee.toLocaleString()} ل.س</span>
+                <div className="flex flex-col items-start gap-1 py-1 min-w-[260px]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold">{c.name}</span>
+                    {c.estimated_days && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" /> {c.estimated_days} أيام
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-foreground">
+                      أجرة الشحن: <span className="font-bold text-primary">{c.fee.toLocaleString()} ل.س</span>
+                    </span>
+                    <span className="text-foreground">
+                      أجور التحصيل: <span className="font-bold text-primary">{c.cod_fee.toLocaleString()} ل.س</span>
+                    </span>
                   </div>
                   {c.services.length > 0 && (
                     <div className="flex flex-wrap gap-1">
@@ -392,7 +503,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       )}
 
-      <Button type="submit" disabled={loading || lossOrder || !selectedCourier} className="w-full">
+      <Button type="submit" disabled={loading || lossOrder || !selectedCourier || !merchantProvinceId || weightNum <= 0} className="w-full">
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
