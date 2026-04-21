@@ -25,7 +25,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
-  Download, ChevronDown, X, Loader2,
+  Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
@@ -46,6 +46,7 @@ interface CourierOrderRow {
   updated_at: string;
   notes: string | null;
   return_reason?: string | null;
+  shipment_id?: string | null;
   couriers?: { name: string } | null;
   districts?: { name: string } | null;
 }
