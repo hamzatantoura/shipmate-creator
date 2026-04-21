@@ -371,11 +371,22 @@ export default function CourierOrders() {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              مرحباً، {loading && !companyName ? "..." : companyName || "شركة الشحن"}
+              {!companyLoaded
+                ? "جارٍ التحميل..."
+                : companyName
+                  ? `مرحباً، ${companyName}`
+                  : "مرحباً بك"}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              نظرة عامة على أداء التوصيل والطلبات المسندة إليكم.
-            </p>
+            {companyLoaded && !companyName ? (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                لم يتم العثور على ملف شركة الشحن المرتبط بحسابك. يُرجى التواصل مع الإدارة.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-1">
+                نظرة عامة على أداء التوصيل والطلبات المسندة إليكم.
+              </p>
+            )}
           </div>
           <Badge variant="outline" className="self-start sm:self-auto gap-1.5 px-3 py-1.5 text-xs">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
