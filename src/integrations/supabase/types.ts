@@ -136,7 +136,10 @@ export type Database = {
           created_at: string
           custom_delivery_fee: number
           district_id: string
+          estimated_days: string | null
           id: string
+          max_weight_kg: number
+          min_weight_kg: number
           updated_at: string
         }
         Insert: {
@@ -144,7 +147,10 @@ export type Database = {
           created_at?: string
           custom_delivery_fee?: number
           district_id: string
+          estimated_days?: string | null
           id?: string
+          max_weight_kg?: number
+          min_weight_kg?: number
           updated_at?: string
         }
         Update: {
@@ -152,7 +158,10 @@ export type Database = {
           created_at?: string
           custom_delivery_fee?: number
           district_id?: string
+          estimated_days?: string | null
           id?: string
+          max_weight_kg?: number
+          min_weight_kg?: number
           updated_at?: string
         }
         Relationships: [
@@ -175,6 +184,7 @@ export type Database = {
       couriers: {
         Row: {
           city: string | null
+          cod_fee_percentage: number
           created_at: string
           id: string
           is_active: boolean
@@ -187,6 +197,7 @@ export type Database = {
         }
         Insert: {
           city?: string | null
+          cod_fee_percentage?: number
           created_at?: string
           id?: string
           is_active?: boolean
@@ -199,6 +210,7 @@ export type Database = {
         }
         Update: {
           city?: string | null
+          cod_fee_percentage?: number
           created_at?: string
           id?: string
           is_active?: boolean
@@ -301,6 +313,7 @@ export type Database = {
           phone: string | null
           phone_verified: boolean
           platform_fee_rate: number
+          province_id: string | null
           shipping_policy: string
           store_name: string
           updated_at: string
@@ -321,6 +334,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean
           platform_fee_rate?: number
+          province_id?: string | null
           shipping_policy?: string
           store_name?: string
           updated_at?: string
@@ -341,6 +355,7 @@ export type Database = {
           phone?: string | null
           phone_verified?: boolean
           platform_fee_rate?: number
+          province_id?: string | null
           shipping_policy?: string
           store_name?: string
           updated_at?: string
@@ -349,7 +364,15 @@ export type Database = {
           wallet_balance?: number
           whatsapp_number?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "merchants_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orders: {
         Row: {
