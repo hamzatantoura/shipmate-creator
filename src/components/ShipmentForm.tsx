@@ -97,6 +97,20 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       .then(({ data }) => { if (data) setDistricts(data as any); });
   }, []);
 
+  // Load merchant origin province
+  useEffect(() => {
+    if (!user?.id) { setMerchantLoaded(true); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("merchants")
+        .select("province_id" as any)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setMerchantProvinceId((data as any)?.province_id || null);
+      setMerchantLoaded(true);
+    })();
+  }, [user?.id]);
+
   useEffect(() => {
     if (prefill) {
       setForm({
