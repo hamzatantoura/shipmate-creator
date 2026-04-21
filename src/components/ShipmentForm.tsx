@@ -67,6 +67,11 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState("");
 
+  // Smart Routing: couriers covering the selected district
+  const [courierOptions, setCourierOptions] = useState<CourierOption[]>([]);
+  const [loadingCouriers, setLoadingCouriers] = useState(false);
+  const [selectedCourierRateId, setSelectedCourierRateId] = useState("");
+
   const [phoneError, setPhoneError] = useState("");
   const [form, setForm] = useState({
     receiver_name: prefill?.receiver_name || "",
@@ -112,8 +117,50 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const selectedProvince = useMemo(() => provinces.find(p => p.id === selectedProvinceId) || null, [provinces, selectedProvinceId]);
   const selectedArea = useMemo(() => areas.find(a => a.id === selectedAreaId) || null, [areas, selectedAreaId]);
 
-  // Carrier fee from selected area or fallback to province
-  const carrierFee = selectedArea ? Number(selectedArea.delivery_fee) : selectedProvince ? Number(selectedProvince.delivery_fee) : 0;
+  // Resolve final district id (area takes precedence, fallback to province row)
+  const finalDistrictId = selectedArea?.id || selectedProvince?.id || "";
+
+  // Fetch couriers covering this district from courier_district_rates ONLY (no defaults / no fallbacks)
+  useEffect(() => {
+    setSelectedCourierRateId("");
+    setCourierOptions([]);
+    if (!finalDistrictId) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingCouriers(true);
+      const { data, error } = await supabase
+        .from("courier_district_rates" as any)
+        .select("id, courier_id, custom_delivery_fee, couriers!inner(id, name, services, is_active)")
+        .eq("district_id", finalDistrictId);
+      if (cancelled) return;
+      if (error) {
+        toast.error("تعذر جلب شركات الشحن");
+        setLoadingCouriers(false);
+        return;
+      }
+      const opts: CourierOption[] = (data || [])
+        .filter((r: any) => r.couriers?.is_active)
+        .map((r: any) => ({
+          rate_id: r.id,
+          courier_id: r.courier_id,
+          name: r.couriers.name,
+          services: r.couriers.services || [],
+          fee: Number(r.custom_delivery_fee) || 0,
+        }))
+        .sort((a, b) => a.fee - b.fee);
+      setCourierOptions(opts);
+      setLoadingCouriers(false);
+    })();
+    return () => { cancelled = true; };
+  }, [finalDistrictId]);
+
+  const selectedCourier = useMemo(
+    () => courierOptions.find(c => c.rate_id === selectedCourierRateId) || null,
+    [courierOptions, selectedCourierRateId]
+  );
+
+  // Carrier fee comes EXCLUSIVELY from the selected courier's rate. No defaults.
+  const carrierFee = selectedCourier ? selectedCourier.fee : 0;
   const codAmount = parseFloat(form.cod_amount) || 0;
 
   // Use pricing engine — merchant sees merchant_shipping_fee + collection_fee
