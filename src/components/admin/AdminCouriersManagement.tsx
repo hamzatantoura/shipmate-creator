@@ -608,6 +608,8 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
       phone: phone.trim() || null,
       city: city.trim() || null,
       services,
+      cod_fee_type: codFeeType,
+      cod_fee_value: Number(codFeeValue) || 0,
     } as any).eq("id", courier.id);
     setSavingInfo(false);
     if (error) { toast.error(error.message); return; }
