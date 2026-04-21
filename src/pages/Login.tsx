@@ -20,7 +20,13 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Username workaround: if no '@', treat as courier username
+    const identifier = email.trim();
+    const loginEmail = identifier.includes("@")
+      ? identifier
+      : `${identifier.toLowerCase().replace(/[^a-z0-9_]/g, "")}@courier.sila.local`;
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (error) {
       toast.error(error.message);
       setLoading(false);
