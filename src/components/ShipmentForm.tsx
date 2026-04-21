@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Package, Loader2, MapPin, AlertCircle, ShieldAlert } from "lucide-react";
+import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
 
@@ -20,6 +20,21 @@ interface District {
   province_ar: string;
   delivery_fee: number;
 }
+
+interface CourierOption {
+  rate_id: string;
+  courier_id: string;
+  name: string;
+  services: string[];
+  fee: number;
+}
+
+const SERVICE_LABELS: Record<string, string> = {
+  same_day: "نفس اليوم",
+  heavy: "ثقيل",
+  fragile: "قابل للكسر",
+  refrigerated: "مبرد",
+};
 
 interface ShipmentFormProps {
   onCreated: () => void;
