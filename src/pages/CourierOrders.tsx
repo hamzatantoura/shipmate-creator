@@ -698,6 +698,77 @@ export default function CourierOrders() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Weight & Price dialog */}
+      <Dialog open={!!editDialog} onOpenChange={(o) => !o && setEditDialog(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scale className="h-4 w-4 text-primary" />
+              تعديل الوزن والقيمة
+            </DialogTitle>
+            <DialogDescription>
+              {editDialog && <span className="font-mono">{silaCodeOf(editDialog.id)}</span>} — حدّث القيم الفعلية قبل تأكيد التسليم.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">الوزن النهائي (كغ)</Label>
+              <Input
+                type="number" min="0.1" step="0.1" inputMode="decimal"
+                value={editWeight} onChange={(e) => setEditWeight(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">قيمة البيع النهائية (ل.س)</Label>
+              <Input
+                type="number" min="0" step="100" inputMode="numeric"
+                value={editPrice} onChange={(e) => setEditPrice(e.target.value)}
+              />
+            </div>
+            {!editDialog?.shipment_id && (
+              <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                هذا الطلب غير مرتبط بشحنة — سيتم تحديث الطلب فقط.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditDialog(null)} disabled={editSaving}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revert final status dialog */}
+      <Dialog open={!!revertDialog} onOpenChange={(o) => !o && setRevertDialog(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+              <Undo2 className="h-4 w-4" />
+              تراجع عن الحالة
+            </DialogTitle>
+            <DialogDescription>
+              سيتم إعادة الطلب {revertDialog && <span className="font-mono">{silaCodeOf(revertDialog.id)}</span>} إلى حالة "قيد التوصيل".
+              يُستخدم هذا الإجراء عند تحديث الحالة بالخطأ. سيتم تسجيل الحركة في سجل التدقيق.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>قد يكون لهذا الإجراء أثر على المحفظة والتسويات إذا تم إعادة الحالة بعد المعالجة.</span>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRevertDialog(null)} disabled={reverting}>إلغاء</Button>
+            <Button variant="destructive" onClick={revertFinal} disabled={reverting}>
+              {reverting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              تأكيد التراجع
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
