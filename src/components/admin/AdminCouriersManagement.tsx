@@ -635,6 +635,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                   <TableHeader>
                     <TableRow>
                       <TableHead>كود صِلة</TableHead>
+                      <TableHead>التاجر</TableHead>
                       <TableHead>المستلم</TableHead>
                       <TableHead>المدينة</TableHead>
                       <TableHead>الحالة</TableHead>
@@ -644,6 +645,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                     {assigned.map((o) => (
                       <TableRow key={o.id}>
                         <TableCell className="font-mono text-xs">SL-{String(o.id).slice(0, 6).toUpperCase()}</TableCell>
+                        <TableCell className="text-sm">{o.merchant_name}</TableCell>
                         <TableCell className="text-sm">{o.receiver_name}</TableCell>
                         <TableCell className="text-sm">{o.city}</TableCell>
                         <TableCell>
