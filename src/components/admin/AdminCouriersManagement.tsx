@@ -443,6 +443,29 @@ function RatesEditor({ courier, districts, provinces, areasOf, rates, onChanged 
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">عيّن سعراً مخصصاً لمناطق محددة. المناطق غير المُعرّفة تستخدم السعر الافتراضي.</p>
+
+      {/* CSV bulk import toolbar */}
+      <Card className="p-3 border-dashed bg-primary/5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h4 className="text-sm font-semibold flex items-center gap-1.5"><Upload className="h-4 w-4 text-primary" /> استيراد جماعي عبر CSV</h4>
+            <p className="text-[11px] text-muted-foreground mt-0.5">حمّل القالب، املأ التسعيرات بأسماء المحافظات والمناطق كما هي في النظام، ثم ارفع الملف.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" /> تحميل قالب CSV
+            </Button>
+            <Button asChild size="sm" disabled={importing} className="gap-1.5">
+              <label className="cursor-pointer">
+                {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {importing ? "جاري الاستيراد..." : "رفع تسعيرات CSV"}
+                <input type="file" accept=".csv,text/csv" hidden onChange={handleCsvUpload} disabled={importing} />
+              </label>
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       <Card className="p-3 bg-muted/30">
           <h4 className="text-sm font-semibold mb-3">إضافة / تحديث سعر</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
