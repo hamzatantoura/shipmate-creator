@@ -25,7 +25,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
-  Download, ChevronDown, X, Loader2,
+  Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
@@ -46,6 +46,7 @@ interface CourierOrderRow {
   updated_at: string;
   notes: string | null;
   return_reason?: string | null;
+  shipment_id?: string | null;
   couriers?: { name: string } | null;
   districts?: { name: string } | null;
 }
@@ -102,6 +103,7 @@ export default function CourierOrders() {
   const { user, signOut } = useAuth();
   const [orders, setOrders] = useState<CourierOrderRow[]>([]);
   const [companyName, setCompanyName] = useState<string>("");
+  const [companyLoaded, setCompanyLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
@@ -110,6 +112,12 @@ export default function CourierOrders() {
   const [tab, setTab] = useState<TabKey>("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [editDialog, setEditDialog] = useState<CourierOrderRow | null>(null);
+  const [editWeight, setEditWeight] = useState<string>("");
+  const [editPrice, setEditPrice] = useState<string>("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [revertDialog, setRevertDialog] = useState<CourierOrderRow | null>(null);
+  const [reverting, setReverting] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!user) return;
@@ -117,7 +125,7 @@ export default function CourierOrders() {
     const [ordersRes, courierRes] = await Promise.all([
       supabase
         .from("orders")
-        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, couriers(name), districts(name)")
+        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, couriers(name), districts(name)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       supabase
@@ -129,7 +137,11 @@ export default function CourierOrders() {
     ]);
     if (ordersRes.error) toast.error("تعذر تحميل الطلبات");
     else setOrders((ordersRes.data || []) as CourierOrderRow[]);
-    if (courierRes.data?.name) setCompanyName(courierRes.data.name);
+    if (courierRes.error) {
+      console.error("Courier fetch error:", courierRes.error);
+    }
+    setCompanyName(courierRes.data?.name ?? "");
+    setCompanyLoaded(true);
     setLoading(false);
   }, [user]);
 
@@ -280,6 +292,55 @@ export default function CourierOrders() {
     fetchAll();
   };
 
+  // ===== Edit Weight & Price =====
+  const openEditDialog = (o: CourierOrderRow) => {
+    setEditDialog(o);
+    // weight not stored on orders; default to 1 if no shipment-side value yet
+    setEditWeight("1");
+    setEditPrice(String(o.final_sale_price ?? o.total_amount ?? 0));
+  };
+  const saveEdit = async () => {
+    if (!editDialog) return;
+    const w = Number(editWeight);
+    const p = Number(editPrice);
+    if (!Number.isFinite(w) || w <= 0) { toast.error("الوزن غير صالح"); return; }
+    if (!Number.isFinite(p) || p < 0) { toast.error("القيمة غير صالحة"); return; }
+    setEditSaving(true);
+    const orderUpd = await supabase
+      .from("orders")
+      .update({ final_sale_price: p })
+      .eq("id", editDialog.id);
+    let shipmentErr: string | null = null;
+    if (editDialog.shipment_id) {
+      const sh = await supabase
+        .from("shipments")
+        .update({ final_weight: w, cod_amount: p })
+        .eq("id", editDialog.shipment_id);
+      if (sh.error) shipmentErr = sh.error.message;
+    }
+    setEditSaving(false);
+    if (orderUpd.error) { toast.error(orderUpd.error.message); return; }
+    if (shipmentErr) toast.error("تم تحديث الطلب لكن تعذر تحديث الشحنة: " + shipmentErr);
+    else toast.success("تم تحديث الوزن والقيمة");
+    setEditDialog(null);
+    fetchAll();
+  };
+
+  // ===== Revert final status =====
+  const revertFinal = async () => {
+    if (!revertDialog) return;
+    setReverting(true);
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "out_for_delivery", return_reason: null })
+      .eq("id", revertDialog.id);
+    setReverting(false);
+    if (error) { toast.error(error.message || "تعذر التراجع"); return; }
+    toast.success("تم إعادة الطلب إلى قيد التوصيل");
+    setRevertDialog(null);
+    fetchAll();
+  };
+
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
       {/* Header */}
@@ -310,11 +371,22 @@ export default function CourierOrders() {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              مرحباً، {loading && !companyName ? "..." : companyName || "شركة الشحن"}
+              {!companyLoaded
+                ? "جارٍ التحميل..."
+                : companyName
+                  ? `مرحباً، ${companyName}`
+                  : "مرحباً بك"}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              نظرة عامة على أداء التوصيل والطلبات المسندة إليكم.
-            </p>
+            {companyLoaded && !companyName ? (
+              <p className="text-sm text-destructive mt-1 flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                لم يتم العثور على ملف شركة الشحن المرتبط بحسابك. يُرجى التواصل مع الإدارة.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-1">
+                نظرة عامة على أداء التوصيل والطلبات المسندة إليكم.
+              </p>
+            )}
           </div>
           <Badge variant="outline" className="self-start sm:self-auto gap-1.5 px-3 py-1.5 text-xs">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -510,6 +582,7 @@ export default function CourierOrders() {
                       <TableHead className="text-xs">قيمة COD</TableHead>
                       <TableHead className="text-xs">الحالة</TableHead>
                       <TableHead className="w-[200px] text-xs">تحديث الحالة</TableHead>
+                      <TableHead className="w-[50px] text-xs"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -564,6 +637,27 @@ export default function CourierOrders() {
                               </Select>
                             )}
                           </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuLabel className="text-xs">إجراءات</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => openEditDialog(o)} disabled={isFinal}>
+                                  <Scale className="h-4 w-4" /> تعديل الوزن/القيمة
+                                </DropdownMenuItem>
+                                {isFinal && (
+                                  <DropdownMenuItem onClick={() => setRevertDialog(o)} className="text-amber-700 dark:text-amber-300 focus:text-amber-700">
+                                    <Undo2 className="h-4 w-4" /> تراجع عن الحالة
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -600,6 +694,77 @@ export default function CourierOrders() {
               onClick={() => returnDialog && updateStatus(returnDialog.orderId, "returned", returnReason)}
             >
               تأكيد الإرجاع
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Weight & Price dialog */}
+      <Dialog open={!!editDialog} onOpenChange={(o) => !o && setEditDialog(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scale className="h-4 w-4 text-primary" />
+              تعديل الوزن والقيمة
+            </DialogTitle>
+            <DialogDescription>
+              {editDialog && <span className="font-mono">{silaCodeOf(editDialog.id)}</span>} — حدّث القيم الفعلية قبل تأكيد التسليم.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">الوزن النهائي (كغ)</Label>
+              <Input
+                type="number" min="0.1" step="0.1" inputMode="decimal"
+                value={editWeight} onChange={(e) => setEditWeight(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">قيمة البيع النهائية (ل.س)</Label>
+              <Input
+                type="number" min="0" step="100" inputMode="numeric"
+                value={editPrice} onChange={(e) => setEditPrice(e.target.value)}
+              />
+            </div>
+            {!editDialog?.shipment_id && (
+              <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                هذا الطلب غير مرتبط بشحنة — سيتم تحديث الطلب فقط.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditDialog(null)} disabled={editSaving}>إلغاء</Button>
+            <Button onClick={saveEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              حفظ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revert final status dialog */}
+      <Dialog open={!!revertDialog} onOpenChange={(o) => !o && setRevertDialog(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+              <Undo2 className="h-4 w-4" />
+              تراجع عن الحالة
+            </DialogTitle>
+            <DialogDescription>
+              سيتم إعادة الطلب {revertDialog && <span className="font-mono">{silaCodeOf(revertDialog.id)}</span>} إلى حالة "قيد التوصيل".
+              يُستخدم هذا الإجراء عند تحديث الحالة بالخطأ. سيتم تسجيل الحركة في سجل التدقيق.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 flex gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>قد يكون لهذا الإجراء أثر على المحفظة والتسويات إذا تم إعادة الحالة بعد المعالجة.</span>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRevertDialog(null)} disabled={reverting}>إلغاء</Button>
+            <Button variant="destructive" onClick={revertFinal} disabled={reverting}>
+              {reverting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              تأكيد التراجع
             </Button>
           </DialogFooter>
         </DialogContent>
