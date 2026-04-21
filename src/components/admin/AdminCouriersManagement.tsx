@@ -589,7 +589,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                 <div className="space-y-2">
                   {(["email", "password"] as const).map((k) => (
                     <div key={k} className="flex items-center gap-2 bg-background border border-border rounded-md p-2">
-                      <span className="text-xs text-muted-foreground w-24">{k === "email" ? "البريد" : "كلمة المرور"}</span>
+                      <span className="text-xs text-muted-foreground w-24">{k === "email" ? "اسم المستخدم" : "كلمة المرور"}</span>
                       <code dir="ltr" className="flex-1 text-sm font-mono">{credentials[k]}</code>
                       <Button variant="ghost" size="icon" onClick={() => copyVal(credentials[k], k)}>
                         {copied === k ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
