@@ -30,7 +30,7 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     if (!allowedRoles.includes(role)) {
       const redirectMap: Record<UserRole, string> = {
         merchant: "/merchant",
-        vendor: "/vendor",
+        vendor: "/courier/orders",
         admin: "/admin",
       };
       return <Navigate to={redirectMap[role] || "/login"} replace />;

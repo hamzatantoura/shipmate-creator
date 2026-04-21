@@ -15,7 +15,7 @@ export default function AppHeader() {
       ]
     : role === "vendor"
     ? [
-        { path: "/vendor", label: "لوحة الشحن", icon: Package },
+        { path: "/courier/orders", label: "لوحة الشحن", icon: Package },
         { path: "/track", label: "تتبع", icon: Search },
       ]
     : [

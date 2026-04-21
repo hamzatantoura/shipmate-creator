@@ -13,7 +13,6 @@ import ResetPassword from "./pages/ResetPassword";
 import MerchantPortal from "./pages/MerchantPortal";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import MerchantOrdersPage from "./pages/MerchantOrdersPage";
-import VendorDashboard from "./pages/VendorDashboard";
 import CourierOrders from "./pages/CourierOrders";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
@@ -69,12 +68,7 @@ const App = () => (
             </AuthGuard>
           } />
 
-          {/* Protected: Vendor / Courier company */}
-          <Route path="/vendor" element={
-            <AuthGuard allowedRoles={["vendor"]}>
-              <VendorDashboard />
-            </AuthGuard>
-          } />
+          {/* Protected: Courier company (vendor role) — legacy /vendor removed */}
           <Route path="/courier/orders" element={
             <AuthGuard allowedRoles={["vendor"]}>
               <CourierOrders />
