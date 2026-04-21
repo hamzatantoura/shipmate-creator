@@ -651,7 +651,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
           <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="info" className="gap-1 text-xs"><Info className="h-3.5 w-3.5" /> بيانات وخدمات</TabsTrigger>
             <TabsTrigger value="account" className="gap-1 text-xs"><KeyRound className="h-3.5 w-3.5" /> حساب الدخول</TabsTrigger>
-            <TabsTrigger value="rates" className="gap-1 text-xs"><Map className="h-3.5 w-3.5" /> مناطق وتخفيضات</TabsTrigger>
+            <TabsTrigger value="rates" className="gap-1 text-xs"><MapIcon className="h-3.5 w-3.5" /> مناطق وتخفيضات</TabsTrigger>
             <TabsTrigger value="orders" className="gap-1 text-xs"><Package className="h-3.5 w-3.5" /> الطلبات الحالية</TabsTrigger>
           </TabsList>
 
