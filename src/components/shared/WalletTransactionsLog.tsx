@@ -2,17 +2,20 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, TrendingDown, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ArrowDownLeft, ArrowUpRight, Search } from "lucide-react";
 
-const TYPE_AR: Record<string, string> = {
-  topup: "شحن رصيد",
-  shipping_fee: "رسوم شحن",
-  cod_settlement: "تسوية COD",
-  commission: "بدل تحصيل",
-  carrier_adjustment: "تعديل الناقل",
-  return_fee: "رسوم إرجاع",
-  payout: "تسوية مالية",
+const TYPE_META: Record<string, { label: string; tone: string }> = {
+  topup:               { label: "شحن رصيد",        tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20" },
+  shipping_fee:        { label: "أجرة الشحن",       tone: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
+  cod_settlement:      { label: "قيمة COD",         tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" },
+  commission:          { label: "عمولة / تحصيل",    tone: "bg-primary/10 text-primary border-primary/20" },
+  carrier_adjustment:  { label: "تعديل الناقل",     tone: "bg-muted text-muted-foreground border-border" },
+  return_fee:          { label: "رسوم إرجاع",       tone: "bg-destructive/10 text-destructive border-destructive/20" },
+  payout:              { label: "تسوية مالية",      tone: "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20" },
 };
+
+const silaCodeOf = (id?: string | null) => (id ? "SL-" + id.slice(0, 6).toUpperCase() : "—");
 
 interface WalletTx {
   id: string;
@@ -21,6 +24,7 @@ interface WalletTx {
   description: string | null;
   created_at: string;
   wallet_id: string;
+  reference_id: string | null;
   merchant_name?: string;
 }
 
@@ -77,7 +81,12 @@ export default function WalletTransactionsLog({ merchantId, showAll }: Props) {
   }, [merchantId, showAll]);
 
   const filtered = search
-    ? txns.filter(t => (t.description || "").includes(search) || (t.merchant_name || "").includes(search) || TYPE_AR[t.type]?.includes(search))
+    ? txns.filter(t =>
+        (t.description || "").includes(search)
+        || (t.merchant_name || "").includes(search)
+        || TYPE_META[t.type]?.label.includes(search)
+        || silaCodeOf(t.reference_id).toLowerCase().includes(search.toLowerCase())
+      )
     : txns;
 
   if (loading) return <p className="text-center py-8 text-muted-foreground">جاري التحميل...</p>;
@@ -87,7 +96,7 @@ export default function WalletTransactionsLog({ merchantId, showAll }: Props) {
       <div className="relative">
         <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="بحث في الحركات..."
+          placeholder="بحث برمز الطلب، النوع، أو الوصف..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="pr-10"
@@ -98,26 +107,54 @@ export default function WalletTransactionsLog({ merchantId, showAll }: Props) {
         <p className="text-center py-8 text-muted-foreground">لا توجد حركات</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map(t => (
-            <Card key={t.id} className="bg-card border-border">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {t.amount >= 0 ? <TrendingUp className="h-4 w-4 text-primary" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{TYPE_AR[t.type] || t.type}</p>
-                    {t.merchant_name && <p className="text-xs text-primary">{t.merchant_name}</p>}
-                    {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
+          {filtered.map(t => {
+            const meta = TYPE_META[t.type] || { label: t.type, tone: "bg-muted text-muted-foreground border-border" };
+            const isCredit = Number(t.amount) >= 0;
+            const sila = silaCodeOf(t.reference_id);
+            return (
+              <Card key={t.id} className="bg-card border-border hover:border-primary/30 transition-colors">
+                <CardContent className="p-3.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`shrink-0 h-9 w-9 rounded-lg flex items-center justify-center ${
+                      isCredit
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        : "bg-destructive/10 text-destructive"
+                    }`}>
+                      {isCredit ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={`text-[10px] font-medium ${meta.tone}`}>
+                          {meta.label}
+                        </Badge>
+                        {t.reference_id && (
+                          <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {sila}
+                          </span>
+                        )}
+                      </div>
+                      {t.merchant_name && (
+                        <p className="text-xs text-primary mt-0.5 truncate">{t.merchant_name}</p>
+                      )}
+                      {t.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.description}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="text-left">
-                  <p className={`font-display font-bold ${t.amount >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                    {t.amount >= 0 ? '+' : ''}{Number(t.amount).toLocaleString()} ل.س
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(t.created_at).toLocaleDateString('ar')}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="text-left shrink-0">
+                    <p className={`font-bold tabular-nums text-sm ${
+                      isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+                    }`}>
+                      {isCredit ? "+" : ""}{Number(t.amount).toLocaleString("ar-SY")} ل.س
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {isCredit ? "دائن" : "مدين"} · {new Date(t.created_at).toLocaleDateString("ar-SY")}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
