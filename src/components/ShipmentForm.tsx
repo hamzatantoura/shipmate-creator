@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck } from "lucide-react";
+import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
 
@@ -27,6 +27,10 @@ interface CourierOption {
   name: string;
   services: string[];
   fee: number;
+  estimated_days: string | null;
+  cod_fee_type: "fixed" | "percentage";
+  cod_fee_value: number;
+  cod_fee: number; // computed for current cod amount
 }
 
 const SERVICE_LABELS: Record<string, string> = {
