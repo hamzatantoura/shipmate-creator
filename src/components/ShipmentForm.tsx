@@ -314,6 +314,17 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         <h2 className="text-lg font-display font-semibold text-foreground">طلب شحنة جديدة</h2>
       </div>
 
+      {merchantLoaded && !merchantProvinceId && (
+        <div className="flex items-start gap-2 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+          <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">العنوان غير مكتمل</p>
+            <p className="text-xs mt-1">يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً قبل إنشاء أي طلب شحن.</p>
+          </div>
+        </div>
+      )}
+
+      <fieldset disabled={!merchantProvinceId} className="space-y-5 contents">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>اسم المستلم <span className="text-destructive">*</span></Label>
