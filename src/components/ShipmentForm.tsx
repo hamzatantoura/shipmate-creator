@@ -503,7 +503,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       )}
 
-      <Button type="submit" disabled={loading || lossOrder || !selectedCourier} className="w-full">
+      <Button type="submit" disabled={loading || lossOrder || !selectedCourier || !merchantProvinceId || weightNum <= 0} className="w-full">
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
