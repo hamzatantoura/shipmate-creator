@@ -397,6 +397,24 @@ export default function CourierOrders() {
           </Badge>
         </div>
 
+        {/* Top-level tabs: Orders / Scanner / Wallet */}
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as typeof mainTab)} className="space-y-6">
+          <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 p-1">
+            <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+              <Package className="h-3.5 w-3.5" />
+              الطلبات
+            </TabsTrigger>
+            <TabsTrigger value="scanner" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+              <ScanLine className="h-3.5 w-3.5" />
+              الماسح الضوئي
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+              <Wallet className="h-3.5 w-3.5" />
+              المحفظة
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orders" className="space-y-6 mt-0">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <KpiCard
