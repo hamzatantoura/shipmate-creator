@@ -33,9 +33,11 @@ interface Props {
   merchantId?: string;
   /** If true, show all merchants' transactions (admin view) */
   showAll?: boolean;
+  /** If provided, show only transactions for orders/shipments assigned to one of this vendor's couriers */
+  vendorId?: string;
 }
 
-export default function WalletTransactionsLog({ merchantId, showAll }: Props) {
+export default function WalletTransactionsLog({ merchantId, showAll, vendorId }: Props) {
   const [txns, setTxns] = useState<WalletTx[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,38 @@ export default function WalletTransactionsLog({ merchantId, showAll }: Props) {
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
+
+      // ===== Courier (vendor) scope: fetch txns linked to orders / shipments
+      // assigned to one of this vendor's couriers. RLS enforces this server-side too.
+      if (vendorId) {
+        const { data: courierRows } = await supabase
+          .from("couriers")
+          .select("id")
+          .eq("vendor_id", vendorId);
+        const courierIds = (courierRows || []).map(c => c.id);
+        if (courierIds.length === 0) {
+          setTxns([]); setLoading(false); return;
+        }
+        const [{ data: orderRows }, { data: shipRows }] = await Promise.all([
+          supabase.from("orders").select("id").in("courier_id", courierIds),
+          supabase.from("shipments").select("id").in("courier_id", courierIds),
+        ]);
+        const refIds = [
+          ...((orderRows || []).map(o => o.id)),
+          ...((shipRows || []).map(s => s.id)),
+        ];
+        if (refIds.length === 0) { setTxns([]); setLoading(false); return; }
+        const { data } = await supabase
+          .from("wallet_transactions")
+          .select("*")
+          .in("reference_id", refIds)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        setTxns((data || []) as WalletTx[]);
+        setLoading(false);
+        return;
+      }
+
       let walletIds: string[] = [];
       let walletMerchantMap = new Map<string, string>();
 
@@ -78,7 +112,7 @@ export default function WalletTransactionsLog({ merchantId, showAll }: Props) {
       setLoading(false);
     };
     fetch();
-  }, [merchantId, showAll]);
+  }, [merchantId, showAll, vendorId]);
 
   const filtered = search
     ? txns.filter(t =>
