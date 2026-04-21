@@ -474,15 +474,21 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
   };
 
   const generateAccount = async () => {
-    if (!email.trim() || !password.trim() || !contact.trim()) {
-      toast.error("املأ البريد وكلمة المرور والاسم");
+    const username = email.trim().toLowerCase();
+    if (!username || !password.trim() || !contact.trim()) {
+      toast.error("املأ اسم المستخدم وكلمة المرور والاسم");
+      return;
+    }
+    if (!/^[a-z0-9_]+$/.test(username)) {
+      toast.error("اسم المستخدم: أحرف إنجليزية صغيرة وأرقام و _ فقط");
       return;
     }
     if (password.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
+    const fakeEmail = `${username}@courier.sila.local`;
     setCreatingAccount(true);
     try {
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: fakeEmail,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
@@ -495,7 +501,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
       const { error: linkErr } = await supabase.from("couriers")
         .update({ vendor_id: newUserId } as any).eq("id", courier.id);
       if (linkErr) throw linkErr;
-      setCredentials({ email: email.trim(), password });
+      setCredentials({ email: username, password });
       toast.success("تم إنشاء حساب شركة الشحن وربطه");
       onRefresh();
     } catch (e: any) {
@@ -583,7 +589,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                 <div className="space-y-2">
                   {(["email", "password"] as const).map((k) => (
                     <div key={k} className="flex items-center gap-2 bg-background border border-border rounded-md p-2">
-                      <span className="text-xs text-muted-foreground w-24">{k === "email" ? "البريد" : "كلمة المرور"}</span>
+                      <span className="text-xs text-muted-foreground w-24">{k === "email" ? "اسم المستخدم" : "كلمة المرور"}</span>
                       <code dir="ltr" className="flex-1 text-sm font-mono">{credentials[k]}</code>
                       <Button variant="ghost" size="icon" onClick={() => copyVal(credentials[k], k)}>
                         {copied === k ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
@@ -598,7 +604,16 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                 <p className="text-xs text-muted-foreground">سيتم إنشاء مستخدم بدور <code>vendor</code> وربطه تلقائياً بهذه الشركة.</p>
                 <div className="space-y-2">
                   <div className="space-y-1.5"><Label>اسم جهة الاتصال</Label><Input value={contact} onChange={e => setContact(e.target.value)} placeholder="مدير العمليات" /></div>
-                  <div className="space-y-1.5"><Label>البريد الإلكتروني</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="ops@company.com" dir="ltr" /></div>
+                  <div className="space-y-1.5">
+                    <Label>اسم المستخدم</Label>
+                    <Input
+                      value={email}
+                      onChange={e => setEmail(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      placeholder="fast_express"
+                      dir="ltr"
+                    />
+                    <p className="text-[11px] text-muted-foreground">أحرف إنجليزية صغيرة وأرقام و _ فقط (بدون مسافات أو @).</p>
+                  </div>
                   <div className="space-y-1.5"><Label>كلمة المرور (6+ أحرف)</Label><Input type="text" value={password} onChange={e => setPassword(e.target.value)} dir="ltr" /></div>
                 </div>
                 <Button onClick={generateAccount} disabled={creatingAccount} className="w-full gap-1.5">

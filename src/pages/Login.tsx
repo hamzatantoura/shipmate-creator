@@ -20,7 +20,13 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    // Username workaround: if no '@', treat as courier username
+    const identifier = email.trim();
+    const loginEmail = identifier.includes("@")
+      ? identifier
+      : `${identifier.toLowerCase().replace(/[^a-z0-9_]/g, "")}@courier.sila.local`;
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (error) {
       toast.error(error.message);
       setLoading(false);
@@ -78,14 +84,14 @@ export default function Login() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <Label htmlFor="email">البريد الإلكتروني أو اسم المستخدم</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="example@sila.sy"
+                placeholder="example@sila.sy أو fast_express"
                 className="text-left"
                 dir="ltr"
               />
