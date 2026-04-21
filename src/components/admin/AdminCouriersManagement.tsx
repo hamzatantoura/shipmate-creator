@@ -474,15 +474,21 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
   };
 
   const generateAccount = async () => {
-    if (!email.trim() || !password.trim() || !contact.trim()) {
-      toast.error("املأ البريد وكلمة المرور والاسم");
+    const username = email.trim().toLowerCase();
+    if (!username || !password.trim() || !contact.trim()) {
+      toast.error("املأ اسم المستخدم وكلمة المرور والاسم");
+      return;
+    }
+    if (!/^[a-z0-9_]+$/.test(username)) {
+      toast.error("اسم المستخدم: أحرف إنجليزية صغيرة وأرقام و _ فقط");
       return;
     }
     if (password.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
+    const fakeEmail = `${username}@courier.sila.local`;
     setCreatingAccount(true);
     try {
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: fakeEmail,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
@@ -495,7 +501,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
       const { error: linkErr } = await supabase.from("couriers")
         .update({ vendor_id: newUserId } as any).eq("id", courier.id);
       if (linkErr) throw linkErr;
-      setCredentials({ email: email.trim(), password });
+      setCredentials({ email: username, password });
       toast.success("تم إنشاء حساب شركة الشحن وربطه");
       onRefresh();
     } catch (e: any) {
