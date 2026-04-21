@@ -324,7 +324,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       )}
 
-      <fieldset disabled={!merchantProvinceId} className="space-y-5 contents">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>اسم المستلم <span className="text-destructive">*</span></Label>
