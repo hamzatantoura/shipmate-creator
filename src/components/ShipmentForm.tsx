@@ -178,6 +178,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProvinceId || !selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (!selectedCourier) { toast.error("الرجاء اختيار شركة الشحن"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
     if (lossOrder) { toast.error("لا يمكن إتمام الطلب: تكلفة الشحن والتحصيل أكبر من قيمة الطلب"); return; }
 
@@ -185,7 +186,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     const tracking = `SIL-${Date.now().toString(36).toUpperCase()}`;
     const provinceAr = selectedProvince.province_ar;
     const cityEnum = CITY_MAP[selectedProvince.province] || "Damascus";
-    const finalDistrictId = selectedArea?.id || selectedProvince.id;
 
     // Order uses merchant-visible fees
     const { data: order, error: orderErr } = await supabase.from("orders").insert({
@@ -195,6 +195,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       city: provinceAr,
       detailed_address: form.detailed_address.trim(),
       district_id: finalDistrictId,
+      courier_id: selectedCourier.courier_id,
       total_amount: codAmount,
       delivery_fee: pricing.merchant_shipping_fee,
       platform_fee: pricing.collection_fee,
@@ -223,6 +224,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       volumetric_weight: pricing.volumetric_weight,
       order_id: (order as any)?.id || prefill?.order_id || null,
       carrier_id: null,
+      courier_id: selectedCourier.courier_id,
       notes: form.notes.trim() || null,
       status: "pending",
     } as any);
@@ -232,7 +234,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
     setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "", notes: "" });
-    setSelectedProvinceId(""); setSelectedAreaId("");
+    setSelectedProvinceId(""); setSelectedAreaId(""); setSelectedCourierRateId("");
     onCreated();
   };
 
