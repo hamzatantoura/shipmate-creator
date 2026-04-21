@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map, Package, Info, KeyRound, Download, Upload, Loader2 } from "lucide-react";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Download, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Courier {
