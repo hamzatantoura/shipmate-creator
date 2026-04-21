@@ -292,6 +292,117 @@ function RatesEditor({ courier, districts, provinces, areasOf, rates, onChanged 
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [fee, setFee] = useState("");
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const CSV_HEADERS = ["المحافظة","المنطقة","من_وزن","الى_وزن","اجرة_الشحن","المدة_المتوقعة"];
+
+  const downloadTemplate = () => {
+    const sample = [
+      CSV_HEADERS.join(","),
+      "دمشق,المزة,0,5,15000,1-2",
+      "حلب,الفرقان,0,10,20000,2-3",
+    ].join("\n");
+    // Prepend BOM so Excel opens Arabic correctly
+    const blob = new Blob(["\uFEFF" + sample], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `courier-rates-template-${courier.name}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCsv = (text: string): string[][] => {
+    const clean = text.replace(/^\uFEFF/, "");
+    const lines = clean.split(/\r?\n/).filter(l => l.trim().length > 0);
+    return lines.map(line => line.split(",").map(c => c.trim()));
+  };
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      toast.error("الملف يجب أن يكون بصيغة CSV");
+      return;
+    }
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const rows = parseCsv(text);
+      if (rows.length < 2) {
+        toast.error("الملف فارغ أو لا يحتوي بيانات");
+        return;
+      }
+      const header = rows[0];
+      const idx = (k: string) => header.indexOf(k);
+      const iProv = idx("المحافظة"), iDist = idx("المنطقة"),
+            iMin = idx("من_وزن"), iMax = idx("الى_وزن"),
+            iFee = idx("اجرة_الشحن"), iDays = idx("المدة_المتوقعة");
+      if ([iProv, iDist, iFee].some(i => i < 0)) {
+        toast.error("ترويسة الملف غير صحيحة. حمّل القالب أولاً.");
+        return;
+      }
+
+      // Build lookup: province_ar -> id; (province_id|district_name) -> district_id
+      const provMap = new Map<string, string>();
+      provinces.forEach(p => provMap.set(p.name.trim(), p.id));
+      const distMap = new Map<string, string>();
+      districts.forEach(d => {
+        if (d.parent_id) distMap.set(`${d.parent_id}|${d.name.trim()}`, d.id);
+      });
+
+      const matched: any[] = [];
+      const failed: { row: number; reason: string }[] = [];
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const provName = (row[iProv] || "").trim();
+        const distName = (row[iDist] || "").trim();
+        const feeNum = Number(row[iFee]);
+        if (!provName || !distName || isNaN(feeNum) || feeNum < 0) {
+          failed.push({ row: r + 1, reason: "بيانات ناقصة" }); continue;
+        }
+        const provId = provMap.get(provName);
+        if (!provId) { failed.push({ row: r + 1, reason: `محافظة غير معروفة: ${provName}` }); continue; }
+        const distId = distMap.get(`${provId}|${distName}`);
+        if (!distId) { failed.push({ row: r + 1, reason: `منطقة غير معروفة: ${distName}` }); continue; }
+
+        const minW = iMin >= 0 && row[iMin] !== "" ? Number(row[iMin]) : 0;
+        const maxW = iMax >= 0 && row[iMax] !== "" ? Number(row[iMax]) : 999;
+        const days = iDays >= 0 ? (row[iDays] || "").trim() || null : null;
+
+        matched.push({
+          courier_id: courier.id,
+          district_id: distId,
+          custom_delivery_fee: feeNum,
+          min_weight_kg: isNaN(minW) ? 0 : minW,
+          max_weight_kg: isNaN(maxW) ? 999 : maxW,
+          estimated_days: days,
+        });
+      }
+
+      if (matched.length === 0) {
+        toast.error(`لم يتم استيراد أي صف. ${failed.length} فشل في المطابقة.`);
+        return;
+      }
+
+      const { error } = await supabase.from("courier_district_rates" as any).insert(matched as any);
+      if (error) { toast.error(error.message); return; }
+
+      if (failed.length > 0) {
+        toast.warning(`تم استيراد ${matched.length} سعراً. فشل ${failed.length} صف (تحقق من الأسماء).`);
+        console.warn("CSV import failures:", failed);
+      } else {
+        toast.success(`تم استيراد ${matched.length} سعراً بنجاح`);
+      }
+      onChanged();
+    } catch (err: any) {
+      toast.error(err.message || "فشل قراءة الملف");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const districtName = (id: string) => {
     const d = districts.find(x => x.id === id);
