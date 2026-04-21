@@ -688,6 +688,44 @@ export default function CourierOrders() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* SCANNER TAB */}
+          <TabsContent value="scanner" className="mt-0">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ScanLine className="h-4 w-4 text-primary" />
+                  مسح الباركود
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  امسح باركود الشحنة لتحديث حالتها بسرعة. النتائج محصورة بشحنات شركتكم فقط.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BarcodeScanner />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* WALLET TAB */}
+          <TabsContent value="wallet" className="mt-0">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  سجل الحركات المالية
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  جميع الحركات المرتبطة بطلبات وشحنات شركتكم — للأغراض المحاسبية فقط.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {user && <WalletTransactionsLog vendorId={user.id} />}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Return reason dialog */}
