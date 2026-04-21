@@ -292,6 +292,55 @@ export default function CourierOrders() {
     fetchAll();
   };
 
+  // ===== Edit Weight & Price =====
+  const openEditDialog = (o: CourierOrderRow) => {
+    setEditDialog(o);
+    // weight not stored on orders; default to 1 if no shipment-side value yet
+    setEditWeight("1");
+    setEditPrice(String(o.final_sale_price ?? o.total_amount ?? 0));
+  };
+  const saveEdit = async () => {
+    if (!editDialog) return;
+    const w = Number(editWeight);
+    const p = Number(editPrice);
+    if (!Number.isFinite(w) || w <= 0) { toast.error("الوزن غير صالح"); return; }
+    if (!Number.isFinite(p) || p < 0) { toast.error("القيمة غير صالحة"); return; }
+    setEditSaving(true);
+    const orderUpd = await supabase
+      .from("orders")
+      .update({ final_sale_price: p })
+      .eq("id", editDialog.id);
+    let shipmentErr: string | null = null;
+    if (editDialog.shipment_id) {
+      const sh = await supabase
+        .from("shipments")
+        .update({ final_weight: w, cod_amount: p })
+        .eq("id", editDialog.shipment_id);
+      if (sh.error) shipmentErr = sh.error.message;
+    }
+    setEditSaving(false);
+    if (orderUpd.error) { toast.error(orderUpd.error.message); return; }
+    if (shipmentErr) toast.error("تم تحديث الطلب لكن تعذر تحديث الشحنة: " + shipmentErr);
+    else toast.success("تم تحديث الوزن والقيمة");
+    setEditDialog(null);
+    fetchAll();
+  };
+
+  // ===== Revert final status =====
+  const revertFinal = async () => {
+    if (!revertDialog) return;
+    setReverting(true);
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "out_for_delivery", return_reason: null })
+      .eq("id", revertDialog.id);
+    setReverting(false);
+    if (error) { toast.error(error.message || "تعذر التراجع"); return; }
+    toast.success("تم إعادة الطلب إلى قيد التوصيل");
+    setRevertDialog(null);
+    fetchAll();
+  };
+
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
       {/* Header */}
