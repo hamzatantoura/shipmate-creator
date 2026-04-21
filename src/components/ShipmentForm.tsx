@@ -225,9 +225,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     [courierOptions, selectedCourierRateId]
   );
 
-  // Carrier fee comes EXCLUSIVELY from the selected courier's rate. No defaults.
+  // Carrier fee + COD fee come EXCLUSIVELY from the selected courier's rate. No defaults.
   const carrierFee = selectedCourier ? selectedCourier.fee : 0;
-  const codAmount = parseFloat(form.cod_amount) || 0;
+  const courierCodFee = selectedCourier ? selectedCourier.cod_fee : 0;
+  const codAmount = codAmountNum;
 
   // Use pricing engine — merchant sees merchant_shipping_fee + collection_fee
   const pricing = useMemo(() => {
