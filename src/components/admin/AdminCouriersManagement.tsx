@@ -431,13 +431,23 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
       setLoadingOrders(true);
       const { data } = await supabase
         .from("orders")
-        .select("id, status, city, receiver_name, created_at")
+        .select("id, status, city, receiver_name, created_at, merchant_id")
         .eq("courier_id", courier.id)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(50);
       if (!cancelled) {
-        setAssigned(data || []);
+        const orders = data || [];
+        const merchantIds = Array.from(new Set(orders.map((o: any) => o.merchant_id).filter(Boolean)));
+        let merchantsMap: Record<string, string> = {};
+        if (merchantIds.length > 0) {
+          const { data: ms } = await supabase
+            .from("merchants")
+            .select("user_id, store_name")
+            .in("user_id", merchantIds);
+          (ms || []).forEach((m: any) => { merchantsMap[m.user_id] = m.store_name || "—"; });
+        }
+        setAssigned(orders.map((o: any) => ({ ...o, merchant_name: merchantsMap[o.merchant_id] || "—" })));
         setLoadingOrders(false);
       }
     })();
@@ -625,6 +635,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                   <TableHeader>
                     <TableRow>
                       <TableHead>كود صِلة</TableHead>
+                      <TableHead>التاجر</TableHead>
                       <TableHead>المستلم</TableHead>
                       <TableHead>المدينة</TableHead>
                       <TableHead>الحالة</TableHead>
@@ -634,6 +645,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                     {assigned.map((o) => (
                       <TableRow key={o.id}>
                         <TableCell className="font-mono text-xs">SL-{String(o.id).slice(0, 6).toUpperCase()}</TableCell>
+                        <TableCell className="text-sm">{o.merchant_name}</TableCell>
                         <TableCell className="text-sm">{o.receiver_name}</TableCell>
                         <TableCell className="text-sm">{o.city}</TableCell>
                         <TableCell>
