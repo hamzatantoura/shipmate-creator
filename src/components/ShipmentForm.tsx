@@ -368,16 +368,36 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       {/* Smart Routing: Courier selection bound to district rates */}
       <div className="space-y-2">
         <Label className="flex items-center gap-1.5">
+          <Weight className="h-3.5 w-3.5" /> وزن الشحنة (كغ) <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          type="number"
+          min="0.1"
+          step="0.1"
+          value={weight}
+          onChange={e => setWeight(e.target.value)}
+          required
+          dir="ltr"
+          placeholder="1"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          الوزن مطلوب لتحديد شركات الشحن المتاحة لهذه الفئة الوزنية.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="flex items-center gap-1.5">
           <Truck className="h-3.5 w-3.5" /> شركة الشحن <span className="text-destructive">*</span>
         </Label>
         <Select
           value={selectedCourierRateId}
           onValueChange={setSelectedCourierRateId}
-          disabled={!finalDistrictId || loadingCouriers || courierOptions.length === 0}
+          disabled={!finalDistrictId || weightNum <= 0 || loadingCouriers || courierOptions.length === 0}
         >
           <SelectTrigger>
             <SelectValue placeholder={
               !finalDistrictId ? "اختر المنطقة أولاً" :
+              weightNum <= 0 ? "أدخل وزن الشحنة أولاً" :
               loadingCouriers ? "جاري جلب الشركات..." :
               courierOptions.length === 0 ? "لا تغطية لهذه المنطقة" :
               "اختر شركة الشحن"
@@ -386,10 +406,22 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
           <SelectContent>
             {courierOptions.map(c => (
               <SelectItem key={c.rate_id} value={c.rate_id}>
-                <div className="flex flex-col items-start gap-0.5 py-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{c.name}</span>
-                    <span className="text-primary font-bold">— {c.fee.toLocaleString()} ل.س</span>
+                <div className="flex flex-col items-start gap-1 py-1 min-w-[260px]">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold">{c.name}</span>
+                    {c.estimated_days && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" /> {c.estimated_days} أيام
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-foreground">
+                      أجرة الشحن: <span className="font-bold text-primary">{c.fee.toLocaleString()} ل.س</span>
+                    </span>
+                    <span className="text-foreground">
+                      أجور التحصيل: <span className="font-bold text-primary">{c.cod_fee.toLocaleString()} ل.س</span>
+                    </span>
                   </div>
                   {c.services.length > 0 && (
                     <div className="flex flex-wrap gap-1">
