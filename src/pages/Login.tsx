@@ -45,7 +45,7 @@ export default function Login() {
       const routes = {
         admin: "/admin",
         merchant: "/merchant",
-        vendor: "/vendor",
+        vendor: "/courier/orders",
       } as const;
 
       navigate(role ? routes[role] : "/login", { replace: true });

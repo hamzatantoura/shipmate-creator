@@ -11,7 +11,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -25,12 +25,14 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
-  Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle,
+  Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
 } from "recharts";
 import silaLogo from "@/assets/sila-logo.png";
+import BarcodeScanner from "@/components/vendor/BarcodeScanner";
+import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 
 interface CourierOrderRow {
   id: string;
@@ -105,6 +107,7 @@ export default function CourierOrders() {
   const [companyName, setCompanyName] = useState<string>("");
   const [companyLoaded, setCompanyLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mainTab, setMainTab] = useState<"orders" | "scanner" | "wallet">("orders");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
   const [returnReason, setReturnReason] = useState<string>("");
@@ -394,6 +397,24 @@ export default function CourierOrders() {
           </Badge>
         </div>
 
+        {/* Top-level tabs: Orders / Scanner / Wallet */}
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as typeof mainTab)} className="space-y-6">
+          <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 p-1">
+            <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+              <Package className="h-3.5 w-3.5" />
+              الطلبات
+            </TabsTrigger>
+            <TabsTrigger value="scanner" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+              <ScanLine className="h-3.5 w-3.5" />
+              الماسح الضوئي
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+              <Wallet className="h-3.5 w-3.5" />
+              المحفظة
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orders" className="space-y-6 mt-0">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <KpiCard
@@ -667,6 +688,44 @@ export default function CourierOrders() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* SCANNER TAB */}
+          <TabsContent value="scanner" className="mt-0">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ScanLine className="h-4 w-4 text-primary" />
+                  مسح الباركود
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  امسح باركود الشحنة لتحديث حالتها بسرعة. النتائج محصورة بشحنات شركتكم فقط.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BarcodeScanner />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* WALLET TAB */}
+          <TabsContent value="wallet" className="mt-0">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  سجل الحركات المالية
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  جميع الحركات المرتبطة بطلبات وشحنات شركتكم — للأغراض المحاسبية فقط.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {user && <WalletTransactionsLog vendorId={user.id} />}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Return reason dialog */}
