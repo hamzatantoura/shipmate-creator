@@ -71,6 +71,13 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState("");
 
+  // Merchant origin (must exist before form is usable)
+  const [merchantProvinceId, setMerchantProvinceId] = useState<string | null>(null);
+  const [merchantLoaded, setMerchantLoaded] = useState(false);
+
+  // Mandatory weight in KG
+  const [weight, setWeight] = useState<string>("1");
+
   // Smart Routing: couriers covering the selected district
   const [courierOptions, setCourierOptions] = useState<CourierOption[]>([]);
   const [loadingCouriers, setLoadingCouriers] = useState(false);
