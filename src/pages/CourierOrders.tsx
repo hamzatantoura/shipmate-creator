@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
+  Camera, Zap,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
@@ -80,13 +81,21 @@ const isToday = (iso: string) => {
   return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
 };
 
-type TabKey = "all" | "pending" | "in_transit" | "delivered" | "returned";
+type TabKey = "all" | "pending" | "active" | "delivered" | "returned";
 const TAB_FILTERS: Record<TabKey, (s: string) => boolean> = {
   all: () => true,
-  pending: (s) => ["new", "processing"].includes(s),
-  in_transit: (s) => ["shipped", "out_for_delivery"].includes(s),
+  // STRICT mutually exclusive pipeline buckets
+  pending:   (s) => ["new", "pending"].includes(s),
+  active:    (s) => ["processing", "shipped", "out_for_delivery"].includes(s),
   delivered: (s) => s === "delivered",
-  returned: (s) => s === "returned",
+  returned:  (s) => ["returned", "cancelled"].includes(s),
+};
+const TAB_LABELS: Record<TabKey, string> = {
+  all: "الكل",
+  pending: "بانتظار الاستلام",
+  active: "قيد التشغيل",
+  delivered: "تم التسليم",
+  returned: "مرتجع/ملغي",
 };
 
 export default function CourierOrders() {
@@ -109,6 +118,12 @@ export default function CourierOrders() {
   const [editSaving, setEditSaving] = useState(false);
   const [revertDialog, setRevertDialog] = useState<CourierOrderRow | null>(null);
   const [reverting, setReverting] = useState(false);
+
+  // ===== Smart Scanner state =====
+  const [scanInput, setScanInput] = useState("");
+  const [quickAction, setQuickAction] = useState<{ order: CourierOrderRow; nextStatus: string } | null>(null);
+  const [quickReason, setQuickReason] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const fetchAll = useCallback(async () => {
     if (!user) return;
@@ -226,6 +241,70 @@ export default function CourierOrders() {
       );
     });
   }, [orders, search, tab]);
+
+  // Per-tab counters (respect search to make counts useful)
+  const tabCounts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const matchSearch = (o: CourierOrderRow) => {
+      if (!q) return true;
+      const sila = silaCodeOf(o.id).toLowerCase();
+      return sila.includes(q) || o.receiver_name.toLowerCase().includes(q) || o.phone_number.toLowerCase().includes(q);
+    };
+    const base = orders.filter(matchSearch);
+    return {
+      all: base.length,
+      pending: base.filter(o => TAB_FILTERS.pending(o.status)).length,
+      active: base.filter(o => TAB_FILTERS.active(o.status)).length,
+      delivered: base.filter(o => TAB_FILTERS.delivered(o.status)).length,
+      returned: base.filter(o => TAB_FILTERS.returned(o.status)).length,
+    } as Record<TabKey, number>;
+  }, [orders, search]);
+
+  // ===== Smart Scanner: lookup + propose next status =====
+  const handleScan = useCallback((rawCode: string) => {
+    const code = (rawCode || "").trim();
+    if (!code) return;
+    const upper = code.toUpperCase();
+    const compact = upper.replace(/[^A-Z0-9]/g, "");
+    const noPrefix = upper.replace(/^SL[-_]?/i, "").replace(/[^A-Z0-9]/g, "");
+
+    const found = orders.find((o) => {
+      const idCompact = o.id.replace(/-/g, "").toUpperCase();
+      const sila = silaCodeOf(o.id).toUpperCase();
+      return (
+        sila === upper ||
+        idCompact === compact ||
+        idCompact.startsWith(noPrefix) ||
+        idCompact.startsWith(compact)
+      );
+    });
+
+    if (!found) {
+      toast.error(`لم يتم العثور على طلب بالرمز: ${code}`);
+      return;
+    }
+
+    const next = NEXT_STATUS_MAP[found.status]?.[0]?.value;
+    if (!next) {
+      toast.info(`الطلب ${silaCodeOf(found.id)} في حالة نهائية: ${getOrderStatusMeta(found.status).label}`);
+      return;
+    }
+    setQuickReason("");
+    setQuickAction({ order: found, nextStatus: next });
+  }, [orders]);
+
+  const confirmQuickAction = async () => {
+    if (!quickAction) return;
+    const { order, nextStatus } = quickAction;
+    const reason = nextStatus === "returned" ? quickReason : undefined;
+    if (nextStatus === "returned" && !reason) {
+      toast.error("سبب الإرجاع مطلوب");
+      return;
+    }
+    setQuickAction(null);
+    setScanInput("");
+    await updateStatus(order.id, nextStatus, reason);
+  };
 
   // Keep selection valid against current filtered view
   const filteredIds = useMemo(() => filtered.map(o => o.id), [filtered]);
@@ -435,6 +514,57 @@ export default function CourierOrders() {
           </TabsList>
 
           <TabsContent value="orders" className="space-y-6 mt-0">
+        {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
+        <Card className="border-primary/30 shadow-sm bg-gradient-to-l from-primary/5 to-transparent">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="h-9 w-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <div className="leading-tight">
+                  <div className="text-sm font-bold">المسح السريع</div>
+                  <div className="text-[11px] text-muted-foreground">امسح الباركود لتحديث الحالة فوراً</div>
+                </div>
+              </div>
+              <form
+                className="relative flex-1"
+                onSubmit={(e) => { e.preventDefault(); handleScan(scanInput); }}
+              >
+                <ScanLine className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-primary" />
+                <Input
+                  autoFocus
+                  value={scanInput}
+                  onChange={(e) => setScanInput(e.target.value)}
+                  placeholder="امسح أو اكتب رمز الطلب (SL-XXXXXX) ثم اضغط Enter"
+                  className="pr-9 h-10 text-sm font-mono border-primary/40 focus-visible:ring-primary"
+                  dir="ltr"
+                />
+              </form>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 gap-1.5"
+                  onClick={() => handleScan(scanInput)}
+                  disabled={!scanInput.trim()}
+                >
+                  <Zap className="h-3.5 w-3.5" /> تنفيذ
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-10 gap-1.5"
+                  onClick={() => setCameraOpen(true)}
+                >
+                  <Camera className="h-3.5 w-3.5" /> الكاميرا
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <KpiCard
@@ -549,11 +679,17 @@ export default function CourierOrders() {
 
             <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
               <TabsList className="grid grid-cols-5 w-full md:w-auto md:inline-grid">
-                <TabsTrigger value="all" className="text-xs">الكل</TabsTrigger>
-                <TabsTrigger value="pending" className="text-xs">معلّق</TabsTrigger>
-                <TabsTrigger value="in_transit" className="text-xs">قيد التوصيل</TabsTrigger>
-                <TabsTrigger value="delivered" className="text-xs">تم التسليم</TabsTrigger>
-                <TabsTrigger value="returned" className="text-xs">مرتجع</TabsTrigger>
+                {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
+                  <TabsTrigger key={k} value={k} className="text-xs gap-1.5">
+                    <span>{TAB_LABELS[k]}</span>
+                    <Badge
+                      variant={tab === k ? "default" : "secondary"}
+                      className="h-4 min-w-4 px-1 text-[10px] tabular-nums"
+                    >
+                      {tabCounts[k]}
+                    </Badge>
+                  </TabsTrigger>
+                ))}
               </TabsList>
             </Tabs>
 
@@ -769,6 +905,98 @@ export default function CourierOrders() {
               تأكيد الإرجاع
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Quick Action dialog (after scan) === */}
+      <Dialog open={!!quickAction} onOpenChange={(o) => !o && setQuickAction(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              تأكيد التحديث السريع
+            </DialogTitle>
+            <DialogDescription>
+              {quickAction && (
+                <>
+                  الطلب <span className="font-mono">{silaCodeOf(quickAction.order.id)}</span> — {quickAction.order.receiver_name}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {quickAction && (
+            <div className="space-y-3 py-1">
+              <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">الحالة الحالية</span>
+                  <span className="font-medium">{getOrderStatusMeta(quickAction.order.status).label}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">الحالة المقترحة</span>
+                  <span className="font-bold text-primary">
+                    {NEXT_STATUS_MAP[quickAction.order.status]?.find(s => s.value === quickAction.nextStatus)?.label
+                      || getOrderStatusMeta(quickAction.nextStatus).label}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">تغيير الإجراء (اختياري)</Label>
+                <Select
+                  value={quickAction.nextStatus}
+                  onValueChange={(v) => setQuickAction({ ...quickAction, nextStatus: v })}
+                >
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(NEXT_STATUS_MAP[quickAction.order.status] || []).map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {quickAction.nextStatus === "returned" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">سبب الإرجاع *</Label>
+                  <Select value={quickReason} onValueChange={setQuickReason}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+                    <SelectContent>
+                      {RETURN_REASONS.map(r => (
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setQuickAction(null)}>إلغاء</Button>
+            <Button
+              onClick={confirmQuickAction}
+              disabled={!!updatingId || (quickAction?.nextStatus === "returned" && !quickReason)}
+              className="gap-1.5"
+            >
+              {updatingId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              تأكيد التحديث
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Camera Scanner dialog === */}
+      <Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-4 w-4 text-primary" />
+              مسح الباركود بالكاميرا
+            </DialogTitle>
+            <DialogDescription>
+              وجّه الكاميرا نحو الباركود. سيُحدَّث الطلب المرتبط تلقائياً.
+            </DialogDescription>
+          </DialogHeader>
+          <BarcodeScanner />
         </DialogContent>
       </Dialog>
 
