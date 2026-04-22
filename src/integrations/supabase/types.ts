@@ -130,6 +130,38 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_coverage_areas: {
+        Row: {
+          courier_id: string
+          created_at: string
+          district_id: string | null
+          id: string
+          province_id: string | null
+        }
+        Insert: {
+          courier_id: string
+          created_at?: string
+          district_id?: string | null
+          id?: string
+          province_id?: string | null
+        }
+        Update: {
+          courier_id?: string
+          created_at?: string
+          district_id?: string | null
+          id?: string
+          province_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_coverage_areas_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_district_rates: {
         Row: {
           courier_id: string
@@ -181,17 +213,57 @@ export type Database = {
           },
         ]
       }
+      courier_weight_tiers: {
+        Row: {
+          courier_id: string
+          created_at: string
+          id: string
+          max_weight: number
+          min_weight: number
+          price: number
+        }
+        Insert: {
+          courier_id: string
+          created_at?: string
+          id?: string
+          max_weight?: number
+          min_weight?: number
+          price?: number
+        }
+        Update: {
+          courier_id?: string
+          created_at?: string
+          id?: string
+          max_weight?: number
+          min_weight?: number
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_weight_tiers_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       couriers: {
         Row: {
           city: string | null
           cod_fee_type: string
           cod_fee_value: number
+          contact_email: string | null
+          contact_person: string | null
           created_at: string
           id: string
+          integration_type: string
           is_active: boolean
+          logo_url: string | null
           name: string
           phone: string | null
           services: string[]
+          tax_id: string | null
           user_id: string | null
           vendor_id: string | null
           wallet_balance: number
@@ -200,12 +272,17 @@ export type Database = {
           city?: string | null
           cod_fee_type?: string
           cod_fee_value?: number
+          contact_email?: string | null
+          contact_person?: string | null
           created_at?: string
           id?: string
+          integration_type?: string
           is_active?: boolean
+          logo_url?: string | null
           name: string
           phone?: string | null
           services?: string[]
+          tax_id?: string | null
           user_id?: string | null
           vendor_id?: string | null
           wallet_balance?: number
@@ -214,12 +291,17 @@ export type Database = {
           city?: string | null
           cod_fee_type?: string
           cod_fee_value?: number
+          contact_email?: string | null
+          contact_person?: string | null
           created_at?: string
           id?: string
+          integration_type?: string
           is_active?: boolean
+          logo_url?: string | null
           name?: string
           phone?: string | null
           services?: string[]
+          tax_id?: string | null
           user_id?: string | null
           vendor_id?: string | null
           wallet_balance?: number
@@ -300,6 +382,39 @@ export type Database = {
           token?: string
           used?: boolean | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      field_audit_logs: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          record_id?: string
+          table_name?: string
         }
         Relationships: []
       }
