@@ -65,29 +65,65 @@ export default function BarcodeScanner() {
           scannerRef.current = null;
           setScanning(false);
 
-          // Search for shipment
-          // Search by tracking number first
-          const { data } = await supabase
-            .from("shipments")
-            .select("*")
-            .eq("tracking_number", decodedText.trim())
-            .maybeSingle();
-
-          if (data) {
-            setShipment(data);
-            // Auto-suggest next status
-            const nextStatus = getNextStatus(data.status);
-            if (nextStatus) setNewStatus(nextStatus);
-            toast.success(`تم العثور على الشحنة: ${data.tracking_number || decodedText}`);
-          } else {
-            toast.error(`لم يتم العثور على شحنة بالرقم: ${decodedText}`);
-          }
+          await lookupShipment(decodedText);
         },
         () => {} // ignore scan errors
       );
     } catch (err: any) {
       toast.error("تعذر تشغيل الكاميرا: " + (err.message || "تحقق من صلاحيات الكاميرا"));
       setScanning(false);
+    }
+  };
+
+  const lookupShipment = async (rawCode: string) => {
+    // Normalize: trim, remove all whitespace, strip "SL-" prefix if present
+    const cleaned = (rawCode || "").trim().replace(/\s+/g, "");
+    const noPrefix = cleaned.replace(/^SL[-_]?/i, "");
+    // eslint-disable-next-line no-console
+    console.log("[BarcodeScanner] scanned raw:", JSON.stringify(rawCode), "→ cleaned:", cleaned, "→ noPrefix:", noPrefix);
+
+    if (cleaned.length < 4) {
+      toast.error(`الرمز قصير جداً: ${rawCode}`);
+      return;
+    }
+
+    // 1) Exact tracking_number match (case-insensitive)
+    let { data } = await supabase
+      .from("shipments")
+      .select("*")
+      .ilike("tracking_number", cleaned)
+      .maybeSingle();
+
+    // 2) Order id prefix match (sila code)
+    if (!data) {
+      const { data: orderRow } = await supabase
+        .from("orders")
+        .select("id, shipment_id")
+        .ilike("id", `${noPrefix}%`)
+        .maybeSingle();
+      if (orderRow?.shipment_id) {
+        const r = await supabase.from("shipments").select("*").eq("id", orderRow.shipment_id).maybeSingle();
+        data = r.data;
+      }
+    }
+
+    // 3) Shipment id prefix match
+    if (!data) {
+      const { data: byId } = await supabase
+        .from("shipments")
+        .select("*")
+        .ilike("id", `${noPrefix}%`)
+        .limit(2);
+      if (byId && byId.length === 1) data = byId[0];
+    }
+
+    if (data) {
+      setShipment(data);
+      const nextStatus = getNextStatus(data.status);
+      if (nextStatus) setNewStatus(nextStatus);
+      toast.success(`تم العثور على الشحنة: ${data.tracking_number || cleaned}`);
+    } else {
+      toast.error(`لم يتم العثور على شحنة بالرمز: ${rawCode}`);
     }
   };
 
