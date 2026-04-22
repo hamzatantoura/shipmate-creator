@@ -514,6 +514,57 @@ export default function CourierOrders() {
           </TabsList>
 
           <TabsContent value="orders" className="space-y-6 mt-0">
+        {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
+        <Card className="border-primary/30 shadow-sm bg-gradient-to-l from-primary/5 to-transparent">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="h-9 w-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+                  <Zap className="h-4 w-4" />
+                </div>
+                <div className="leading-tight">
+                  <div className="text-sm font-bold">المسح السريع</div>
+                  <div className="text-[11px] text-muted-foreground">امسح الباركود لتحديث الحالة فوراً</div>
+                </div>
+              </div>
+              <form
+                className="relative flex-1"
+                onSubmit={(e) => { e.preventDefault(); handleScan(scanInput); }}
+              >
+                <ScanLine className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-primary" />
+                <Input
+                  autoFocus
+                  value={scanInput}
+                  onChange={(e) => setScanInput(e.target.value)}
+                  placeholder="امسح أو اكتب رمز الطلب (SL-XXXXXX) ثم اضغط Enter"
+                  className="pr-9 h-10 text-sm font-mono border-primary/40 focus-visible:ring-primary"
+                  dir="ltr"
+                />
+              </form>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 gap-1.5"
+                  onClick={() => handleScan(scanInput)}
+                  disabled={!scanInput.trim()}
+                >
+                  <Zap className="h-3.5 w-3.5" /> تنفيذ
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-10 gap-1.5"
+                  onClick={() => setCameraOpen(true)}
+                >
+                  <Camera className="h-3.5 w-3.5" /> الكاميرا
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <KpiCard
