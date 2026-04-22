@@ -29,6 +29,11 @@ interface MerchantInfo {
   city: string | null;
 }
 
+interface CourierInfo {
+  name: string;
+  logo_url: string | null;
+}
+
 function generateBarcodeDataUrl(text: string): string {
   const canvas = document.createElement("canvas");
   try {
@@ -47,6 +52,7 @@ function generateBarcodeDataUrl(text: string): string {
 
 export async function generateShippingLabel(shipment: ShipmentData, format: "a6" | "a4" = "a6") {
   const trackingNum = shipment.tracking_number || shipment.id.slice(0, 12).toUpperCase();
+  const silaCode = "SL-" + shipment.id.slice(0, 6).toUpperCase();
 
   // Fetch merchant info
   let merchant: MerchantInfo = { store_name: "—", contact_person: null, phone: null, city: null };
@@ -63,6 +69,33 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       city: profile.city,
     };
   }
+
+  // Resolve assigned courier (logistics provider) — Sila is the platform, NOT the courier
+  let courier: CourierInfo | null = null;
+  // Try shipment.courier_id first via shipments record
+  const { data: shipRow } = await supabase
+    .from("shipments")
+    .select("courier_id")
+    .eq("id", shipment.id)
+    .maybeSingle();
+  let courierId: string | null = shipRow?.courier_id ?? null;
+  if (!courierId) {
+    // Fallback: linked order's courier
+    const orderId = shipment.order_id;
+    const { data: ord } = orderId
+      ? await supabase.from("orders").select("courier_id").eq("id", orderId).maybeSingle()
+      : await supabase.from("orders").select("courier_id").eq("shipment_id", shipment.id).maybeSingle();
+    courierId = ord?.courier_id ?? null;
+  }
+  if (courierId) {
+    const { data: c } = await supabase
+      .from("couriers")
+      .select("name, logo_url")
+      .eq("id", courierId)
+      .maybeSingle();
+    if (c) courier = { name: c.name, logo_url: c.logo_url };
+  }
+  const courierName = courier?.name || "غير معيّن";
 
   // Resolve district/area name from the linked order if not passed in
   let districtName: string | null = shipment.district_name ?? null;
