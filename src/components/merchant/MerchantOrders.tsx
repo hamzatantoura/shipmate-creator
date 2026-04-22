@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle, Printer } from "lucide-react";
+import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle, Printer, History } from "lucide-react";
 import { generateShippingLabel } from "@/lib/shipping-label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,6 +35,7 @@ interface Order {
   delivery_fee: number; platform_fee: number; net_amount: number;
   products?: { name: string } | null;
   shipments?: { tracking_number: string | null } | null;
+  couriers?: { name: string; logo_url: string | null } | null;
 }
 
 type ShipmentCity = Database["public"]["Enums"]["shipment_city"];
@@ -59,14 +60,32 @@ export default function MerchantOrders() {
   const [confirmOrder, setConfirmOrder] = useState<Order | null>(null);
   const [editPrice, setEditPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [auditOrder, setAuditOrder] = useState<Order | null>(null);
+  const [auditLogs, setAuditLogs] = useState<Array<{ id: string; field_name: string; old_value: string | null; new_value: string | null; created_at: string; table_name: string }>>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("orders").select("*, products(name), shipments(tracking_number)")
+    const { data } = await supabase.from("orders").select("*, products(name), shipments(tracking_number), couriers(name, logo_url)")
       .eq("merchant_id", user.id).order("created_at", { ascending: false });
     if (data) setOrders(data as any);
     setLoading(false);
   }, [user]);
+
+  const openAudit = async (o: Order) => {
+    setAuditOrder(o);
+    setAuditLogs([]);
+    setLoadingAudit(true);
+    const ids: string[] = [o.id];
+    if (o.shipment_id) ids.push(o.shipment_id);
+    const { data } = await supabase
+      .from("field_audit_logs")
+      .select("id, field_name, old_value, new_value, created_at, table_name")
+      .in("record_id", ids)
+      .order("created_at", { ascending: false });
+    setAuditLogs((data as any) || []);
+    setLoadingAudit(false);
+  };
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
@@ -209,6 +228,7 @@ export default function MerchantOrders() {
                   <th className="p-3 text-right font-medium">العميل</th>
                   <th className="p-3 text-right font-medium">رقم التتبع</th>
                   <th className="p-3 text-right font-medium">المدينة</th>
+                  <th className="p-3 text-right font-medium">شركة الشحن</th>
                   <th className="p-3 text-right font-medium">المبلغ</th>
                   <th className="p-3 text-right font-medium">رسوم الشحن</th>
                   <th className="p-3 text-right font-medium">بدل تحصيل</th>
@@ -231,6 +251,22 @@ export default function MerchantOrders() {
                       </span>
                     </td>
                     <td className="p-3 text-foreground">{o.city}</td>
+                    <td className="p-3">
+                      {o.couriers ? (
+                        <div className="flex items-center gap-2">
+                          {o.couriers.logo_url ? (
+                            <img src={o.couriers.logo_url} alt={o.couriers.name} className="h-6 w-6 rounded object-cover border border-border" />
+                          ) : (
+                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                              <Truck className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          )}
+                          <span className="text-xs text-foreground font-medium">{o.couriers.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">— لم تُحدَّد —</span>
+                      )}
+                    </td>
                     <td className="p-3 text-foreground">{(o.final_sale_price || o.total_amount).toLocaleString()} ل.س</td>
                     <td className="p-3 text-muted-foreground">{Number(o.delivery_fee || 0).toLocaleString()} ل.س</td>
                     <td className="p-3 text-muted-foreground">{Number(o.platform_fee || 0).toLocaleString()} ل.س</td>
@@ -250,6 +286,9 @@ export default function MerchantOrders() {
                           window.open(`https://wa.me/${phone}`, "_blank");
                         }}>
                           <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="سجل التعديلات" onClick={() => openAudit(o)}>
+                          <History className="h-3.5 w-3.5 text-info" />
                         </Button>
                         {!o.shipment_id && ["new", "pending", "processing"].includes(o.status) && (
                           <Button size="sm" variant="ghost" className="gap-1" onClick={() => openConfirm(o)}>
@@ -315,6 +354,52 @@ export default function MerchantOrders() {
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Truck className="h-4 w-4 ml-2" />}
                 تأكيد وطلب شحن
               </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Audit trail viewer — courier adjustments to price/weight */}
+      <Dialog open={!!auditOrder} onOpenChange={o => !o && setAuditOrder(null)}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-4 w-4 text-info" />
+              سجل تعديلات شركة الشحن
+            </DialogTitle>
+          </DialogHeader>
+          {loadingAudit ? (
+            <p className="text-center py-8 text-sm text-muted-foreground">جاري التحميل...</p>
+          ) : auditLogs.length === 0 ? (
+            <p className="text-center py-8 text-sm text-muted-foreground">لا توجد تعديلات على هذا الطلب</p>
+          ) : (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {auditLogs.map(log => {
+                const fieldLabel = log.field_name === "final_sale_price" ? "السعر النهائي"
+                  : log.field_name === "final_weight" ? "الوزن الفعلي"
+                  : log.field_name;
+                const unit = log.field_name === "final_sale_price" ? "ل.س"
+                  : log.field_name === "final_weight" ? "كغ" : "";
+                return (
+                  <div key={log.id} className="p-3 rounded-lg border border-border bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-foreground">{fieldLabel}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {new Date(log.created_at).toLocaleString("ar-SY")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground line-through">
+                        {log.old_value ?? "—"} {unit}
+                      </span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-bold text-primary">
+                        {log.new_value ?? "—"} {unit}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </DialogContent>
