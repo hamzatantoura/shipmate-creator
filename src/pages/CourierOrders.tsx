@@ -679,11 +679,17 @@ export default function CourierOrders() {
 
             <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
               <TabsList className="grid grid-cols-5 w-full md:w-auto md:inline-grid">
-                <TabsTrigger value="all" className="text-xs">الكل</TabsTrigger>
-                <TabsTrigger value="pending" className="text-xs">معلّق</TabsTrigger>
-                <TabsTrigger value="in_transit" className="text-xs">قيد التوصيل</TabsTrigger>
-                <TabsTrigger value="delivered" className="text-xs">تم التسليم</TabsTrigger>
-                <TabsTrigger value="returned" className="text-xs">مرتجع</TabsTrigger>
+                {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
+                  <TabsTrigger key={k} value={k} className="text-xs gap-1.5">
+                    <span>{TAB_LABELS[k]}</span>
+                    <Badge
+                      variant={tab === k ? "default" : "secondary"}
+                      className="h-4 min-w-4 px-1 text-[10px] tabular-nums"
+                    >
+                      {tabCounts[k]}
+                    </Badge>
+                  </TabsTrigger>
+                ))}
               </TabsList>
             </Tabs>
 
