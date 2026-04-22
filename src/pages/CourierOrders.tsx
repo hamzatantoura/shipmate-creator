@@ -285,8 +285,23 @@ export default function CourierOrders() {
   const bulkUpdateStatus = async (newStatus: "out_for_delivery" | "delivered") => {
     if (selectedIds.length === 0) return;
     setBulkLoading(true);
+    const targets = orders.filter(o => selectedIds.includes(o.id));
     const results = await Promise.all(
-      selectedIds.map(id => supabase.from("orders").update({ status: newStatus }).eq("id", id))
+      targets.map(async (o) => {
+        const oldStatus = o.status;
+        const upd = await supabase.from("orders").update({ status: newStatus }).eq("id", o.id);
+        if (upd.error) return upd;
+        if (o.shipment_id) {
+          await supabase.from("shipments").update({ status: newStatus }).eq("id", o.shipment_id);
+          await supabase.from("shipment_status_history").insert({
+            shipment_id: o.shipment_id,
+            old_status: oldStatus,
+            new_status: newStatus,
+            changed_by: user?.id ?? "system",
+          });
+        }
+        return upd;
+      })
     );
     const failed = results.filter(r => r.error).length;
     setBulkLoading(false);
