@@ -649,30 +649,31 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
       return;
     }
     if (password.length < 6) { toast.error("كلمة المرور 6 أحرف على الأقل"); return; }
-    const fakeEmail = `${username}@courier.sila.local`;
     setCreatingAccount(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: fakeEmail,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: { role: "vendor", contact_person: contact.trim(), store_name: courier.name },
+      // Server-side creation via Edge Function — keeps admin session intact
+      // and creates an email-confirmed account that can log in immediately.
+      const { data, error } = await supabase.functions.invoke("create-courier-account", {
+        body: {
+          username,
+          password,
+          courier_id: courier.id,
+          contact_person: contact.trim(),
         },
       });
-      if (error) throw error;
-      const newUserId = data.user?.id;
-      if (!newUserId) throw new Error("فشل إنشاء الحساب");
-      const { error: linkErr } = await supabase.from("couriers")
-        .update({ vendor_id: newUserId } as any).eq("id", courier.id);
-      if (linkErr) throw linkErr;
-      // Ensure profile role is vendor (handle_new_user trigger should set it,
-      // but force-update in case the trigger ran before metadata was applied).
-      await supabase.from("profiles")
-        .update({ role: "vendor" } as any)
-        .eq("user_id", newUserId);
-      await supabase.from("user_roles")
-        .upsert({ user_id: newUserId, role: "vendor" } as any, { onConflict: "user_id,role" });
+      if (error) {
+        const ctx = (error as any)?.context;
+        let msg = error.message || "فشل إنشاء الحساب";
+        try {
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = j.error;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      if (!data?.user_id) throw new Error("فشل إنشاء الحساب");
       setCredentials({ email: username, password });
       toast.success("تم إنشاء حساب شركة الشحن وربطه");
       onRefresh();
