@@ -29,6 +29,11 @@ interface MerchantInfo {
   city: string | null;
 }
 
+interface CourierInfo {
+  name: string;
+  logo_url: string | null;
+}
+
 function generateBarcodeDataUrl(text: string): string {
   const canvas = document.createElement("canvas");
   try {
@@ -47,6 +52,7 @@ function generateBarcodeDataUrl(text: string): string {
 
 export async function generateShippingLabel(shipment: ShipmentData, format: "a6" | "a4" = "a6") {
   const trackingNum = shipment.tracking_number || shipment.id.slice(0, 12).toUpperCase();
+  const silaCode = "SL-" + shipment.id.slice(0, 6).toUpperCase();
 
   // Fetch merchant info
   let merchant: MerchantInfo = { store_name: "—", contact_person: null, phone: null, city: null };
@@ -63,6 +69,33 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       city: profile.city,
     };
   }
+
+  // Resolve assigned courier (logistics provider) — Sila is the platform, NOT the courier
+  let courier: CourierInfo | null = null;
+  // Try shipment.courier_id first via shipments record
+  const { data: shipRow } = await supabase
+    .from("shipments")
+    .select("courier_id")
+    .eq("id", shipment.id)
+    .maybeSingle();
+  let courierId: string | null = shipRow?.courier_id ?? null;
+  if (!courierId) {
+    // Fallback: linked order's courier
+    const orderId = shipment.order_id;
+    const { data: ord } = orderId
+      ? await supabase.from("orders").select("courier_id").eq("id", orderId).maybeSingle()
+      : await supabase.from("orders").select("courier_id").eq("shipment_id", shipment.id).maybeSingle();
+    courierId = ord?.courier_id ?? null;
+  }
+  if (courierId) {
+    const { data: c } = await supabase
+      .from("couriers")
+      .select("name, logo_url")
+      .eq("id", courierId)
+      .maybeSingle();
+    if (c) courier = { name: c.name, logo_url: c.logo_url };
+  }
+  const courierName = courier?.name || "غير معيّن";
 
   // Resolve district/area name from the linked order if not passed in
   let districtName: string | null = shipment.district_name ?? null;
@@ -211,8 +244,15 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
   <div class="label">
     <div class="header">
       <div>
-        <h1>Sila — صلة</h1>
-        <span class="sub">خدمات الشحن والتوصيل</span>
+        <h1 style="display:flex;align-items:center;gap:${8 * scale}px;">
+          ${courier?.logo_url ? `<img src="${courier.logo_url}" alt="" style="width:${28 * scale}px;height:${28 * scale}px;object-fit:contain;background:#fff;border-radius:4px;padding:2px;" />` : ""}
+          <span>${courierName}</span>
+        </h1>
+        <span class="sub">شركة الشحن المسؤولة عن التوصيل</span>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-family:monospace;font-size:${9 * scale}px;opacity:0.85;">${silaCode}</div>
+        <div class="sub" style="font-size:${7 * scale}px;">Powered by Sila</div>
       </div>
     </div>
 
@@ -265,7 +305,7 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       </div>
     </div>
 
-    <div class="footer">Sila © ${new Date().getFullYear()} — بوليصة شحن مولّدة تلقائياً</div>
+    <div class="footer">Powered by <strong>صِلة Sila</strong> · sila-sy.com — © ${new Date().getFullYear()}</div>
   </div>
 
   <script>

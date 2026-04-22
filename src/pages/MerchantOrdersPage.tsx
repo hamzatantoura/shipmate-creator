@@ -71,7 +71,7 @@ interface OrderRow {
   label_printed_at: string | null;
   notes: string | null;
   return_reason: string | null;
-  couriers?: { name: string } | null;
+  couriers?: { name: string; logo_url: string | null } | null;
   shipments?: { tracking_number: string | null } | null;
 }
 
@@ -191,7 +191,7 @@ export default function MerchantOrdersPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name), shipments(tracking_number)")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments(tracking_number)")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -298,6 +298,8 @@ export default function MerchantOrdersPage() {
         cod: Number(order.final_sale_price ?? order.total_amount),
         notes: order.notes,
         courierName: courierNameOf(order),
+        courierLogoUrl: order.couriers?.logo_url ?? null,
+        trackingNumber: order.shipments?.tracking_number ?? null,
       });
     } catch (e: any) {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");

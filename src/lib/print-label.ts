@@ -8,14 +8,18 @@ export interface LabelData {
   cod: number;
   notes?: string | null;
   courierName?: string | null;
+  courierLogoUrl?: string | null;
+  trackingNumber?: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 
 export function printShippingLabel(data: LabelData) {
+  // Barcode encodes the real tracking number when available, else the Sila reference code
+  const barcodeValue = (data.trackingNumber && data.trackingNumber.trim()) || data.silaCode;
   // Build barcode SVG off-DOM
   const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  JsBarcode(svgEl, data.silaCode, {
+  JsBarcode(svgEl, barcodeValue, {
     format: "CODE128",
     width: 2,
     height: 60,
@@ -27,6 +31,8 @@ export function printShippingLabel(data: LabelData) {
   const dateStr = new Date(data.createdAt).toLocaleDateString("ar-SY", {
     year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
   });
+
+  const courierName = (data.courierName && data.courierName.trim()) || "—";
 
   const html = `<!doctype html>
 <html dir="rtl" lang="ar">
@@ -66,10 +72,17 @@ export function printShippingLabel(data: LabelData) {
   <button class="no-print" onclick="window.print()">طباعة</button>
   <div class="label">
     <div class="row">
-      <div class="brand">صِلة <small>Sila Logistics</small></div>
+      <div class="brand" style="display:flex;align-items:center;gap:8px;">
+        ${data.courierLogoUrl ? `<img src="${escapeHtml(data.courierLogoUrl)}" alt="" style="width:42px;height:42px;object-fit:contain;border-radius:6px;border:1px solid #ddd;background:#fff;" />` : ""}
+        <div>
+          <div style="font-weight:800;font-size:15pt;line-height:1.1;">${escapeHtml(courierName)}</div>
+          <small style="font-weight:500;font-size:7.5pt;color:#666;">شركة الشحن المسؤولة</small>
+        </div>
+      </div>
       <div class="meta">
         <div>${dateStr}</div>
         <div>بوليصة شحن</div>
+        <div style="font-family:'Courier New',monospace;font-size:7.5pt;color:#666;margin-top:2px;">${escapeHtml(data.silaCode)}</div>
       </div>
     </div>
     <hr />
@@ -107,16 +120,14 @@ export function printShippingLabel(data: LabelData) {
       <div class="amount">${fmtSYP(data.cod)}</div>
     </div>
 
-    ${data.courierName ? `<div class="section" style="margin-top:4px;"><div class="label-tag">الناقل</div><div class="value">${escapeHtml(data.courierName)}</div></div>` : ""}
-
     <div class="barcode">
       ${barcodeSvg}
-      <div class="barcode-text">${escapeHtml(data.silaCode)}</div>
+      <div class="barcode-text">${escapeHtml(barcodeValue)}</div>
     </div>
 
     ${data.notes ? `<hr /><div class="section"><div class="label-tag">ملاحظات</div><div class="value" style="font-size:9pt;">${escapeHtml(data.notes)}</div></div>` : ""}
 
-    <div class="footer">صِلة — منصة الشحن السورية · sila-sy.com</div>
+    <div class="footer">Powered by <strong>صِلة Sila</strong> — منصة الشحن السورية · sila-sy.com</div>
   </div>
   <script>
     window.addEventListener('load', function() { setTimeout(function(){ window.print(); }, 250); });
