@@ -156,7 +156,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   useEffect(() => {
     setSelectedCourierId("");
     setCourierOptions([]);
-    if (!finalDistrictId || !merchantProvinceId || weightNum <= 0) return;
+    // Origin (merchant province) is OPTIONAL for matching — if set we narrow further,
+    // but missing origin must NOT block courier discovery.
+    if (!finalDistrictId || weightNum <= 0) return;
     let cancelled = false;
     (async () => {
       setLoadingCouriers(true);
@@ -182,17 +184,20 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       }
       const destCourierIds = Array.from(new Set((destCov || []).map((r: any) => r.courier_id)));
 
-      // Step 2: which of those also cover the merchant's origin province?
-      let originCourierIds = new Set<string>();
-      if (destCourierIds.length > 0) {
+      // Step 2 (optional): if merchant origin is set, prefer couriers that also cover origin.
+      // If none match origin, fall back to all destination-covering couriers so the merchant
+      // is never blocked by an incomplete origin profile.
+      let validIds = destCourierIds;
+      if (merchantProvinceId && destCourierIds.length > 0) {
         const { data: originCov } = await supabase
           .from("courier_coverage_areas" as any)
           .select("courier_id")
           .in("courier_id", destCourierIds)
           .eq("province_id", merchantProvinceId);
-        (originCov || []).forEach((r: any) => originCourierIds.add(r.courier_id));
+        const originSet = new Set<string>((originCov || []).map((r: any) => r.courier_id));
+        const intersected = destCourierIds.filter(id => originSet.has(id));
+        if (intersected.length > 0) validIds = intersected;
       }
-      const validIds = destCourierIds.filter(id => originCourierIds.has(id));
       if (validIds.length === 0) {
         setCourierOptions([]);
         setLoadingCouriers(false);
