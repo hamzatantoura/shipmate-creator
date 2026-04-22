@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Download, Upload, Loader2 } from "lucide-react";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 
 interface Courier {
   id: string;
@@ -25,6 +26,11 @@ interface Courier {
   services?: string[] | null;
   cod_fee_type?: "fixed" | "percentage" | null;
   cod_fee_value?: number | null;
+  tax_id?: string | null;
+  contact_person?: string | null;
+  contact_email?: string | null;
+  integration_type?: string | null;
+  logo_url?: string | null;
 }
 
 interface VendorProfile {
@@ -42,11 +48,19 @@ interface DistrictRow {
   delivery_fee: number;
 }
 
-interface CourierRate {
+interface WeightTier {
   id: string;
   courier_id: string;
-  district_id: string;
-  custom_delivery_fee: number;
+  min_weight: number;
+  max_weight: number;
+  price: number;
+}
+
+interface CoverageArea {
+  id: string;
+  courier_id: string;
+  province_id: string | null;
+  district_id: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
@@ -54,7 +68,6 @@ const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س
 export default function AdminCouriersManagement() {
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [districts, setDistricts] = useState<DistrictRow[]>([]);
-  const [rates, setRates] = useState<CourierRate[]>([]);
   const [vendors, setVendors] = useState<VendorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -72,15 +85,13 @@ export default function AdminCouriersManagement() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [cRes, dRes, rRes, vRes] = await Promise.all([
-      supabase.from("couriers").select("id, name, phone, city, is_active, vendor_id, services, cod_fee_type, cod_fee_value" as any).order("name"),
+    const [cRes, dRes, vRes] = await Promise.all([
+      supabase.from("couriers").select("*" as any).order("name"),
       supabase.from("districts").select("id, name, parent_id, province_ar, delivery_fee").order("name"),
-      supabase.from("courier_district_rates" as any).select("id, courier_id, district_id, custom_delivery_fee"),
       supabase.from("profiles").select("user_id, contact_person, phone, store_name").eq("role", "vendor"),
     ]);
     if (cRes.data) setCouriers(cRes.data as unknown as Courier[]);
     if (dRes.data) setDistricts(dRes.data as DistrictRow[]);
-    if (rRes.data) setRates(rRes.data as unknown as CourierRate[]);
     if (vRes.data) setVendors(vRes.data as VendorProfile[]);
     setLoading(false);
   };
@@ -122,7 +133,7 @@ export default function AdminCouriersManagement() {
   };
 
   const handleDelete = async (c: Courier) => {
-    if (!confirm(`حذف شركة الشحن "${c.name}"؟ سيتم حذف جميع تسعيراتها.`)) return;
+    if (!confirm(`حذف شركة الشحن "${c.name}"؟ سيتم حذف جميع تسعيراتها وتغطياتها.`)) return;
     const { error } = await supabase.from("couriers").delete().eq("id", c.id);
     if (error) { toast.error(error.message); return; }
     toast.success("تم الحذف");
@@ -136,7 +147,7 @@ export default function AdminCouriersManagement() {
           <h2 className="text-lg font-display font-semibold text-foreground flex items-center gap-2">
             <Truck className="h-5 w-5 text-primary" /> شركات الشحن
           </h2>
-          <p className="text-sm text-muted-foreground">إدارة الشركات وتسعيراتها المخصصة لكل منطقة</p>
+          <p className="text-sm text-muted-foreground">إدارة الشركات وتسعيراتها المخصصة وتغطياتها الجغرافية</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
@@ -183,24 +194,28 @@ export default function AdminCouriersManagement() {
                   <TableHead>الهاتف</TableHead>
                   <TableHead>المدينة</TableHead>
                   <TableHead>الحساب المرتبط</TableHead>
-                  <TableHead>تسعيرات</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead className="text-left">إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {couriers.map(c => {
-                  const count = rates.filter(r => r.courier_id === c.id).length;
                   const linked = vendorById(c.vendor_id);
                   return (
                     <TableRow key={c.id} className="cursor-pointer" onClick={(e) => {
-                      // ignore clicks on interactive cells
                       const tag = (e.target as HTMLElement).closest('button, [role="combobox"], input, select, [data-no-row-click]');
                       if (tag) return;
                       setProfileCourier(c);
                     }}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
+                          {c.logo_url ? (
+                            <img src={c.logo_url} alt={c.name} className="h-7 w-7 rounded object-cover border border-border" />
+                          ) : (
+                            <div className="h-7 w-7 rounded bg-muted flex items-center justify-center">
+                              <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                            </div>
+                          )}
                           {c.name}
                           {c.services && c.services.length > 0 && (
                             <Badge variant="outline" className="text-[10px]">{c.services.length} خدمات</Badge>
@@ -234,15 +249,15 @@ export default function AdminCouriersManagement() {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="gap-1">
-                          <DollarSign className="h-3 w-3" /> {count}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c)} />
+                        {c.is_active ? (
+                          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20">نشطة</Badge>
+                        ) : (
+                          <Badge variant="destructive" className="bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/20">موقوفة</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
+                          <Switch checked={c.is_active} onCheckedChange={() => toggleActive(c)} />
                           <Button variant="ghost" size="sm" onClick={() => setProfileCourier(c)} className="gap-1">
                             <Settings2 className="h-3.5 w-3.5" /> ملف الشركة
                           </Button>
@@ -266,7 +281,6 @@ export default function AdminCouriersManagement() {
           districts={districts}
           provinces={provinces}
           areasOf={areasOf}
-          rates={rates.filter(r => r.courier_id === profileCourier.id)}
           onClose={() => { setProfileCourier(null); fetchAll(); }}
           onRefresh={fetchAll}
         />
@@ -282,267 +296,240 @@ const SERVICE_OPTIONS = [
   { id: "refrigerated", label: "شحن مبرد" },
 ];
 
-function RatesEditor({ courier, districts, provinces, areasOf, rates, onChanged }: {
-  courier: Courier;
-  districts: DistrictRow[];
+const INTEGRATION_OPTIONS = [
+  { id: "portal", label: "بوابة (Portal)" },
+  { id: "api", label: "تكامل API" },
+  { id: "manual", label: "يدوي" },
+];
+
+// ============ Coverage editor ============
+function CoverageEditor({ courierId, provinces, areasOf }: {
+  courierId: string;
   provinces: DistrictRow[];
   areasOf: (id: string) => DistrictRow[];
-  rates: CourierRate[];
-  onChanged: () => void;
 }) {
-  const [selectedProv, setSelectedProv] = useState("");
-  const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [fee, setFee] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [areas, setAreas] = useState<CoverageArea[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  const CSV_HEADERS = ["المحافظة","المنطقة","من_وزن","الى_وزن","اجرة_الشحن","المدة_المتوقعة"];
-
-  const downloadTemplate = () => {
-    const sample = [
-      CSV_HEADERS.join(","),
-      "دمشق,المزة,0,5,15000,1-2",
-      "حلب,الفرقان,0,10,20000,2-3",
-    ].join("\n");
-    // Prepend BOM so Excel opens Arabic correctly
-    const blob = new Blob(["\uFEFF" + sample], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `courier-rates-template-${courier.name}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("courier_coverage_areas" as any)
+      .select("*").eq("courier_id", courierId);
+    setAreas((data || []) as unknown as CoverageArea[]);
+    setLoading(false);
   };
 
-  const parseCsv = (text: string): string[][] => {
-    const clean = text.replace(/^\uFEFF/, "");
-    const lines = clean.split(/\r?\n/).filter(l => l.trim().length > 0);
-    return lines.map(line => line.split(",").map(c => c.trim()));
-  };
+  useEffect(() => { load(); }, [courierId]);
 
-  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      toast.error("الملف يجب أن يكون بصيغة CSV");
-      return;
-    }
-    setImporting(true);
-    try {
-      const text = await file.text();
-      const rows = parseCsv(text);
-      if (rows.length < 2) {
-        toast.error("الملف فارغ أو لا يحتوي بيانات");
-        return;
-      }
-      const header = rows[0];
-      const idx = (k: string) => header.indexOf(k);
-      const iProv = idx("المحافظة"), iDist = idx("المنطقة"),
-            iMin = idx("من_وزن"), iMax = idx("الى_وزن"),
-            iFee = idx("اجرة_الشحن"), iDays = idx("المدة_المتوقعة");
-      if ([iProv, iDist, iFee].some(i => i < 0)) {
-        toast.error("ترويسة الملف غير صحيحة. حمّل القالب أولاً.");
-        return;
-      }
+  const provinceCovered = (provId: string) =>
+    areas.some(a => a.province_id === provId);
+  const districtCovered = (distId: string) =>
+    areas.some(a => a.district_id === distId);
 
-      // Build lookup: province_ar -> id; (province_id|district_name) -> district_id
-      const provMap = new Map<string, string>();
-      provinces.forEach(p => provMap.set(p.name.trim(), p.id));
-      const distMap = new Map<string, string>();
-      districts.forEach(d => {
-        if (d.parent_id) distMap.set(`${d.parent_id}|${d.name.trim()}`, d.id);
-      });
-
-      const matched: any[] = [];
-      const failed: { row: number; reason: string }[] = [];
-
-      for (let r = 1; r < rows.length; r++) {
-        const row = rows[r];
-        const provName = (row[iProv] || "").trim();
-        const distName = (row[iDist] || "").trim();
-        const feeNum = Number(row[iFee]);
-        if (!provName || !distName || isNaN(feeNum) || feeNum < 0) {
-          failed.push({ row: r + 1, reason: "بيانات ناقصة" }); continue;
-        }
-        const provId = provMap.get(provName);
-        if (!provId) { failed.push({ row: r + 1, reason: `محافظة غير معروفة: ${provName}` }); continue; }
-        const distId = distMap.get(`${provId}|${distName}`);
-        if (!distId) { failed.push({ row: r + 1, reason: `منطقة غير معروفة: ${distName}` }); continue; }
-
-        const minW = iMin >= 0 && row[iMin] !== "" ? Number(row[iMin]) : 0;
-        const maxW = iMax >= 0 && row[iMax] !== "" ? Number(row[iMax]) : 999;
-        const days = iDays >= 0 ? (row[iDays] || "").trim() || null : null;
-
-        matched.push({
-          courier_id: courier.id,
-          district_id: distId,
-          custom_delivery_fee: feeNum,
-          min_weight_kg: isNaN(minW) ? 0 : minW,
-          max_weight_kg: isNaN(maxW) ? 999 : maxW,
-          estimated_days: days,
-        });
-      }
-
-      if (matched.length === 0) {
-        toast.error(`لم يتم استيراد أي صف. ${failed.length} فشل في المطابقة.`);
-        return;
-      }
-
-      const { error } = await supabase.from("courier_district_rates" as any).insert(matched as any);
+  const toggleProvince = async (provId: string) => {
+    if (provinceCovered(provId)) {
+      const row = areas.find(a => a.province_id === provId);
+      if (!row) return;
+      const { error } = await supabase.from("courier_coverage_areas" as any).delete().eq("id", row.id);
       if (error) { toast.error(error.message); return; }
-
-      if (failed.length > 0) {
-        toast.warning(`تم استيراد ${matched.length} سعراً. فشل ${failed.length} صف (تحقق من الأسماء).`);
-        console.warn("CSV import failures:", failed);
-      } else {
-        toast.success(`تم استيراد ${matched.length} سعراً بنجاح`);
-      }
-      onChanged();
-    } catch (err: any) {
-      toast.error(err.message || "فشل قراءة الملف");
-    } finally {
-      setImporting(false);
+    } else {
+      const { error } = await supabase.from("courier_coverage_areas" as any).insert({
+        courier_id: courierId, province_id: provId,
+      } as any);
+      if (error) { toast.error(error.message); return; }
     }
+    load();
   };
 
-  const districtName = (id: string) => {
-    const d = districts.find(x => x.id === id);
-    if (!d) return id;
-    if (d.parent_id) {
-      const p = districts.find(x => x.id === d.parent_id);
-      return `${p?.name || ""} — ${d.name}`;
+  const toggleDistrict = async (distId: string) => {
+    if (districtCovered(distId)) {
+      const row = areas.find(a => a.district_id === distId);
+      if (!row) return;
+      const { error } = await supabase.from("courier_coverage_areas" as any).delete().eq("id", row.id);
+      if (error) { toast.error(error.message); return; }
+    } else {
+      const { error } = await supabase.from("courier_coverage_areas" as any).insert({
+        courier_id: courierId, district_id: distId,
+      } as any);
+      if (error) { toast.error(error.message); return; }
     }
-    return d.name;
-  };
-  const defaultFee = (id: string) => districts.find(x => x.id === id)?.delivery_fee ?? 0;
-
-  const addRate = async () => {
-    const districtId = selectedDistrict || selectedProv;
-    if (!districtId) { toast.error("اختر منطقة"); return; }
-    const fNum = Number(fee);
-    if (!fee || isNaN(fNum) || fNum < 0) { toast.error("أدخل سعراً صحيحاً"); return; }
-    setSaving(true);
-    const { error } = await supabase.from("courier_district_rates" as any).upsert({
-      courier_id: courier.id,
-      district_id: districtId,
-      custom_delivery_fee: fNum,
-    } as any, { onConflict: "courier_id,district_id" });
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم حفظ السعر المخصص");
-    setSelectedProv(""); setSelectedDistrict(""); setFee("");
-    onChanged();
+    load();
   };
 
-  const deleteRate = async (id: string) => {
-    const { error } = await supabase.from("courier_district_rates" as any).delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف السعر");
-    onChanged();
-  };
+  if (loading) return <p className="text-sm text-muted-foreground text-center py-4">جاري التحميل...</p>;
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">عيّن سعراً مخصصاً لمناطق محددة. المناطق غير المُعرّفة تستخدم السعر الافتراضي.</p>
-
-      {/* CSV bulk import toolbar */}
-      <Card className="p-3 border-dashed bg-primary/5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h4 className="text-sm font-semibold flex items-center gap-1.5"><Upload className="h-4 w-4 text-primary" /> استيراد جماعي عبر CSV</h4>
-            <p className="text-[11px] text-muted-foreground mt-0.5">حمّل القالب، املأ التسعيرات بأسماء المحافظات والمناطق كما هي في النظام، ثم ارفع الملف.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
-              <Download className="h-3.5 w-3.5" /> تحميل قالب CSV
-            </Button>
-            <Button asChild size="sm" disabled={importing} className="gap-1.5">
-              <label className="cursor-pointer">
-                {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                {importing ? "جاري الاستيراد..." : "رفع تسعيرات CSV"}
-                <input type="file" accept=".csv,text/csv" hidden onChange={handleCsvUpload} disabled={importing} />
-              </label>
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-3 bg-muted/30">
-          <h4 className="text-sm font-semibold mb-3">إضافة / تحديث سعر</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <Select value={selectedProv} onValueChange={(v) => { setSelectedProv(v); setSelectedDistrict(""); }}>
-              <SelectTrigger><SelectValue placeholder="المحافظة" /></SelectTrigger>
-              <SelectContent>
-                {provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={selectedDistrict} onValueChange={setSelectedDistrict} disabled={!selectedProv || areasOf(selectedProv).length === 0}>
-              <SelectTrigger>
-                <SelectValue placeholder={!selectedProv ? "اختر محافظة" : areasOf(selectedProv).length === 0 ? "لا توجد مناطق فرعية" : "المنطقة (اختياري)"} />
-              </SelectTrigger>
-              <SelectContent>
-                {areasOf(selectedProv).map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              placeholder="السعر المخصص (ل.س)"
-              value={fee}
-              onChange={e => setFee(e.target.value)}
-              dir="ltr"
-            />
-          </div>
-          <Button onClick={addRate} disabled={saving} className="mt-3 gap-1" size="sm">
-            <Plus className="h-3.5 w-3.5" /> {saving ? "جاري الحفظ..." : "حفظ السعر"}
-          </Button>
-        </Card>
-
-        <div>
-          <h4 className="text-sm font-semibold mb-2">الأسعار الحالية ({rates.length})</h4>
-          {rates.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">لا توجد تسعيرات مخصصة بعد</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>المنطقة</TableHead>
-                  <TableHead>السعر الافتراضي</TableHead>
-                  <TableHead>السعر المخصص</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rates.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell>{districtName(r.district_id)}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{fmtSYP(defaultFee(r.district_id))}</TableCell>
-                    <TableCell className="font-semibold text-primary">{fmtSYP(r.custom_delivery_fee)}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => deleteRate(r.id)} className="text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">حدّد المحافظات أو المناطق الفرعية التي تُغطّيها هذه الشركة. لا توجد أسعار هنا — التسعير يُدار في القسم أدناه.</p>
+      <div className="border border-border rounded-md divide-y divide-border max-h-72 overflow-y-auto">
+        {provinces.map(p => {
+          const isExp = expanded[p.id];
+          const subs = areasOf(p.id);
+          return (
+            <div key={p.id}>
+              <div className="flex items-center gap-2 p-2 hover:bg-muted/40">
+                <Checkbox
+                  checked={provinceCovered(p.id)}
+                  onCheckedChange={() => toggleProvince(p.id)}
+                />
+                <button
+                  type="button"
+                  className="flex-1 text-right text-sm font-medium flex items-center justify-between"
+                  onClick={() => setExpanded(s => ({ ...s, [p.id]: !s[p.id] }))}
+                >
+                  <span>{p.name}</span>
+                  {subs.length > 0 && (
+                    isExp ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </button>
+              </div>
+              {isExp && subs.length > 0 && (
+                <div className="bg-muted/20 border-t border-border px-3 py-2 space-y-1">
+                  {subs.map(s => (
+                    <label key={s.id} className="flex items-center gap-2 text-xs cursor-pointer p-1 rounded hover:bg-muted/50">
+                      <Checkbox
+                        checked={districtCovered(s.id)}
+                        onCheckedChange={() => toggleDistrict(s.id)}
+                      />
+                      <span>{s.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        المغطّى حالياً: {areas.length} منطقة/محافظة
+      </p>
     </div>
   );
 }
 
-function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, onClose, onRefresh }: {
+// ============ Weight tiers editor ============
+function WeightTiersEditor({ courierId }: { courierId: string }) {
+  const [tiers, setTiers] = useState<WeightTier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [minW, setMinW] = useState("");
+  const [maxW, setMaxW] = useState("");
+  const [price, setPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from("courier_weight_tiers" as any)
+      .select("*").eq("courier_id", courierId).order("min_weight");
+    setTiers((data || []) as unknown as WeightTier[]);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [courierId]);
+
+  const addTier = async () => {
+    const mn = Number(minW), mx = Number(maxW), pr = Number(price);
+    if ([mn, mx, pr].some(v => isNaN(v)) || mn < 0 || mx < mn || pr < 0) {
+      toast.error("أدخل قيماً صحيحة (الحد الأقصى ≥ الأدنى)");
+      return;
+    }
+    // Overlap check (client-side)
+    const overlaps = tiers.some(t =>
+      !(mx < t.min_weight || mn > t.max_weight)
+    );
+    if (overlaps) { toast.error("هذه الشريحة تتداخل مع شريحة موجودة"); return; }
+
+    setSaving(true);
+    const { error } = await supabase.from("courier_weight_tiers" as any).insert({
+      courier_id: courierId, min_weight: mn, max_weight: mx, price: pr,
+    } as any);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تمت إضافة الشريحة");
+    setMinW(""); setMaxW(""); setPrice("");
+    load();
+  };
+
+  const removeTier = async (id: string) => {
+    const { error } = await supabase.from("courier_weight_tiers" as any).delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("تم حذف الشريحة");
+    load();
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        أسعار خاصة بهذه الشركة فقط. كل شريحة وزن لها سعرها الموحّد بغضّ النظر عن المنطقة.
+      </p>
+
+      <Card className="p-3 bg-muted/30">
+        <h4 className="text-sm font-semibold mb-3">إضافة شريحة وزن جديدة</h4>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs">من وزن (كغ)</Label>
+            <Input type="number" min="0" step="0.1" value={minW} onChange={e => setMinW(e.target.value)} dir="ltr" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">إلى وزن (كغ)</Label>
+            <Input type="number" min="0" step="0.1" value={maxW} onChange={e => setMaxW(e.target.value)} dir="ltr" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">السعر (ل.س)</Label>
+            <Input type="number" min="0" step="100" value={price} onChange={e => setPrice(e.target.value)} dir="ltr" />
+          </div>
+        </div>
+        <Button onClick={addTier} disabled={saving} className="mt-3 gap-1" size="sm">
+          <Plus className="h-3.5 w-3.5" /> {saving ? "جاري الحفظ..." : "إضافة الشريحة"}
+        </Button>
+      </Card>
+
+      <div>
+        <h4 className="text-sm font-semibold mb-2">شرائح الأوزان ({tiers.length})</h4>
+        {loading ? (
+          <p className="text-sm text-muted-foreground text-center py-4">جاري التحميل...</p>
+        ) : tiers.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">لا توجد شرائح مُعرّفة بعد</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>من (كغ)</TableHead>
+                <TableHead>إلى (كغ)</TableHead>
+                <TableHead>السعر</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tiers.map(t => (
+                <TableRow key={t.id}>
+                  <TableCell dir="ltr" className="text-sm">{t.min_weight}</TableCell>
+                  <TableCell dir="ltr" className="text-sm">{t.max_weight}</TableCell>
+                  <TableCell className="font-semibold text-primary">{fmtSYP(Number(t.price))}</TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" onClick={() => removeTier(t.id)} className="text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============ Profile sheet (5 tabs) ============
+function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, onRefresh }: {
   courier: Courier;
   districts: DistrictRow[];
   provinces: DistrictRow[];
   areasOf: (id: string) => DistrictRow[];
-  rates: CourierRate[];
   onClose: () => void;
   onRefresh: () => void;
 }) {
-  // Tab 1: Info & Services
+  // Tab 1: Basic & Legal
   const [name, setName] = useState(courier.name);
   const [phone, setPhone] = useState(courier.phone || "");
   const [city, setCity] = useState(courier.city || "");
@@ -554,8 +541,15 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
   const [codFeeValue, setCodFeeValue] = useState<string>(
     courier.cod_fee_value != null ? String(courier.cod_fee_value) : "0"
   );
+  const [taxId, setTaxId] = useState(courier.tax_id || "");
+  const [contactPerson, setContactPerson] = useState(courier.contact_person || "");
+  const [contactEmail, setContactEmail] = useState(courier.contact_email || "");
+  const [integrationType, setIntegrationType] = useState(courier.integration_type || "portal");
+  const [logoUrl, setLogoUrl] = useState(courier.logo_url || "");
+  const [isActive, setIsActive] = useState(courier.is_active);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // Tab 2: Onboarding
+  // Tab 2: Auth
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [contact, setContact] = useState("");
@@ -563,7 +557,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState<"email" | "password" | null>(null);
 
-  // Tab 4: Assigned orders
+  // Tab 5: Assigned orders
   const [assigned, setAssigned] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
 
@@ -600,6 +594,27 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
     setServices(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("اختر ملف صورة"); return; }
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `couriers/${courier.id}/logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
+      setLogoUrl(pub.publicUrl);
+      toast.success("تم رفع الشعار");
+    } catch (err: any) {
+      toast.error(err.message || "فشل رفع الشعار");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const saveInfo = async () => {
     if (!name.trim()) { toast.error("اسم الشركة مطلوب"); return; }
     setSavingInfo(true);
@@ -610,6 +625,12 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
       services,
       cod_fee_type: codFeeType,
       cod_fee_value: Number(codFeeValue) || 0,
+      tax_id: taxId.trim() || null,
+      contact_person: contactPerson.trim() || null,
+      contact_email: contactEmail.trim() || null,
+      integration_type: integrationType,
+      logo_url: logoUrl.trim() || null,
+      is_active: isActive,
     } as any).eq("id", courier.id);
     setSavingInfo(false);
     if (error) { toast.error(error.message); return; }
@@ -677,25 +698,79 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
           <SheetTitle className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-primary" /> ملف {courier.name}
           </SheetTitle>
-          <SheetDescription>إدارة شاملة للشركة: البيانات، الحساب، التسعيرات والطلبات</SheetDescription>
+          <SheetDescription>إدارة شاملة للشركة: البيانات، الحساب، التغطية والتسعير، المحفظة، الطلبات</SheetDescription>
         </SheetHeader>
 
         <Tabs defaultValue="info" dir="rtl" className="mt-4">
-          <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="info" className="gap-1 text-xs"><Info className="h-3.5 w-3.5" /> بيانات وخدمات</TabsTrigger>
-            <TabsTrigger value="account" className="gap-1 text-xs"><KeyRound className="h-3.5 w-3.5" /> حساب الدخول</TabsTrigger>
-            <TabsTrigger value="rates" className="gap-1 text-xs"><MapIcon className="h-3.5 w-3.5" /> مناطق وتخفيضات</TabsTrigger>
-            <TabsTrigger value="orders" className="gap-1 text-xs"><Package className="h-3.5 w-3.5" /> الطلبات الحالية</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-5 h-auto">
+            <TabsTrigger value="info" className="gap-1 text-[11px] px-1 py-2"><Info className="h-3.5 w-3.5" /> الأساسية</TabsTrigger>
+            <TabsTrigger value="account" className="gap-1 text-[11px] px-1 py-2"><KeyRound className="h-3.5 w-3.5" /> الدخول</TabsTrigger>
+            <TabsTrigger value="coverage" className="gap-1 text-[11px] px-1 py-2"><MapIcon className="h-3.5 w-3.5" /> التغطية والتسعير</TabsTrigger>
+            <TabsTrigger value="wallet" className="gap-1 text-[11px] px-1 py-2"><WalletIcon className="h-3.5 w-3.5" /> المحفظة</TabsTrigger>
+            <TabsTrigger value="orders" className="gap-1 text-[11px] px-1 py-2"><Package className="h-3.5 w-3.5" /> الطلبات</TabsTrigger>
           </TabsList>
 
-          {/* TAB 1 */}
+          {/* TAB 1 — Basic & Legal */}
           <TabsContent value="info" className="mt-4 space-y-4">
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold">حالة الشركة</h4>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs">{isActive ? "نشطة" : "موقوفة"}</Label>
+                  <Switch checked={isActive} onCheckedChange={setIsActive} />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold">الشعار</h4>
+              <div className="flex items-center gap-3">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="logo" className="h-16 w-16 rounded-md object-cover border border-border" />
+                ) : (
+                  <div className="h-16 w-16 rounded-md bg-muted flex items-center justify-center border border-dashed border-border">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  <Button asChild size="sm" variant="outline" disabled={uploadingLogo} className="gap-1.5">
+                    <label className="cursor-pointer">
+                      {uploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                      {uploadingLogo ? "جاري الرفع..." : "رفع شعار"}
+                      <input type="file" accept="image/*" hidden onChange={handleLogoUpload} disabled={uploadingLogo} />
+                    </label>
+                  </Button>
+                  {logoUrl && (
+                    <Button size="sm" variant="ghost" onClick={() => setLogoUrl("")} className="text-destructive">إزالة</Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
             <Card className="p-4 space-y-3">
               <h4 className="text-sm font-semibold">البيانات الأساسية</h4>
               <div className="space-y-1.5"><Label>اسم الشركة *</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><Label>الهاتف</Label><Input value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" /></div>
                 <div className="space-y-1.5"><Label>المدينة</Label><Input value={city} onChange={e => setCity(e.target.value)} /></div>
+              </div>
+            </Card>
+
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold">البيانات القانونية والاتصال</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label>الرقم الضريبي</Label><Input value={taxId} onChange={e => setTaxId(e.target.value)} dir="ltr" placeholder="000000000" /></div>
+                <div className="space-y-1.5">
+                  <Label>نوع التكامل</Label>
+                  <Select value={integrationType} onValueChange={setIntegrationType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {INTEGRATION_OPTIONS.map(o => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5"><Label>مسؤول التواصل</Label><Input value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="الاسم الكامل" /></div>
+                <div className="space-y-1.5"><Label>البريد الإلكتروني للتواصل</Label><Input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} dir="ltr" placeholder="ops@example.com" /></div>
               </div>
             </Card>
 
@@ -728,18 +803,9 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                 </div>
                 <div className="space-y-1.5">
                   <Label>قيمة عمولة التحصيل</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step={codFeeType === "percentage" ? "0.1" : "100"}
-                    value={codFeeValue}
-                    onChange={(e) => setCodFeeValue(e.target.value)}
-                    dir="ltr"
-                  />
+                  <Input type="number" min="0" step={codFeeType === "percentage" ? "0.1" : "100"} value={codFeeValue} onChange={(e) => setCodFeeValue(e.target.value)} dir="ltr" />
                   <p className="text-[11px] text-muted-foreground">
-                    {codFeeType === "percentage"
-                      ? "مثال: 1 = 1٪ من قيمة التحصيل"
-                      : "مبلغ ثابت يُضاف على كل شحنة فيها تحصيل"}
+                    {codFeeType === "percentage" ? "مثال: 1 = 1٪ من قيمة التحصيل" : "مبلغ ثابت يُضاف على كل شحنة فيها تحصيل"}
                   </p>
                 </div>
               </div>
@@ -750,7 +816,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
             </Button>
           </TabsContent>
 
-          {/* TAB 2 */}
+          {/* TAB 2 — Auth */}
           <TabsContent value="account" className="mt-4 space-y-4">
             {courier.vendor_id && !credentials ? (
               <Card className="p-4 bg-primary/5 border-primary/30">
@@ -784,12 +850,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
                   <div className="space-y-1.5"><Label>اسم جهة الاتصال</Label><Input value={contact} onChange={e => setContact(e.target.value)} placeholder="مدير العمليات" /></div>
                   <div className="space-y-1.5">
                     <Label>اسم المستخدم</Label>
-                    <Input
-                      value={email}
-                      onChange={e => setEmail(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                      placeholder="fast_express"
-                      dir="ltr"
-                    />
+                    <Input value={email} onChange={e => setEmail(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} placeholder="fast_express" dir="ltr" />
                     <p className="text-[11px] text-muted-foreground">أحرف إنجليزية صغيرة وأرقام و _ فقط (بدون مسافات أو @).</p>
                   </div>
                   <div className="space-y-1.5"><Label>كلمة المرور (6+ أحرف)</Label><Input type="text" value={password} onChange={e => setPassword(e.target.value)} dir="ltr" /></div>
@@ -801,19 +862,36 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, rates, on
             )}
           </TabsContent>
 
-          {/* TAB 3 */}
-          <TabsContent value="rates" className="mt-4">
-            <RatesEditor
-              courier={courier}
-              districts={districts}
-              provinces={provinces}
-              areasOf={areasOf}
-              rates={rates}
-              onChanged={onRefresh}
-            />
+          {/* TAB 3 — Coverage & Custom Pricing */}
+          <TabsContent value="coverage" className="mt-4 space-y-4">
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <MapIcon className="h-4 w-4 text-primary" /> القسم أ — مناطق التغطية
+              </h4>
+              <CoverageEditor courierId={courier.id} provinces={provinces} areasOf={areasOf} />
+            </Card>
+
+            <Card className="p-4 space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" /> القسم ب — شرائح الأوزان والأسعار (خاصة بهذه الشركة)
+              </h4>
+              <WeightTiersEditor courierId={courier.id} />
+            </Card>
           </TabsContent>
 
-          {/* TAB 4 */}
+          {/* TAB 4 — Wallet */}
+          <TabsContent value="wallet" className="mt-4">
+            {courier.vendor_id ? (
+              <WalletTransactionsLog vendorId={courier.vendor_id} />
+            ) : (
+              <Card className="p-8 text-center">
+                <WalletIcon className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <p className="text-sm text-muted-foreground">لا يوجد حساب مرتبط بهذه الشركة بعد. أنشئ حساب الدخول أولاً لعرض المحفظة.</p>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* TAB 5 — Assigned orders */}
           <TabsContent value="orders" className="mt-4">
             {loadingOrders ? (
               <p className="text-center py-8 text-sm text-muted-foreground">جاري التحميل...</p>
