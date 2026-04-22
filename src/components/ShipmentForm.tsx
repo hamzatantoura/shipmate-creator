@@ -281,7 +281,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!merchantProvinceId) { toast.error("يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً."); return; }
     if (weightNum <= 0) { toast.error("الرجاء إدخال وزن الشحنة بالكغ"); return; }
     if (!selectedProvinceId || !selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
     if (!selectedCourier) { toast.error("الرجاء اختيار شركة الشحن"); return; }
@@ -352,12 +351,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       </div>
 
       {merchantLoaded && !merchantProvinceId && (
-        <div className="flex items-start gap-2 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
-          <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">العنوان غير مكتمل</p>
-            <p className="text-xs mt-1">يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً قبل إنشاء أي طلب شحن.</p>
-          </div>
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs">
+          <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+          <p>تنبيه: لم تحدد محافظة متجرك بعد. يمكنك متابعة إنشاء الشحنة، ولكن يُفضّل ضبطها من الإعدادات لتحسين مطابقة شركات الشحن.</p>
         </div>
       )}
 
@@ -484,10 +480,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             <Loader2 className="h-3 w-3 animate-spin" /> جاري جلب الشركات المتاحة...
           </p>
         )}
-        {finalDistrictId && !loadingCouriers && courierOptions.length === 0 && (
+        {finalDistrictId && weightNum > 0 && !loadingCouriers && courierOptions.length === 0 && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <p>عذراً، لا توجد شركات شحن تغطي هذه المنطقة حالياً. يرجى التواصل مع الإدارة.</p>
+            <p>لا توجد شركة شحن تغطي هذه المنطقة بهذا الوزن.</p>
           </div>
         )}
 
@@ -579,7 +575,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       )}
 
-      <Button type="submit" disabled={loading || lossOrder || !selectedCourier || !merchantProvinceId || weightNum <= 0} className="w-full">
+      <Button type="submit" disabled={loading || lossOrder || !selectedCourier || weightNum <= 0} className="w-full">
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
