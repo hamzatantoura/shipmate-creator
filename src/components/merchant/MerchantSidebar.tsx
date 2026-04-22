@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "الرئيسية", url: "/merchant/dashboard", icon: Home },
+  { title: "الرئيسية", url: "/merchant", icon: Home, exact: true },
   { title: "الطلبات", url: "/merchant/orders", icon: ShoppingCart },
-  { title: "المحفظة", url: "/merchant?tab=wallet", icon: Wallet },
-  { title: "المتجر", url: "/merchant?tab=products", icon: Store },
-  { title: "الإعدادات", url: "/merchant?tab=settings", icon: Settings },
+  { title: "المحفظة", url: "/merchant/wallet", icon: Wallet },
+  { title: "المتجر", url: "/merchant/products", icon: Store },
+  { title: "الإعدادات", url: "/merchant/settings", icon: Settings },
 ];
 
 export function MerchantSidebar() {
@@ -33,9 +33,9 @@ export function MerchantSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => {
-                const isActive =
-                  location.pathname + location.search === item.url ||
-                  (item.url === "/merchant/dashboard" && location.pathname === "/merchant/dashboard");
+                const isActive = item.exact
+                  ? location.pathname === item.url
+                  : location.pathname === item.url || location.pathname.startsWith(item.url + "/");
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isActive}>

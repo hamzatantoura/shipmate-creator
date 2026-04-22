@@ -7,20 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Wallet, ArrowDownCircle, TrendingDown, TrendingUp, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-
-const TYPE_AR: Record<string, string> = {
-  topup: "شحن رصيد",
-  shipping_fee: "رسوم شحن",
-  cod_settlement: "تسوية COD",
-  commission: "بدل تحصيل",
-  carrier_adjustment: "تعديل الناقل",
-  return_fee: "رسوم إرجاع",
-  payout: "تسوية مالية",
-};
+import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 
 const PAYOUT_METHODS = [
   { value: "shamcash", label: "ShamCash" },
@@ -34,15 +25,6 @@ const PAYOUT_STATUS_AR: Record<string, string> = {
   processing: "قيد المعالجة",
   completed: "مكتملة",
 };
-
-interface WalletTx {
-  id: string;
-  type: string;
-  amount: number;
-  description: string | null;
-  created_at: string;
-  reference_id: string | null;
-}
 
 interface PayoutReq {
   id: string;
@@ -59,7 +41,6 @@ export default function MerchantWallet() {
   const [walletBalance, setWalletBalance] = useState(0); // legacy ledger balance (kept for payout cap)
   const [availableBalance, setAvailableBalance] = useState(0); // delivered orders
   const [pendingBalance, setPendingBalance] = useState(0); // processing/shipped/out_for_delivery
-  const [txns, setTxns] = useState<WalletTx[]>([]);
   const [payouts, setPayouts] = useState<PayoutReq[]>([]);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState("");
@@ -86,11 +67,9 @@ export default function MerchantWallet() {
     if (walletRes.data) {
       const { data: t } = await supabase
         .from("wallet_transactions")
-        .select("*")
+        .select("amount")
         .eq("wallet_id", walletRes.data.id)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (t) setTxns(t as WalletTx[]);
+        .order("created_at", { ascending: false });
       // Available balance = sum of ledger (single source of truth)
       const ledgerSum = (t || []).reduce((s: number, x: any) => s + Number(x.amount), 0);
       setWalletBalance(ledgerSum);
@@ -258,31 +237,7 @@ export default function MerchantWallet() {
 
       {/* Transaction History */}
       <h3 className="font-display font-semibold text-foreground">سجل الحركات</h3>
-      {txns.length === 0 ? (
-        <p className="text-center py-8 text-muted-foreground">لا توجد حركات بعد — ستظهر تلقائياً عند تسليم أو إرجاع الشحنات</p>
-      ) : (
-        <div className="space-y-2">
-          {txns.map(t => (
-            <Card key={t.id} className="bg-card border-border">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {t.amount >= 0 ? <TrendingUp className="h-4 w-4 text-primary" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{TYPE_AR[t.type] || t.type}</p>
-                    {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
-                  </div>
-                </div>
-                <div className="text-left">
-                  <p className={`font-display font-bold ${t.amount >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                    {t.amount >= 0 ? '+' : ''}{Number(t.amount).toLocaleString()} ل.س
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(t.created_at).toLocaleDateString('ar')}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {user && <WalletTransactionsLog merchantId={user.id} />}
     </div>
   );
 }
