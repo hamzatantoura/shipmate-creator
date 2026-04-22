@@ -33,6 +33,7 @@ import {
 import silaLogo from "@/assets/sila-logo.png";
 import BarcodeScanner from "@/components/vendor/BarcodeScanner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
+import { getOrderStatusMeta } from "@/lib/order-status";
 
 interface CourierOrderRow {
   id: string;
@@ -53,30 +54,16 @@ interface CourierOrderRow {
   districts?: { name: string } | null;
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  new: "bg-muted text-muted-foreground border-border",
-  processing: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
-  shipped: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20",
-  out_for_delivery: "bg-primary/10 text-primary border-primary/20",
-  delivered: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
-  returned: "bg-destructive/10 text-destructive border-destructive/20",
-  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+/**
+ * Logical lifecycle transitions for couriers.
+ * processing → shipped → out_for_delivery → delivered | returned
+ */
+const NEXT_STATUS_MAP: Record<string, { value: string; label: string }[]> = {
+  new:              [{ value: "processing", label: "قيد المعالجة" }, { value: "shipped", label: "مع شركة الشحن" }],
+  processing:       [{ value: "shipped", label: "مع شركة الشحن" }, { value: "returned", label: "مرتجع" }],
+  shipped:          [{ value: "out_for_delivery", label: "قيد التوصيل" }, { value: "returned", label: "مرتجع" }],
+  out_for_delivery: [{ value: "delivered", label: "تم التسليم" }, { value: "returned", label: "مرتجع" }],
 };
-const STATUS_LABEL: Record<string, string> = {
-  new: "جديد",
-  processing: "قيد المعالجة",
-  shipped: "تم الشحن",
-  out_for_delivery: "قيد التوصيل",
-  delivered: "تم التسليم",
-  returned: "مرتجع",
-  cancelled: "ملغي",
-};
-
-const NEXT_STATUSES = [
-  { value: "out_for_delivery", label: "قيد التوصيل" },
-  { value: "delivered", label: "تم التسليم" },
-  { value: "returned", label: "مرتجع" },
-];
 const RETURN_REASONS = [
   { value: "customer_refused", label: "رفض المستلم" },
   { value: "no_answer", label: "لا يرد" },
