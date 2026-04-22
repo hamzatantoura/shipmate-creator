@@ -22,12 +22,12 @@ interface District {
 }
 
 interface CourierOption {
-  rate_id: string;
   courier_id: string;
   name: string;
+  logo_url: string | null;
   services: string[];
   fee: number;
-  estimated_days: string | null;
+  tier_label: string; // e.g. "0–5 كغ"
   cod_fee_type: "fixed" | "percentage";
   cod_fee_value: number;
   cod_fee: number; // computed for current cod amount
