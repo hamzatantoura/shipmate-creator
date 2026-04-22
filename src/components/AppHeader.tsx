@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Shield, Search, Package, LogOut, Wallet } from "lucide-react";
+import { ShoppingBag, Shield, Search, Package, LogOut, Wallet, Receipt } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 
@@ -11,6 +11,7 @@ export default function AppHeader() {
   const NAV_ITEMS = role === "admin"
     ? [
         { path: "/admin", label: "الإدارة", icon: Shield },
+        { path: "/admin/settlements", label: "تسويات المناديب", icon: Receipt },
         { path: "/track", label: "تتبع", icon: Search },
       ]
     : role === "vendor"
