@@ -33,6 +33,7 @@ import {
 import silaLogo from "@/assets/sila-logo.png";
 import BarcodeScanner from "@/components/vendor/BarcodeScanner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
+import { getOrderStatusMeta } from "@/lib/order-status";
 
 interface CourierOrderRow {
   id: string;
@@ -53,30 +54,16 @@ interface CourierOrderRow {
   districts?: { name: string } | null;
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  new: "bg-muted text-muted-foreground border-border",
-  processing: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20",
-  shipped: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20",
-  out_for_delivery: "bg-primary/10 text-primary border-primary/20",
-  delivered: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20",
-  returned: "bg-destructive/10 text-destructive border-destructive/20",
-  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+/**
+ * Logical lifecycle transitions for couriers.
+ * processing → shipped → out_for_delivery → delivered | returned
+ */
+const NEXT_STATUS_MAP: Record<string, { value: string; label: string }[]> = {
+  new:              [{ value: "processing", label: "قيد المعالجة" }, { value: "shipped", label: "مع شركة الشحن" }],
+  processing:       [{ value: "shipped", label: "مع شركة الشحن" }, { value: "returned", label: "مرتجع" }],
+  shipped:          [{ value: "out_for_delivery", label: "قيد التوصيل" }, { value: "returned", label: "مرتجع" }],
+  out_for_delivery: [{ value: "delivered", label: "تم التسليم" }, { value: "returned", label: "مرتجع" }],
 };
-const STATUS_LABEL: Record<string, string> = {
-  new: "جديد",
-  processing: "قيد المعالجة",
-  shipped: "تم الشحن",
-  out_for_delivery: "قيد التوصيل",
-  delivered: "تم التسليم",
-  returned: "مرتجع",
-  cancelled: "ملغي",
-};
-
-const NEXT_STATUSES = [
-  { value: "out_for_delivery", label: "قيد التوصيل" },
-  { value: "delivered", label: "تم التسليم" },
-  { value: "returned", label: "مرتجع" },
-];
 const RETURN_REASONS = [
   { value: "customer_refused", label: "رفض المستلم" },
   { value: "no_answer", label: "لا يرد" },
@@ -166,11 +153,28 @@ export default function CourierOrders() {
       return;
     }
     setUpdatingId(id);
+    const target = orders.find(o => o.id === id);
+    const oldStatus = target?.status ?? null;
     const patch: Record<string, unknown> = { status: newStatus };
     if (newStatus === "returned" && reason) patch.return_reason = reason;
     const { error } = await supabase.from("orders").update(patch).eq("id", id);
+    if (error) {
+      setUpdatingId(null);
+      toast.error(error.message || "تعذر تحديث الحالة");
+      return;
+    }
+    // Mirror to shipment + write to merchant timeline (shipment_status_history)
+    if (target?.shipment_id) {
+      await supabase.from("shipments").update({ status: newStatus }).eq("id", target.shipment_id);
+      const { error: histErr } = await supabase.from("shipment_status_history").insert({
+        shipment_id: target.shipment_id,
+        old_status: oldStatus,
+        new_status: newStatus,
+        changed_by: user?.id ?? "system",
+      });
+      if (histErr) console.warn("Timeline log failed:", histErr.message);
+    }
     setUpdatingId(null);
-    if (error) { toast.error(error.message || "تعذر تحديث الحالة"); return; }
     toast.success("تم تحديث الحالة");
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus, return_reason: reason ?? o.return_reason } : o));
     setReturnDialog(null);
@@ -262,7 +266,7 @@ export default function CourierOrders() {
         o.phone_number,
         addr,
         cod,
-        STATUS_LABEL[o.status] || o.status,
+        getOrderStatusMeta(o.status).label,
       ].map(escape).join(","));
     }
     const csv = "\uFEFF" + lines.join("\n");
@@ -281,8 +285,23 @@ export default function CourierOrders() {
   const bulkUpdateStatus = async (newStatus: "out_for_delivery" | "delivered") => {
     if (selectedIds.length === 0) return;
     setBulkLoading(true);
+    const targets = orders.filter(o => selectedIds.includes(o.id));
     const results = await Promise.all(
-      selectedIds.map(id => supabase.from("orders").update({ status: newStatus }).eq("id", id))
+      targets.map(async (o) => {
+        const oldStatus = o.status;
+        const upd = await supabase.from("orders").update({ status: newStatus }).eq("id", o.id);
+        if (upd.error) return upd;
+        if (o.shipment_id) {
+          await supabase.from("shipments").update({ status: newStatus }).eq("id", o.shipment_id);
+          await supabase.from("shipment_status_history").insert({
+            shipment_id: o.shipment_id,
+            old_status: oldStatus,
+            new_status: newStatus,
+            changed_by: user?.id ?? "system",
+          });
+        }
+        return upd;
+      })
     );
     const failed = results.filter(r => r.error).length;
     setBulkLoading(false);
@@ -629,9 +648,16 @@ export default function CourierOrders() {
                           </TableCell>
                           <TableCell className="font-semibold text-sm tabular-nums">{fmtSYP(Number(cod))}</TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[o.status] || STATUS_STYLE.new}`}>
-                              {STATUS_LABEL[o.status] || o.status}
-                            </span>
+                            {(() => {
+                              const meta = getOrderStatusMeta(o.status);
+                              const Icon = meta.icon;
+                              return (
+                                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}>
+                                  <Icon className="h-3 w-3" />
+                                  {meta.label}
+                                </span>
+                              );
+                            })()}
                             {o.status === "returned" && o.return_reason && (
                               <div className="text-[10px] text-muted-foreground mt-1">
                                 {RETURN_REASONS.find(r => r.value === o.return_reason)?.label || o.return_reason}
@@ -643,15 +669,15 @@ export default function CourierOrders() {
                               <span className="text-xs text-muted-foreground">حالة نهائية</span>
                             ) : (
                               <Select
-                                value={o.status}
+                                value=""
                                 onValueChange={(v) => updateStatus(o.id, v)}
                                 disabled={updatingId === o.id}
                               >
                                 <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="اختر حالة" />
+                                  <SelectValue placeholder="تحديث الحالة" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {NEXT_STATUSES.map(s => (
+                                  {(NEXT_STATUS_MAP[o.status] || []).map(s => (
                                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                                   ))}
                                 </SelectContent>
