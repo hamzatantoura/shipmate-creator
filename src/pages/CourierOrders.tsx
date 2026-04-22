@@ -153,11 +153,28 @@ export default function CourierOrders() {
       return;
     }
     setUpdatingId(id);
+    const target = orders.find(o => o.id === id);
+    const oldStatus = target?.status ?? null;
     const patch: Record<string, unknown> = { status: newStatus };
     if (newStatus === "returned" && reason) patch.return_reason = reason;
     const { error } = await supabase.from("orders").update(patch).eq("id", id);
+    if (error) {
+      setUpdatingId(null);
+      toast.error(error.message || "تعذر تحديث الحالة");
+      return;
+    }
+    // Mirror to shipment + write to merchant timeline (shipment_status_history)
+    if (target?.shipment_id) {
+      await supabase.from("shipments").update({ status: newStatus }).eq("id", target.shipment_id);
+      const { error: histErr } = await supabase.from("shipment_status_history").insert({
+        shipment_id: target.shipment_id,
+        old_status: oldStatus,
+        new_status: newStatus,
+        changed_by: user?.id ?? "system",
+      });
+      if (histErr) console.warn("Timeline log failed:", histErr.message);
+    }
     setUpdatingId(null);
-    if (error) { toast.error(error.message || "تعذر تحديث الحالة"); return; }
     toast.success("تم تحديث الحالة");
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus, return_reason: reason ?? o.return_reason } : o));
     setReturnDialog(null);
