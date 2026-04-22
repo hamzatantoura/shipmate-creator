@@ -666,6 +666,13 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
       const { error: linkErr } = await supabase.from("couriers")
         .update({ vendor_id: newUserId } as any).eq("id", courier.id);
       if (linkErr) throw linkErr;
+      // Ensure profile role is vendor (handle_new_user trigger should set it,
+      // but force-update in case the trigger ran before metadata was applied).
+      await supabase.from("profiles")
+        .update({ role: "vendor" } as any)
+        .eq("user_id", newUserId);
+      await supabase.from("user_roles")
+        .upsert({ user_id: newUserId, role: "vendor" } as any, { onConflict: "user_id,role" });
       setCredentials({ email: username, password });
       toast.success("تم إنشاء حساب شركة الشحن وربطه");
       onRefresh();
@@ -819,12 +826,21 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
           {/* TAB 2 — Auth */}
           <TabsContent value="account" className="mt-4 space-y-4">
             {courier.vendor_id && !credentials ? (
-              <Card className="p-4 bg-primary/5 border-primary/30">
+              <Card className="p-4 space-y-3 bg-primary/5 border-primary/30">
                 <div className="flex items-center gap-2 text-primary">
                   <Check className="h-4 w-4" />
-                  <p className="text-sm font-semibold">حساب الشركة مُفعّل ومرتبط</p>
+                  <p className="text-sm font-semibold">حساب مُفعّل ومرتبط</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">معرّف المستخدم: <span dir="ltr" className="font-mono">{courier.vendor_id}</span></p>
+                <p className="text-xs text-muted-foreground">
+                  هذه الشركة لديها حساب دخول مرتبط بدور <code>vendor</code>. لأسباب أمنية، كلمة المرور لا تُخزَّن ولا يمكن استرجاعها — أعد تعيينها من إدارة المستخدمين عند الحاجة.
+                </p>
+                <div className="flex items-center gap-2 bg-background border border-border rounded-md p-2">
+                  <span className="text-xs text-muted-foreground w-24">معرّف المستخدم</span>
+                  <code dir="ltr" className="flex-1 text-xs font-mono truncate">{courier.vendor_id}</code>
+                  <Button variant="ghost" size="icon" onClick={() => copyVal(courier.vendor_id!, "email")}>
+                    {copied === "email" ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
               </Card>
             ) : credentials ? (
               <Card className="p-4 space-y-3 bg-primary/5 border-primary/30">
@@ -841,6 +857,13 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
                     </div>
                   ))}
                 </div>
+                <Button
+                  variant="outline"
+                  className="w-full gap-1.5"
+                  onClick={() => copyVal(`اسم المستخدم: ${credentials.email}\nكلمة المرور: ${credentials.password}`, "password")}
+                >
+                  <Copy className="h-4 w-4" /> نسخ بيانات الدخول
+                </Button>
               </Card>
             ) : (
               <Card className="p-4 space-y-3">
