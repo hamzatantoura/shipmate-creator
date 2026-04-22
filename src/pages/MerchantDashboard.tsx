@@ -1,177 +1,229 @@
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
+import { useEffect, useState, useCallback } from "react";
+import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Wallet, Clock, TrendingUp, ShoppingCart, RotateCcw, ShieldAlert } from "lucide-react";
+import {
+  Wallet, Clock, TrendingUp, ShoppingCart, RotateCcw, ShieldAlert,
+  CheckCircle2, Truck, Loader2,
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import silaLogo from "@/assets/sila-logo.png";
-import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
-const fmt = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
+const fmt = (n: number) => new Intl.NumberFormat("ar-SY").format(Math.round(n)) + " ل.س";
+
+interface DashboardData {
+  loading: boolean;
+  availableBalance: number; // wallet ledger sum
+  pendingBalance: number;   // orders processing/shipped/out_for_delivery — net
+  onHoldBalance: number;    // delivered orders not yet settled to wallet — net
+  newOrders: number;
+  pendingOrders: number;
+  deliveredOrders: number;
+  returnedOrders: number;
+  verificationStatus: string | null;
+}
+
+const PENDING_STATUSES = new Set(["processing", "shipped", "out_for_delivery"]);
 
 export default function MerchantDashboard() {
-  const { profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
+  const [data, setData] = useState<DashboardData>({
+    loading: true,
+    availableBalance: 0,
+    pendingBalance: 0,
+    onHoldBalance: 0,
+    newOrders: 0,
+    pendingOrders: 0,
+    deliveredOrders: 0,
+    returnedOrders: 0,
+    verificationStatus: null,
+  });
 
-  // Dummy values
-  const availableBalance = 1_250_000;
-  const onHoldBalance = 480_000;
-  const pendingBalance = 920_000;
-  const newOrdersCount = 12;
-  const returnsCount = 2;
+  const fetchAll = useCallback(async () => {
+    if (!user) return;
+    setData((d) => ({ ...d, loading: true }));
 
-  // Simulated lock state
-  const isLocked = true;
+    const [walletRes, ordersRes, merchantRes] = await Promise.all([
+      supabase.from("wallets").select("id").eq("merchant_id", user.id).maybeSingle(),
+      supabase
+        .from("orders")
+        .select("status, total_amount, final_sale_price, delivery_fee")
+        .eq("merchant_id", user.id)
+        .is("deleted_at", null),
+      supabase
+        .from("merchants")
+        .select("verification_status")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+    ]);
+
+    let availableBalance = 0;
+    if (walletRes.data?.id) {
+      const { data: txns } = await supabase
+        .from("wallet_transactions")
+        .select("amount")
+        .eq("wallet_id", walletRes.data.id);
+      availableBalance = (txns || []).reduce((s, t: any) => s + Number(t.amount), 0);
+    }
+
+    let newOrders = 0, pendingOrders = 0, deliveredOrders = 0, returnedOrders = 0;
+    let pendingBalance = 0, onHoldBalance = 0;
+    for (const o of (ordersRes.data || []) as any[]) {
+      const amount = Number(o.final_sale_price ?? o.total_amount ?? 0);
+      const fee = Number(o.delivery_fee ?? 0);
+      const net = amount - fee;
+      if (o.status === "new") newOrders++;
+      else if (PENDING_STATUSES.has(o.status)) { pendingOrders++; pendingBalance += net; }
+      else if (o.status === "delivered") { deliveredOrders++; onHoldBalance += net; }
+      else if (o.status === "returned") returnedOrders++;
+    }
+
+    setData({
+      loading: false,
+      availableBalance,
+      pendingBalance,
+      onHoldBalance: Math.max(0, onHoldBalance - availableBalance), // approx unpaid delivered
+      newOrders,
+      pendingOrders,
+      deliveredOrders,
+      returnedOrders,
+      verificationStatus: (merchantRes.data as any)?.verification_status ?? null,
+    });
+  }, [user]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Realtime: refresh on orders changes
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`dashboard-orders-${user.id}`)
+      .on("postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `merchant_id=eq.${user.id}` },
+        () => fetchAll(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchAll]);
+
+  const isLocked = data.verificationStatus !== null && data.verificationStatus !== "verified";
+  const lockMessage =
+    data.verificationStatus === "pending_verification"
+      ? "أكمل بيانات متجرك من الإعدادات لتفعيل استقبال الطلبات."
+      : data.verificationStatus === "pending_admin_approval"
+      ? "تم استلام بياناتك وهي بانتظار اعتماد الإدارة."
+      : data.verificationStatus === "rejected"
+      ? "تم رفض الطلب — يرجى تحديث البيانات والمحاولة مجدداً."
+      : "حسابك قيد المراجعة.";
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background" dir="rtl">
-        <MerchantSidebar />
-
-        <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-10">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger />
-              <Link to="/" className="flex items-center gap-2">
-                <img src={silaLogo} alt="Sila" className="h-7 w-7" />
-                <span className="font-display font-bold text-lg text-primary">صلة</span>
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              {profile?.store_name && (
-                <span className="text-xs text-muted-foreground hidden md:inline">
-                  {profile.store_name}
-                </span>
-              )}
-              <button
-                onClick={signOut}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                خروج
-              </button>
-            </div>
-          </header>
-
-          <main className="flex-1 p-4 md:p-6 space-y-6 max-w-7xl w-full mx-auto">
-            <div>
-              <h1 className="text-2xl font-display font-bold text-foreground">الرئيسية</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                مرحباً بك في لوحة تحكم التاجر
-              </p>
-            </div>
-
-            {/* Lock Banner */}
-            {isLocked && (
-              <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
-                <ShieldAlert className="h-5 w-5" />
-                <AlertTitle className="font-bold">حساب قيد المراجعة الأمنية</AlertTitle>
-                <AlertDescription>
-                  حسابك قيد المراجعة الأمنية. لا يمكنك استقبال طلبات جديدة حالياً.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* 3-Tier Wallet */}
-            <section>
-              <h2 className="text-lg font-semibold text-foreground mb-3">المحفظة المالية</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Available */}
-                <Card className="border-r-4 border-r-emerald-500 bg-gradient-to-bl from-emerald-500/10 to-transparent">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">
-                        الرصيد المتاح
-                      </CardTitle>
-                      <div className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <Wallet className="h-4 w-4 text-emerald-500" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-emerald-500" dir="ltr">
-                      <span dir="rtl">{fmt(availableBalance)}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">جاهز للسحب الآن</p>
-                  </CardContent>
-                </Card>
-
-                {/* On Hold */}
-                <Card className="border-r-4 border-r-amber-500 bg-gradient-to-bl from-amber-500/10 to-transparent">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">
-                        بانتظار التحويل
-                      </CardTitle>
-                      <div className="h-9 w-9 rounded-full bg-amber-500/20 flex items-center justify-center">
-                        <Clock className="h-4 w-4 text-amber-500" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-amber-500">
-                      {fmt(onHoldBalance)}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      شحنات مُوصَّلة بانتظار التحاسب
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {/* Pending */}
-                <Card className="border-r-4 border-r-sky-500 bg-gradient-to-bl from-sky-500/10 to-transparent">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">
-                        الرصيد المتوقع
-                      </CardTitle>
-                      <div className="h-9 w-9 rounded-full bg-sky-500/20 flex items-center justify-center">
-                        <TrendingUp className="h-4 w-4 text-sky-500" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-sky-500">
-                      {fmt(pendingBalance)}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      طلبات قيد التوصيل
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </section>
-
-            {/* Quick Stats */}
-            <section>
-              <h2 className="text-lg font-semibold text-foreground mb-3">إحصائيات سريعة</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardContent className="pt-6 flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-primary/15 flex items-center justify-center">
-                      <ShoppingCart className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">الطلبات الجديدة</p>
-                      <p className="text-3xl font-bold text-foreground">{newOrdersCount}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6 flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-lg bg-destructive/15 flex items-center justify-center">
-                      <RotateCcw className="h-6 w-6 text-destructive" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">المرتجعات</p>
-                      <p className="text-3xl font-bold text-foreground">{returnsCount}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </section>
-          </main>
+    <MerchantLayout title="الرئيسية" subtitle={`مرحباً ${profile?.store_name || ""}`}>
+      {data.loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </div>
-    </SidebarProvider>
+      ) : (
+        <>
+          {isLocked && (
+            <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+              <ShieldAlert className="h-5 w-5" />
+              <AlertTitle className="font-bold">الحساب غير مفعّل بعد</AlertTitle>
+              <AlertDescription>{lockMessage}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* 3-Tier Wallet */}
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-3">المحفظة المالية</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="border-r-4 border-r-emerald-500 bg-gradient-to-bl from-emerald-500/10 to-transparent">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">الرصيد المتاح</CardTitle>
+                    <div className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                      <Wallet className="h-4 w-4 text-emerald-500" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-emerald-500">{fmt(data.availableBalance)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">من سجل المحفظة (دفتر الحسابات)</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-r-4 border-r-amber-500 bg-gradient-to-bl from-amber-500/10 to-transparent">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">بانتظار التحاسب</CardTitle>
+                    <div className="h-9 w-9 rounded-full bg-amber-500/20 flex items-center justify-center">
+                      <Clock className="h-4 w-4 text-amber-500" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-amber-500">{fmt(data.onHoldBalance)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">شحنات مُوصَّلة لم تُسوَّ بعد</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-r-4 border-r-sky-500 bg-gradient-to-bl from-sky-500/10 to-transparent">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">الرصيد المتوقع</CardTitle>
+                    <div className="h-9 w-9 rounded-full bg-sky-500/20 flex items-center justify-center">
+                      <TrendingUp className="h-4 w-4 text-sky-500" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-sky-500">{fmt(data.pendingBalance)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">طلبات قيد المعالجة/التوصيل</p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Order stats */}
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-3">إحصائيات الطلبات</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard icon={ShoppingCart} label="طلبات جديدة" value={data.newOrders} tone="primary" />
+              <StatCard icon={Truck} label="قيد التوصيل" value={data.pendingOrders} tone="sky" />
+              <StatCard icon={CheckCircle2} label="تم التوصيل" value={data.deliveredOrders} tone="emerald" />
+              <StatCard icon={RotateCcw} label="مرتجعات" value={data.returnedOrders} tone="destructive" />
+            </div>
+          </section>
+        </>
+      )}
+    </MerchantLayout>
+  );
+}
+
+function StatCard({
+  icon: Icon, label, value, tone,
+}: {
+  icon: typeof ShoppingCart;
+  label: string;
+  value: number;
+  tone: "primary" | "sky" | "emerald" | "destructive";
+}) {
+  const toneClass = {
+    primary: "bg-primary/15 text-primary",
+    sky: "bg-sky-500/15 text-sky-500",
+    emerald: "bg-emerald-500/15 text-emerald-500",
+    destructive: "bg-destructive/15 text-destructive",
+  }[tone];
+  return (
+    <Card>
+      <CardContent className="pt-6 flex items-center gap-3">
+        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${toneClass}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-2xl font-bold text-foreground">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
