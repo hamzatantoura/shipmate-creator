@@ -335,7 +335,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     setLoading(false);
     toast.success(`تم إنشاء الطلب والشحنة — رقم التتبع: ${tracking}`);
     setForm({ receiver_name: "", phone_number: "", detailed_address: "", cod_amount: "", notes: "" });
-    setSelectedProvinceId(""); setSelectedAreaId(""); setSelectedCourierRateId("");
+    setSelectedProvinceId(""); setSelectedAreaId(""); setSelectedCourierId("");
     onCreated();
   };
 
