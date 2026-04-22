@@ -28,7 +28,16 @@ export default function Login() {
 
     const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
     if (error) {
-      toast.error(error.message);
+      // Surface the EXACT Supabase error so admins can diagnose
+      const code = (error as any)?.code ?? "";
+      let friendly = error.message;
+      if (/invalid[_ ]?credentials/i.test(code) || /invalid login/i.test(error.message)) {
+        friendly = "بيانات الدخول غير صحيحة — تأكد من اسم المستخدم وكلمة المرور";
+      } else if (/email[_ ]not[_ ]confirmed/i.test(error.message)) {
+        friendly = "البريد غير مؤكد — تواصل مع الإدارة لتفعيل الحساب";
+      }
+      console.error("[Login] signIn failed", { loginEmail, code, message: error.message });
+      toast.error(`${friendly} (${error.message})`);
       setLoading(false);
       return;
     }
