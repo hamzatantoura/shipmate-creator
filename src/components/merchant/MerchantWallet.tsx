@@ -7,20 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Wallet, ArrowDownCircle, TrendingDown, TrendingUp, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-
-const TYPE_AR: Record<string, string> = {
-  topup: "شحن رصيد",
-  shipping_fee: "رسوم شحن",
-  cod_settlement: "تسوية COD",
-  commission: "بدل تحصيل",
-  carrier_adjustment: "تعديل الناقل",
-  return_fee: "رسوم إرجاع",
-  payout: "تسوية مالية",
-};
+import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 
 const PAYOUT_METHODS = [
   { value: "shamcash", label: "ShamCash" },
@@ -34,15 +25,6 @@ const PAYOUT_STATUS_AR: Record<string, string> = {
   processing: "قيد المعالجة",
   completed: "مكتملة",
 };
-
-interface WalletTx {
-  id: string;
-  type: string;
-  amount: number;
-  description: string | null;
-  created_at: string;
-  reference_id: string | null;
-}
 
 interface PayoutReq {
   id: string;
@@ -59,7 +41,6 @@ export default function MerchantWallet() {
   const [walletBalance, setWalletBalance] = useState(0); // legacy ledger balance (kept for payout cap)
   const [availableBalance, setAvailableBalance] = useState(0); // delivered orders
   const [pendingBalance, setPendingBalance] = useState(0); // processing/shipped/out_for_delivery
-  const [txns, setTxns] = useState<WalletTx[]>([]);
   const [payouts, setPayouts] = useState<PayoutReq[]>([]);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState("");
@@ -86,11 +67,9 @@ export default function MerchantWallet() {
     if (walletRes.data) {
       const { data: t } = await supabase
         .from("wallet_transactions")
-        .select("*")
+        .select("amount")
         .eq("wallet_id", walletRes.data.id)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (t) setTxns(t as WalletTx[]);
+        .order("created_at", { ascending: false });
       // Available balance = sum of ledger (single source of truth)
       const ledgerSum = (t || []).reduce((s: number, x: any) => s + Number(x.amount), 0);
       setWalletBalance(ledgerSum);
