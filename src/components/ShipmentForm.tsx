@@ -422,8 +422,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
           <Truck className="h-3.5 w-3.5" /> شركة الشحن <span className="text-destructive">*</span>
         </Label>
         <Select
-          value={selectedCourierRateId}
-          onValueChange={setSelectedCourierRateId}
+          value={selectedCourierId}
+          onValueChange={setSelectedCourierId}
           disabled={!finalDistrictId || weightNum <= 0 || loadingCouriers || courierOptions.length === 0}
         >
           <SelectTrigger>
@@ -437,15 +437,20 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
           </SelectTrigger>
           <SelectContent>
             {courierOptions.map(c => (
-              <SelectItem key={c.rate_id} value={c.rate_id}>
+              <SelectItem key={c.courier_id} value={c.courier_id}>
                 <div className="flex flex-col items-start gap-1 py-1 min-w-[260px]">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold">{c.name}</span>
-                    {c.estimated_days && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" /> {c.estimated_days} أيام
-                      </span>
+                    {c.logo_url ? (
+                      <img src={c.logo_url} alt={c.name} className="h-6 w-6 rounded object-cover border border-border" />
+                    ) : (
+                      <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                        <Truck className="h-3 w-3 text-muted-foreground" />
+                      </div>
                     )}
+                    <span className="font-semibold">{c.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 flex items-center gap-1">
+                      <Weight className="h-2.5 w-2.5" /> فئة {c.tier_label}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs">
                     <span className="text-foreground">
