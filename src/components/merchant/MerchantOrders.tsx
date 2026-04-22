@@ -228,6 +228,7 @@ export default function MerchantOrders() {
                   <th className="p-3 text-right font-medium">العميل</th>
                   <th className="p-3 text-right font-medium">رقم التتبع</th>
                   <th className="p-3 text-right font-medium">المدينة</th>
+                  <th className="p-3 text-right font-medium">شركة الشحن</th>
                   <th className="p-3 text-right font-medium">المبلغ</th>
                   <th className="p-3 text-right font-medium">رسوم الشحن</th>
                   <th className="p-3 text-right font-medium">بدل تحصيل</th>
@@ -250,6 +251,22 @@ export default function MerchantOrders() {
                       </span>
                     </td>
                     <td className="p-3 text-foreground">{o.city}</td>
+                    <td className="p-3">
+                      {o.couriers ? (
+                        <div className="flex items-center gap-2">
+                          {o.couriers.logo_url ? (
+                            <img src={o.couriers.logo_url} alt={o.couriers.name} className="h-6 w-6 rounded object-cover border border-border" />
+                          ) : (
+                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                              <Truck className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                          )}
+                          <span className="text-xs text-foreground font-medium">{o.couriers.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">— لم تُحدَّد —</span>
+                      )}
+                    </td>
                     <td className="p-3 text-foreground">{(o.final_sale_price || o.total_amount).toLocaleString()} ل.س</td>
                     <td className="p-3 text-muted-foreground">{Number(o.delivery_fee || 0).toLocaleString()} ل.س</td>
                     <td className="p-3 text-muted-foreground">{Number(o.platform_fee || 0).toLocaleString()} ل.س</td>
@@ -269,6 +286,9 @@ export default function MerchantOrders() {
                           window.open(`https://wa.me/${phone}`, "_blank");
                         }}>
                           <MessageCircle className="h-3.5 w-3.5 text-[#25D366]" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="سجل التعديلات" onClick={() => openAudit(o)}>
+                          <History className="h-3.5 w-3.5 text-info" />
                         </Button>
                         {!o.shipment_id && ["new", "pending", "processing"].includes(o.status) && (
                           <Button size="sm" variant="ghost" className="gap-1" onClick={() => openConfirm(o)}>
