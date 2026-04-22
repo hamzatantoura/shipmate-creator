@@ -358,6 +358,52 @@ export default function MerchantOrders() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Audit trail viewer — courier adjustments to price/weight */}
+      <Dialog open={!!auditOrder} onOpenChange={o => !o && setAuditOrder(null)}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-4 w-4 text-info" />
+              سجل تعديلات شركة الشحن
+            </DialogTitle>
+          </DialogHeader>
+          {loadingAudit ? (
+            <p className="text-center py-8 text-sm text-muted-foreground">جاري التحميل...</p>
+          ) : auditLogs.length === 0 ? (
+            <p className="text-center py-8 text-sm text-muted-foreground">لا توجد تعديلات على هذا الطلب</p>
+          ) : (
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              {auditLogs.map(log => {
+                const fieldLabel = log.field_name === "final_sale_price" ? "السعر النهائي"
+                  : log.field_name === "final_weight" ? "الوزن الفعلي"
+                  : log.field_name;
+                const unit = log.field_name === "final_sale_price" ? "ل.س"
+                  : log.field_name === "final_weight" ? "كغ" : "";
+                return (
+                  <div key={log.id} className="p-3 rounded-lg border border-border bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-foreground">{fieldLabel}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {new Date(log.created_at).toLocaleString("ar-SY")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-muted-foreground line-through">
+                        {log.old_value ?? "—"} {unit}
+                      </span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="font-bold text-primary">
+                        {log.new_value ?? "—"} {unit}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
