@@ -149,6 +149,7 @@ export default function MerchantOrdersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
+  const [trackingOrder, setTrackingOrder] = useState<OrderRow | null>(null);
 
   // Districts (real data)
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
@@ -190,7 +191,7 @@ export default function MerchantOrdersPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name)")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name), shipments(tracking_number)")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
