@@ -119,6 +119,12 @@ export default function CourierOrders() {
   const [revertDialog, setRevertDialog] = useState<CourierOrderRow | null>(null);
   const [reverting, setReverting] = useState(false);
 
+  // ===== Smart Scanner state =====
+  const [scanInput, setScanInput] = useState("");
+  const [quickAction, setQuickAction] = useState<{ order: CourierOrderRow; nextStatus: string } | null>(null);
+  const [quickReason, setQuickReason] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
+
   const fetchAll = useCallback(async () => {
     if (!user) return;
     setLoading(true);
