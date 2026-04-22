@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
+  Camera, Zap,
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
@@ -80,13 +81,21 @@ const isToday = (iso: string) => {
   return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
 };
 
-type TabKey = "all" | "pending" | "in_transit" | "delivered" | "returned";
+type TabKey = "all" | "pending" | "active" | "delivered" | "returned";
 const TAB_FILTERS: Record<TabKey, (s: string) => boolean> = {
   all: () => true,
-  pending: (s) => ["new", "processing"].includes(s),
-  in_transit: (s) => ["shipped", "out_for_delivery"].includes(s),
+  // STRICT mutually exclusive pipeline buckets
+  pending:   (s) => ["new", "pending"].includes(s),
+  active:    (s) => ["processing", "shipped", "out_for_delivery"].includes(s),
   delivered: (s) => s === "delivered",
-  returned: (s) => s === "returned",
+  returned:  (s) => ["returned", "cancelled"].includes(s),
+};
+const TAB_LABELS: Record<TabKey, string> = {
+  all: "الكل",
+  pending: "بانتظار الاستلام",
+  active: "قيد التشغيل",
+  delivered: "تم التسليم",
+  returned: "مرتجع/ملغي",
 };
 
 export default function CourierOrders() {
