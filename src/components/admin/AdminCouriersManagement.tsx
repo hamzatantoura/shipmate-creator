@@ -827,22 +827,12 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
           {/* TAB 2 — Auth */}
           <TabsContent value="account" className="mt-4 space-y-4">
             {courier.vendor_id && !credentials ? (
-              <Card className="p-4 space-y-3 bg-primary/5 border-primary/30">
-                <div className="flex items-center gap-2 text-primary">
-                  <Check className="h-4 w-4" />
-                  <p className="text-sm font-semibold">حساب مُفعّل ومرتبط</p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  هذه الشركة لديها حساب دخول مرتبط بدور <code>vendor</code>. لأسباب أمنية، كلمة المرور لا تُخزَّن ولا يمكن استرجاعها — أعد تعيينها من إدارة المستخدمين عند الحاجة.
-                </p>
-                <div className="flex items-center gap-2 bg-background border border-border rounded-md p-2">
-                  <span className="text-xs text-muted-foreground w-24">معرّف المستخدم</span>
-                  <code dir="ltr" className="flex-1 text-xs font-mono truncate">{courier.vendor_id}</code>
-                  <Button variant="ghost" size="icon" onClick={() => copyVal(courier.vendor_id!, "email")}>
-                    {copied === "email" ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </Card>
+              <ResetPasswordCard
+                vendorId={courier.vendor_id}
+                onReset={(username, newPassword) => setCredentials({ email: username, password: newPassword })}
+                copyVal={copyVal}
+                copied={copied}
+              />
             ) : credentials ? (
               <Card className="p-4 space-y-3 bg-primary/5 border-primary/30">
                 <h4 className="text-sm font-semibold text-primary flex items-center gap-2"><Check className="h-4 w-4" /> تم إنشاء الحساب بنجاح</h4>
