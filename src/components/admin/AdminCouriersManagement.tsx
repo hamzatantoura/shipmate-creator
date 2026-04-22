@@ -950,3 +950,90 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
     </Sheet>
   );
 }
+
+// ============ Reset password card (shown when courier already has an account) ============
+function ResetPasswordCard({
+  vendorId,
+  onReset,
+  copyVal,
+  copied,
+}: {
+  vendorId: string;
+  onReset: (username: string, password: string) => void;
+  copyVal: (val: string, kind: "email" | "password") => void;
+  copied: "email" | "password" | null;
+}) {
+  const [newPassword, setNewPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleReset = async () => {
+    if (newPassword.trim().length < 6) {
+      toast.error("كلمة المرور 6 أحرف على الأقل");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-courier-password", {
+        body: { vendor_id: vendorId, password: newPassword.trim() },
+      });
+      if (error) {
+        const ctx = (error as any)?.context;
+        let msg = error.message || "فشل إعادة التعيين";
+        try {
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = j.error;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      const username = data?.username ?? "";
+      toast.success("تم إعادة تعيين كلمة المرور");
+      onReset(username, newPassword.trim());
+      setNewPassword("");
+    } catch (e: any) {
+      toast.error(e.message || "فشل إعادة التعيين");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="p-4 space-y-3 bg-primary/5 border-primary/30">
+      <div className="flex items-center gap-2 text-primary">
+        <Check className="h-4 w-4" />
+        <p className="text-sm font-semibold">حساب مُفعّل ومرتبط</p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        هذه الشركة لديها حساب دخول مرتبط بدور <code>vendor</code>. لأسباب أمنية، كلمة المرور لا تُخزَّن — إن نسيت الشركة كلمة المرور، عيّن كلمة جديدة من هنا.
+      </p>
+      <div className="flex items-center gap-2 bg-background border border-border rounded-md p-2">
+        <span className="text-xs text-muted-foreground w-24">معرّف المستخدم</span>
+        <code dir="ltr" className="flex-1 text-xs font-mono truncate">{vendorId}</code>
+        <Button variant="ghost" size="icon" onClick={() => copyVal(vendorId, "email")}>
+          {copied === "email" ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+        </Button>
+      </div>
+      <div className="border-t border-border pt-3 space-y-2">
+        <Label className="text-sm font-semibold flex items-center gap-1.5">
+          <KeyRound className="h-3.5 w-3.5 text-primary" /> إعادة تعيين كلمة المرور
+        </Label>
+        <Input
+          type="text"
+          dir="ltr"
+          placeholder="كلمة مرور جديدة (6+ أحرف)"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+        />
+        <Button onClick={handleReset} disabled={busy} className="w-full gap-1.5">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+          {busy ? "جاري التعيين..." : "تعيين كلمة المرور الجديدة"}
+        </Button>
+        <p className="text-[11px] text-muted-foreground">
+          سيتم تحديث كلمة المرور فوراً، وستظهر بيانات الدخول الجديدة لتنسخها وترسلها للشركة.
+        </p>
+      </div>
+    </Card>
+  );
+}
