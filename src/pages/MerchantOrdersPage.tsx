@@ -632,6 +632,16 @@ export default function MerchantOrdersPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setTrackingOrder(order)}
+                                className="gap-1.5"
+                                title="رحلة الشحنة"
+                              >
+                                <Radar className="h-3.5 w-3.5 text-info" />
+                                التتبع
+                              </Button>
                               {!locked && (
                                 <Button
                                   size="sm"
