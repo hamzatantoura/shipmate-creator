@@ -10,9 +10,11 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import MerchantPortal from "./pages/MerchantPortal";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import MerchantOrdersPage from "./pages/MerchantOrdersPage";
+import MerchantWalletPage from "./pages/MerchantWalletPage";
+import MerchantProductsPage from "./pages/MerchantProductsPage";
+import MerchantSettingsPage from "./pages/MerchantSettingsPage";
 import CourierOrders from "./pages/CourierOrders";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
@@ -46,10 +48,10 @@ const App = () => (
           <Route path="/store/:merchantId" element={<Storefront />} />
           <Route path="/product/:slug" element={<ProductPage />} />
 
-          {/* Protected: Merchant */}
+          {/* Protected: Merchant — unified sidebar layout */}
           <Route path="/merchant" element={
             <AuthGuard allowedRoles={["merchant"]}>
-              <MerchantPortal />
+              <MerchantDashboard />
             </AuthGuard>
           } />
           <Route path="/merchant/dashboard" element={
@@ -60,6 +62,21 @@ const App = () => (
           <Route path="/merchant/orders" element={
             <AuthGuard allowedRoles={["merchant"]}>
               <MerchantOrdersPage />
+            </AuthGuard>
+          } />
+          <Route path="/merchant/wallet" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantWalletPage />
+            </AuthGuard>
+          } />
+          <Route path="/merchant/products" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantProductsPage />
+            </AuthGuard>
+          } />
+          <Route path="/merchant/settings" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantSettingsPage />
             </AuthGuard>
           } />
           <Route path="/topup" element={
@@ -96,17 +113,17 @@ const App = () => (
           } />
           <Route path="/products" element={
             <AuthGuard allowedRoles={["merchant"]}>
-              <MerchantPortal />
+              <MerchantProductsPage />
             </AuthGuard>
           } />
           <Route path="/orders" element={
             <AuthGuard allowedRoles={["merchant"]}>
-              <MerchantPortal />
+              <MerchantOrdersPage />
             </AuthGuard>
           } />
           <Route path="/wallet" element={
             <AuthGuard allowedRoles={["merchant"]}>
-              <MerchantPortal />
+              <MerchantWalletPage />
             </AuthGuard>
           } />
           <Route path="*" element={<NotFound />} />
