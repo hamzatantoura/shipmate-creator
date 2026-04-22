@@ -266,7 +266,7 @@ export default function CourierOrders() {
         o.phone_number,
         addr,
         cod,
-        STATUS_LABEL[o.status] || o.status,
+        getOrderStatusMeta(o.status).label,
       ].map(escape).join(","));
     }
     const csv = "\uFEFF" + lines.join("\n");
