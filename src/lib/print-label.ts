@@ -127,7 +127,7 @@ export function printShippingLabel(data: LabelData) {
 
     ${data.notes ? `<hr /><div class="section"><div class="label-tag">ملاحظات</div><div class="value" style="font-size:9pt;">${escapeHtml(data.notes)}</div></div>` : ""}
 
-    <div class="footer">Powered by <strong>صِلة Sila</strong> — منصة الشحن السورية · sila-sy.com</div>
+    <div class="footer">Powered by <strong>صِلة Sila</strong> · sila-sy.com</div>
   </div>
   <script>
     window.addEventListener('load', function() { setTimeout(function(){ window.print(); }, 250); });
