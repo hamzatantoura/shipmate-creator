@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
@@ -50,6 +50,8 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { printShippingLabel } from "@/lib/print-label";
 import EditOrderDialog from "@/components/merchant/EditOrderDialog";
+import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
+import { getOrderStatusMeta } from "@/lib/order-status";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
@@ -70,6 +72,7 @@ interface OrderRow {
   notes: string | null;
   return_reason: string | null;
   couriers?: { name: string } | null;
+  shipments?: { tracking_number: string | null } | null;
 }
 
 interface DistrictRow {
@@ -89,16 +92,6 @@ interface CourierRate {
   district_id: string;
   custom_delivery_fee: number;
 }
-
-const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  new: { label: "جديد", variant: "outline" },
-  processing: { label: "قيد المعالجة", variant: "default" },
-  shipped: { label: "قيد التوصيل", variant: "default" },
-  out_for_delivery: { label: "خرج للتوصيل", variant: "default" },
-  delivered: { label: "تم التوصيل", variant: "secondary" },
-  returned: { label: "مرتجع", variant: "destructive" },
-  cancelled: { label: "ملغى", variant: "destructive" },
-};
 
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
