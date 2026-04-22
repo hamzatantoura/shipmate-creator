@@ -237,31 +237,7 @@ export default function MerchantWallet() {
 
       {/* Transaction History */}
       <h3 className="font-display font-semibold text-foreground">سجل الحركات</h3>
-      {txns.length === 0 ? (
-        <p className="text-center py-8 text-muted-foreground">لا توجد حركات بعد — ستظهر تلقائياً عند تسليم أو إرجاع الشحنات</p>
-      ) : (
-        <div className="space-y-2">
-          {txns.map(t => (
-            <Card key={t.id} className="bg-card border-border">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {t.amount >= 0 ? <TrendingUp className="h-4 w-4 text-primary" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{TYPE_AR[t.type] || t.type}</p>
-                    {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
-                  </div>
-                </div>
-                <div className="text-left">
-                  <p className={`font-display font-bold ${t.amount >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                    {t.amount >= 0 ? '+' : ''}{Number(t.amount).toLocaleString()} ل.س
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(t.created_at).toLocaleDateString('ar')}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {user && <WalletTransactionsLog merchantId={user.id} />}
     </div>
   );
 }
