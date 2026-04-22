@@ -485,6 +485,40 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             <p>عذراً، لا توجد شركات شحن تغطي هذه المنطقة حالياً. يرجى التواصل مع الإدارة.</p>
           </div>
         )}
+
+        {/* Selected courier preview — shows the matched weight tier and price clearly */}
+        {selectedCourier && (
+          <div className="mt-2 p-3 rounded-lg border-2 border-primary/40 bg-primary/5">
+            <div className="flex items-center gap-3 flex-wrap">
+              {selectedCourier.logo_url ? (
+                <img src={selectedCourier.logo_url} alt={selectedCourier.name} className="h-10 w-10 rounded-md object-cover border border-border" />
+              ) : (
+                <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                  <Truck className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground text-sm">{selectedCourier.name}</p>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                    <Weight className="h-3 w-3" /> فئة الوزن: {selectedCourier.tier_label}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    أجرة الشحن: {selectedCourier.fee.toLocaleString()} ل.س
+                  </span>
+                  {selectedCourier.cod_fee > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      أجور التحصيل: {selectedCourier.cod_fee.toLocaleString()} ل.س
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  السعر مأخوذ من فئة الوزن المطابقة لشركة الشحن لوزن {weightNum} كغ.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
