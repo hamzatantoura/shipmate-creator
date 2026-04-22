@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle, Printer } from "lucide-react";
+import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle, Printer, History } from "lucide-react";
 import { generateShippingLabel } from "@/lib/shipping-label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,6 +35,7 @@ interface Order {
   delivery_fee: number; platform_fee: number; net_amount: number;
   products?: { name: string } | null;
   shipments?: { tracking_number: string | null } | null;
+  couriers?: { name: string; logo_url: string | null } | null;
 }
 
 type ShipmentCity = Database["public"]["Enums"]["shipment_city"];
@@ -59,14 +60,32 @@ export default function MerchantOrders() {
   const [confirmOrder, setConfirmOrder] = useState<Order | null>(null);
   const [editPrice, setEditPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [auditOrder, setAuditOrder] = useState<Order | null>(null);
+  const [auditLogs, setAuditLogs] = useState<Array<{ id: string; field_name: string; old_value: string | null; new_value: string | null; created_at: string; table_name: string }>>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("orders").select("*, products(name), shipments(tracking_number)")
+    const { data } = await supabase.from("orders").select("*, products(name), shipments(tracking_number), couriers(name, logo_url)")
       .eq("merchant_id", user.id).order("created_at", { ascending: false });
     if (data) setOrders(data as any);
     setLoading(false);
   }, [user]);
+
+  const openAudit = async (o: Order) => {
+    setAuditOrder(o);
+    setAuditLogs([]);
+    setLoadingAudit(true);
+    const ids: string[] = [o.id];
+    if (o.shipment_id) ids.push(o.shipment_id);
+    const { data } = await supabase
+      .from("field_audit_logs")
+      .select("id, field_name, old_value, new_value, created_at, table_name")
+      .in("record_id", ids)
+      .order("created_at", { ascending: false });
+    setAuditLogs((data as any) || []);
+    setLoadingAudit(false);
+  };
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
