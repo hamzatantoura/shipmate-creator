@@ -10,6 +10,10 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
+type OrderLookupMatch = Pick<
+  Database["public"]["Tables"]["orders"]["Row"],
+  "id" | "shipment_id" | "receiver_name" | "phone_number" | "city" | "detailed_address" | "total_amount" | "status"
+>;
 
 const STATUS_OPTIONS = [
   { value: "picked_up", label: "تم الاستلام من التاجر" },
@@ -40,6 +44,7 @@ const CITY_AR: Record<string, string> = {
 export default function BarcodeScanner() {
   const [scanning, setScanning] = useState(false);
   const [shipment, setShipment] = useState<Shipment | null>(null);
+  const [orderMatch, setOrderMatch] = useState<OrderLookupMatch | null>(null);
   const [newStatus, setNewStatus] = useState("");
   const [updating, setUpdating] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -47,6 +52,7 @@ export default function BarcodeScanner() {
 
   const startScanner = async () => {
     setShipment(null);
+    setOrderMatch(null);
     setScanning(true);
 
     // Wait for DOM element
@@ -76,45 +82,80 @@ export default function BarcodeScanner() {
   };
 
   const lookupShipment = async (rawCode: string) => {
-    // Normalize: trim, remove all whitespace, strip "SL-" prefix if present
+    setShipment(null);
+    setOrderMatch(null);
+
     const cleaned = (rawCode || "").trim().replace(/\s+/g, "");
-    const noPrefix = cleaned.replace(/^SL[-_]?/i, "");
+    const cleanedUpper = cleaned.toUpperCase();
+    const noPrefix = cleanedUpper.replace(/^SL[-_]?/i, "");
+    const compactCode = cleanedUpper.replace(/[^A-Z0-9]/g, "");
+    const compactPrefix = noPrefix.replace(/[^A-Z0-9]/g, "");
     // eslint-disable-next-line no-console
-    console.log("[BarcodeScanner] scanned raw:", JSON.stringify(rawCode), "→ cleaned:", cleaned, "→ noPrefix:", noPrefix);
+    console.log("[BarcodeScanner] scanned raw:", JSON.stringify(rawCode), "→ cleaned:", cleanedUpper, "→ noPrefix:", noPrefix);
 
     if (cleaned.length < 4) {
       toast.error(`الرمز قصير جداً: ${rawCode}`);
       return;
     }
 
-    // 1) Exact tracking_number match (case-insensitive)
     let { data } = await supabase
       .from("shipments")
       .select("*")
-      .ilike("tracking_number", cleaned)
+      .eq("tracking_number", cleaned)
       .maybeSingle();
 
-    // 2) Order id prefix match (sila code)
-    if (!data) {
-      const { data: orderRow } = await supabase
-        .from("orders")
-        .select("id, shipment_id")
-        .ilike("id", `${noPrefix}%`)
+    if (!data && cleanedUpper !== cleaned) {
+      const trackingRes = await supabase
+        .from("shipments")
+        .select("*")
+        .eq("tracking_number", cleanedUpper)
         .maybeSingle();
-      if (orderRow?.shipment_id) {
-        const r = await supabase.from("shipments").select("*").eq("id", orderRow.shipment_id).maybeSingle();
-        data = r.data;
+      data = trackingRes.data ?? null;
+    }
+
+    if (!data) {
+      const trackingRes = await supabase
+        .from("shipments")
+        .select("*")
+        .ilike("tracking_number", cleanedUpper)
+        .maybeSingle();
+      data = trackingRes.data ?? null;
+    }
+
+    // 2) Sila code / order id prefix match (UUIDs are matched client-side after fetching scoped rows)
+    if (!data) {
+      const { data: orderRows } = await supabase
+        .from("orders")
+        .select("id, shipment_id, receiver_name, phone_number, city, detailed_address, total_amount, status")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      const matchedOrder = (orderRows ?? []).find((order) => {
+        const normalizedId = order.id.replace(/-/g, "").toUpperCase();
+        const orderSilaCode = `SL-${normalizedId.slice(0, 6)}`;
+        return normalizedId.startsWith(compactPrefix) || orderSilaCode === cleanedUpper || normalizedId === compactCode;
+      });
+
+      if (matchedOrder?.shipment_id) {
+        const r = await supabase.from("shipments").select("*").eq("id", matchedOrder.shipment_id).maybeSingle();
+        data = r.data ?? null;
+      } else if (matchedOrder) {
+        setOrderMatch(matchedOrder);
+        toast("تم العثور على الطلب، لكن لا توجد شحنة مرتبطة بهذا الرمز بعد");
+        return;
       }
     }
 
-    // 3) Shipment id prefix match
+    // 3) Shipment UUID prefix match as final fallback
     if (!data) {
-      const { data: byId } = await supabase
+      const { data: shipmentRows } = await supabase
         .from("shipments")
         .select("*")
-        .ilike("id", `${noPrefix}%`)
-        .limit(2);
-      if (byId && byId.length === 1) data = byId[0];
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      const byId = (shipmentRows ?? []).filter((row) => row.id.replace(/-/g, "").toUpperCase().startsWith(compactPrefix));
+      if (byId.length === 1) data = byId[0];
     }
 
     if (data) {
@@ -261,7 +302,32 @@ export default function BarcodeScanner() {
         </Card>
       )}
 
-      {!scanning && !shipment && (
+      {!scanning && !shipment && orderMatch && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-mono text-sm font-bold text-foreground">SL-{orderMatch.id.replace(/-/g, "").slice(0, 6).toUpperCase()}</span>
+              <Badge variant="outline" className="text-xs border-destructive/40 text-destructive">
+                لا توجد شحنة بعد
+              </Badge>
+            </div>
+
+            <div className="space-y-1.5 text-sm">
+              <div className="flex items-center gap-2"><User className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground font-medium">{orderMatch.receiver_name}</span></div>
+              <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground" dir="ltr">{orderMatch.phone_number}</span></div>
+              <div className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground">{CITY_AR[orderMatch.city] || orderMatch.city} — {orderMatch.detailed_address}</span></div>
+            </div>
+
+            <p className="text-sm text-destructive font-medium">تم العثور على الطلب، لكن لم يتم إنشاء سجل شحنة مرتبط بهذا الرمز بعد.</p>
+
+            <Button variant="outline" size="sm" className="w-full" onClick={() => { setOrderMatch(null); startScanner(); }}>
+              <ScanLine className="h-4 w-4 ml-1" /> مسح شحنة أخرى
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!scanning && !shipment && !orderMatch && (
         <div className="text-center py-8 text-muted-foreground text-sm">
           <ScanLine className="h-10 w-10 mx-auto mb-3 opacity-30" />
           <p>اضغط "تشغيل الماسح" لمسح باركود الشحنة</p>
