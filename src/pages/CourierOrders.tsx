@@ -633,9 +633,16 @@ export default function CourierOrders() {
                           </TableCell>
                           <TableCell className="font-semibold text-sm tabular-nums">{fmtSYP(Number(cod))}</TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[o.status] || STATUS_STYLE.new}`}>
-                              {STATUS_LABEL[o.status] || o.status}
-                            </span>
+                            {(() => {
+                              const meta = getOrderStatusMeta(o.status);
+                              const Icon = meta.icon;
+                              return (
+                                <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.className}`}>
+                                  <Icon className="h-3 w-3" />
+                                  {meta.label}
+                                </span>
+                              );
+                            })()}
                             {o.status === "returned" && o.return_reason && (
                               <div className="text-[10px] text-muted-foreground mt-1">
                                 {RETURN_REASONS.find(r => r.value === o.return_reason)?.label || o.return_reason}
@@ -647,15 +654,15 @@ export default function CourierOrders() {
                               <span className="text-xs text-muted-foreground">حالة نهائية</span>
                             ) : (
                               <Select
-                                value={o.status}
+                                value=""
                                 onValueChange={(v) => updateStatus(o.id, v)}
                                 disabled={updatingId === o.id}
                               >
                                 <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="اختر حالة" />
+                                  <SelectValue placeholder="تحديث الحالة" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {NEXT_STATUSES.map(s => (
+                                  {(NEXT_STATUS_MAP[o.status] || []).map(s => (
                                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                                   ))}
                                 </SelectContent>
