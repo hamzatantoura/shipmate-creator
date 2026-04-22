@@ -213,6 +213,54 @@ export type Database = {
           },
         ]
       }
+      courier_settlements: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          courier_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          receipt_url: string | null
+          reference: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          courier_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          receipt_url?: string | null
+          reference?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          courier_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          receipt_url?: string | null
+          reference?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       courier_weight_tiers: {
         Row: {
           courier_id: string
