@@ -20,6 +20,7 @@ import CourierWallet from "./pages/CourierWallet";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
 import AdminDistricts from "./pages/AdminDistricts";
+import AdminSettlements from "./pages/AdminSettlements";
 import TrackShipment from "./pages/TrackShipment";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import Storefront from "./pages/Storefront";
@@ -107,6 +108,11 @@ const App = () => (
           <Route path="/admin/districts" element={
             <AuthGuard allowedRoles={["admin"]}>
               <AdminDistricts />
+            </AuthGuard>
+          } />
+          <Route path="/admin/settlements" element={
+            <AuthGuard allowedRoles={["admin"]}>
+              <AdminSettlements />
             </AuthGuard>
           } />
 
