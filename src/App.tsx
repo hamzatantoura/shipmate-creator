@@ -16,6 +16,7 @@ import MerchantWalletPage from "./pages/MerchantWalletPage";
 import MerchantProductsPage from "./pages/MerchantProductsPage";
 import MerchantSettingsPage from "./pages/MerchantSettingsPage";
 import CourierOrders from "./pages/CourierOrders";
+import CourierWallet from "./pages/CourierWallet";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
 import AdminDistricts from "./pages/AdminDistricts";
@@ -89,6 +90,11 @@ const App = () => (
           <Route path="/courier/orders" element={
             <AuthGuard allowedRoles={["vendor"]}>
               <CourierOrders />
+            </AuthGuard>
+          } />
+          <Route path="/courier/wallet" element={
+            <AuthGuard allowedRoles={["vendor"]}>
+              <CourierWallet />
             </AuthGuard>
           } />
 

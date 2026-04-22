@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Shield, Search, Package, LogOut } from "lucide-react";
+import { ShoppingBag, Shield, Search, Package, LogOut, Wallet } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 
@@ -16,6 +16,7 @@ export default function AppHeader() {
     : role === "vendor"
     ? [
         { path: "/courier/orders", label: "لوحة الشحن", icon: Package },
+        { path: "/courier/wallet", label: "المحفظة", icon: Wallet },
         { path: "/track", label: "تتبع", icon: Search },
       ]
     : [
