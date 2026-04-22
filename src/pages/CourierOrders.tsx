@@ -33,6 +33,7 @@ import {
 import silaLogo from "@/assets/sila-logo.png";
 import BarcodeScanner from "@/components/vendor/BarcodeScanner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
+import CourierWalletPanel from "@/components/courier/CourierWalletPanel";
 import { getOrderStatusMeta } from "@/lib/order-status";
 
 interface CourierOrderRow {
@@ -736,20 +737,7 @@ export default function CourierOrders() {
 
           {/* WALLET TAB */}
           <TabsContent value="wallet" className="mt-0">
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Wallet className="h-4 w-4 text-primary" />
-                  سجل الحركات المالية
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  جميع الحركات المرتبطة بطلبات وشحنات شركتكم — للأغراض المحاسبية فقط.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {user && <WalletTransactionsLog vendorId={user.id} />}
-              </CardContent>
-            </Card>
+            <CourierWalletPanel />
           </TabsContent>
         </Tabs>
       </main>
