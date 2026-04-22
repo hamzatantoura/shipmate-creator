@@ -242,6 +242,70 @@ export default function CourierOrders() {
     });
   }, [orders, search, tab]);
 
+  // Per-tab counters (respect search to make counts useful)
+  const tabCounts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const matchSearch = (o: CourierOrderRow) => {
+      if (!q) return true;
+      const sila = silaCodeOf(o.id).toLowerCase();
+      return sila.includes(q) || o.receiver_name.toLowerCase().includes(q) || o.phone_number.toLowerCase().includes(q);
+    };
+    const base = orders.filter(matchSearch);
+    return {
+      all: base.length,
+      pending: base.filter(o => TAB_FILTERS.pending(o.status)).length,
+      active: base.filter(o => TAB_FILTERS.active(o.status)).length,
+      delivered: base.filter(o => TAB_FILTERS.delivered(o.status)).length,
+      returned: base.filter(o => TAB_FILTERS.returned(o.status)).length,
+    } as Record<TabKey, number>;
+  }, [orders, search]);
+
+  // ===== Smart Scanner: lookup + propose next status =====
+  const handleScan = useCallback((rawCode: string) => {
+    const code = (rawCode || "").trim();
+    if (!code) return;
+    const upper = code.toUpperCase();
+    const compact = upper.replace(/[^A-Z0-9]/g, "");
+    const noPrefix = upper.replace(/^SL[-_]?/i, "").replace(/[^A-Z0-9]/g, "");
+
+    const found = orders.find((o) => {
+      const idCompact = o.id.replace(/-/g, "").toUpperCase();
+      const sila = silaCodeOf(o.id).toUpperCase();
+      return (
+        sila === upper ||
+        idCompact === compact ||
+        idCompact.startsWith(noPrefix) ||
+        idCompact.startsWith(compact)
+      );
+    });
+
+    if (!found) {
+      toast.error(`لم يتم العثور على طلب بالرمز: ${code}`);
+      return;
+    }
+
+    const next = NEXT_STATUS_MAP[found.status]?.[0]?.value;
+    if (!next) {
+      toast.info(`الطلب ${silaCodeOf(found.id)} في حالة نهائية: ${getOrderStatusMeta(found.status).label}`);
+      return;
+    }
+    setQuickReason("");
+    setQuickAction({ order: found, nextStatus: next });
+  }, [orders]);
+
+  const confirmQuickAction = async () => {
+    if (!quickAction) return;
+    const { order, nextStatus } = quickAction;
+    const reason = nextStatus === "returned" ? quickReason : undefined;
+    if (nextStatus === "returned" && !reason) {
+      toast.error("سبب الإرجاع مطلوب");
+      return;
+    }
+    setQuickAction(null);
+    setScanInput("");
+    await updateStatus(order.id, nextStatus, reason);
+  };
+
   // Keep selection valid against current filtered view
   const filteredIds = useMemo(() => filtered.map(o => o.id), [filtered]);
   const visibleSelectedCount = useMemo(
