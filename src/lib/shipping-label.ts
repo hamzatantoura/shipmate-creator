@@ -244,8 +244,15 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
   <div class="label">
     <div class="header">
       <div>
-        <h1>Sila — صلة</h1>
-        <span class="sub">خدمات الشحن والتوصيل</span>
+        <h1 style="display:flex;align-items:center;gap:${8 * scale}px;">
+          ${courier?.logo_url ? `<img src="${courier.logo_url}" alt="" style="width:${28 * scale}px;height:${28 * scale}px;object-fit:contain;background:#fff;border-radius:4px;padding:2px;" />` : ""}
+          <span>${courierName}</span>
+        </h1>
+        <span class="sub">شركة الشحن المسؤولة عن التوصيل</span>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-family:monospace;font-size:${9 * scale}px;opacity:0.85;">${silaCode}</div>
+        <div class="sub" style="font-size:${7 * scale}px;">Powered by Sila</div>
       </div>
     </div>
 
@@ -298,7 +305,7 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       </div>
     </div>
 
-    <div class="footer">Sila © ${new Date().getFullYear()} — بوليصة شحن مولّدة تلقائياً</div>
+    <div class="footer">Powered by <strong>صِلة Sila</strong> · sila-sy.com — © ${new Date().getFullYear()}</div>
   </div>
 
   <script>
