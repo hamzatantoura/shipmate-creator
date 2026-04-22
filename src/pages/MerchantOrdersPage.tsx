@@ -721,6 +721,15 @@ export default function MerchantOrdersPage() {
             onSaved={fetchOrders}
           />
         )}
+
+        <ShipmentTrackingTimeline
+          open={!!trackingOrder}
+          onClose={() => setTrackingOrder(null)}
+          shipmentId={trackingOrder?.shipment_id ?? null}
+          silaCode={trackingOrder ? silaCodeOf(trackingOrder.id) : undefined}
+          trackingNumber={trackingOrder?.shipments?.tracking_number ?? null}
+          courierName={trackingOrder ? courierNameOf(trackingOrder) : null}
+        />
       </div>
     </SidebarProvider>
   );
