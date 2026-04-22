@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
@@ -50,6 +50,8 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { printShippingLabel } from "@/lib/print-label";
 import EditOrderDialog from "@/components/merchant/EditOrderDialog";
+import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
+import { getOrderStatusMeta } from "@/lib/order-status";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
@@ -70,6 +72,7 @@ interface OrderRow {
   notes: string | null;
   return_reason: string | null;
   couriers?: { name: string } | null;
+  shipments?: { tracking_number: string | null } | null;
 }
 
 interface DistrictRow {
@@ -89,16 +92,6 @@ interface CourierRate {
   district_id: string;
   custom_delivery_fee: number;
 }
-
-const STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  new: { label: "جديد", variant: "outline" },
-  processing: { label: "قيد المعالجة", variant: "default" },
-  shipped: { label: "قيد التوصيل", variant: "default" },
-  out_for_delivery: { label: "خرج للتوصيل", variant: "default" },
-  delivered: { label: "تم التوصيل", variant: "secondary" },
-  returned: { label: "مرتجع", variant: "destructive" },
-  cancelled: { label: "ملغى", variant: "destructive" },
-};
 
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
@@ -156,6 +149,7 @@ export default function MerchantOrdersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
+  const [trackingOrder, setTrackingOrder] = useState<OrderRow | null>(null);
 
   // Districts (real data)
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
@@ -197,7 +191,7 @@ export default function MerchantOrdersPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name)")
+      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name), shipments(tracking_number)")
       .eq("merchant_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
@@ -568,12 +562,14 @@ export default function MerchantOrdersPage() {
                       </TableRow>
                     )}
                     {!loading && orders.map((order) => {
-                      const meta = STATUS_META[order.status] || { label: order.status, variant: "outline" as const };
+                      const meta = getOrderStatusMeta(order.status);
+                      const StatusIcon = meta.icon;
                       const locked = isLocked(order);
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
                       const courierName = courierNameOf(order);
+                      const trackingNumber = order.shipments?.tracking_number ?? null;
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
@@ -583,17 +579,32 @@ export default function MerchantOrdersPage() {
                           <TableCell className="text-sm">{display}</TableCell>
                           <TableCell className="text-sm">
                             {courierName ? (
-                              <span className="text-foreground">{courierName}</span>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-foreground font-medium">{courierName}</span>
+                                {trackingNumber && (
+                                  <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">
+                                    {trackingNumber}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
-                              <Badge variant={meta.variant} className="gap-1">
-                                {locked && <Lock className="h-3 w-3" />}
-                                {meta.label}
-                              </Badge>
+                              <button
+                                type="button"
+                                onClick={() => setTrackingOrder(order)}
+                                className="focus:outline-none focus:ring-2 focus:ring-ring rounded-full"
+                                title="عرض رحلة الشحنة"
+                              >
+                                <Badge variant="outline" className={`gap-1 cursor-pointer ${meta.className}`}>
+                                  {locked && <Lock className="h-3 w-3" />}
+                                  <StatusIcon className="h-3 w-3" />
+                                  {meta.label}
+                                </Badge>
+                              </button>
                               {order.status === "returned" && order.return_reason && (
                                 <TooltipProvider>
                                   <Tooltip>
@@ -621,6 +632,16 @@ export default function MerchantOrdersPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setTrackingOrder(order)}
+                                className="gap-1.5"
+                                title="رحلة الشحنة"
+                              >
+                                <Radar className="h-3.5 w-3.5 text-info" />
+                                التتبع
+                              </Button>
                               {!locked && (
                                 <Button
                                   size="sm"
@@ -700,6 +721,15 @@ export default function MerchantOrdersPage() {
             onSaved={fetchOrders}
           />
         )}
+
+        <ShipmentTrackingTimeline
+          open={!!trackingOrder}
+          onClose={() => setTrackingOrder(null)}
+          shipmentId={trackingOrder?.shipment_id ?? null}
+          silaCode={trackingOrder ? silaCodeOf(trackingOrder.id) : undefined}
+          trackingNumber={trackingOrder?.shipments?.tracking_number ?? null}
+          courierName={trackingOrder ? courierNameOf(trackingOrder) : null}
+        />
       </div>
     </SidebarProvider>
   );
