@@ -8,14 +8,18 @@ export interface LabelData {
   cod: number;
   notes?: string | null;
   courierName?: string | null;
+  courierLogoUrl?: string | null;
+  trackingNumber?: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 
 export function printShippingLabel(data: LabelData) {
+  // Barcode encodes the real tracking number when available, else the Sila reference code
+  const barcodeValue = (data.trackingNumber && data.trackingNumber.trim()) || data.silaCode;
   // Build barcode SVG off-DOM
   const svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  JsBarcode(svgEl, data.silaCode, {
+  JsBarcode(svgEl, barcodeValue, {
     format: "CODE128",
     width: 2,
     height: 60,
@@ -27,6 +31,8 @@ export function printShippingLabel(data: LabelData) {
   const dateStr = new Date(data.createdAt).toLocaleDateString("ar-SY", {
     year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
   });
+
+  const courierName = (data.courierName && data.courierName.trim()) || "—";
 
   const html = `<!doctype html>
 <html dir="rtl" lang="ar">
