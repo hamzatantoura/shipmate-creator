@@ -666,6 +666,13 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
       const { error: linkErr } = await supabase.from("couriers")
         .update({ vendor_id: newUserId } as any).eq("id", courier.id);
       if (linkErr) throw linkErr;
+      // Ensure profile role is vendor (handle_new_user trigger should set it,
+      // but force-update in case the trigger ran before metadata was applied).
+      await supabase.from("profiles")
+        .update({ role: "vendor" } as any)
+        .eq("user_id", newUserId);
+      await supabase.from("user_roles")
+        .upsert({ user_id: newUserId, role: "vendor" } as any, { onConflict: "user_id,role" });
       setCredentials({ email: username, password });
       toast.success("تم إنشاء حساب شركة الشحن وربطه");
       onRefresh();
