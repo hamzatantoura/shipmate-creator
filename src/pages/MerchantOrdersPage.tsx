@@ -562,12 +562,14 @@ export default function MerchantOrdersPage() {
                       </TableRow>
                     )}
                     {!loading && orders.map((order) => {
-                      const meta = STATUS_META[order.status] || { label: order.status, variant: "outline" as const };
+                      const meta = getOrderStatusMeta(order.status);
+                      const StatusIcon = meta.icon;
                       const locked = isLocked(order);
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
                       const courierName = courierNameOf(order);
+                      const trackingNumber = order.shipments?.tracking_number ?? null;
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
@@ -577,17 +579,32 @@ export default function MerchantOrdersPage() {
                           <TableCell className="text-sm">{display}</TableCell>
                           <TableCell className="text-sm">
                             {courierName ? (
-                              <span className="text-foreground">{courierName}</span>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-foreground font-medium">{courierName}</span>
+                                {trackingNumber && (
+                                  <span className="font-mono text-[11px] text-muted-foreground" dir="ltr">
+                                    {trackingNumber}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1.5">
-                              <Badge variant={meta.variant} className="gap-1">
-                                {locked && <Lock className="h-3 w-3" />}
-                                {meta.label}
-                              </Badge>
+                              <button
+                                type="button"
+                                onClick={() => setTrackingOrder(order)}
+                                className="focus:outline-none focus:ring-2 focus:ring-ring rounded-full"
+                                title="عرض رحلة الشحنة"
+                              >
+                                <Badge variant="outline" className={`gap-1 cursor-pointer ${meta.className}`}>
+                                  {locked && <Lock className="h-3 w-3" />}
+                                  <StatusIcon className="h-3 w-3" />
+                                  {meta.label}
+                                </Badge>
+                              </button>
                               {order.status === "returned" && order.return_reason && (
                                 <TooltipProvider>
                                   <Tooltip>
