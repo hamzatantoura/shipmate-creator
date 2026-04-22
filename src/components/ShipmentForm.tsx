@@ -156,7 +156,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   useEffect(() => {
     setSelectedCourierId("");
     setCourierOptions([]);
-    if (!finalDistrictId || !merchantProvinceId || weightNum <= 0) return;
+    // Origin (merchant province) is OPTIONAL for matching — if set we narrow further,
+    // but missing origin must NOT block courier discovery.
+    if (!finalDistrictId || weightNum <= 0) return;
     let cancelled = false;
     (async () => {
       setLoadingCouriers(true);
@@ -182,17 +184,20 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       }
       const destCourierIds = Array.from(new Set((destCov || []).map((r: any) => r.courier_id)));
 
-      // Step 2: which of those also cover the merchant's origin province?
-      let originCourierIds = new Set<string>();
-      if (destCourierIds.length > 0) {
+      // Step 2 (optional): if merchant origin is set, prefer couriers that also cover origin.
+      // If none match origin, fall back to all destination-covering couriers so the merchant
+      // is never blocked by an incomplete origin profile.
+      let validIds = destCourierIds;
+      if (merchantProvinceId && destCourierIds.length > 0) {
         const { data: originCov } = await supabase
           .from("courier_coverage_areas" as any)
           .select("courier_id")
           .in("courier_id", destCourierIds)
           .eq("province_id", merchantProvinceId);
-        (originCov || []).forEach((r: any) => originCourierIds.add(r.courier_id));
+        const originSet = new Set<string>((originCov || []).map((r: any) => r.courier_id));
+        const intersected = destCourierIds.filter(id => originSet.has(id));
+        if (intersected.length > 0) validIds = intersected;
       }
-      const validIds = destCourierIds.filter(id => originCourierIds.has(id));
       if (validIds.length === 0) {
         setCourierOptions([]);
         setLoadingCouriers(false);
@@ -276,7 +281,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!merchantProvinceId) { toast.error("يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً."); return; }
     if (weightNum <= 0) { toast.error("الرجاء إدخال وزن الشحنة بالكغ"); return; }
     if (!selectedProvinceId || !selectedProvince) { toast.error("الرجاء اختيار المحافظة"); return; }
     if (!selectedCourier) { toast.error("الرجاء اختيار شركة الشحن"); return; }
@@ -347,12 +351,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       </div>
 
       {merchantLoaded && !merchantProvinceId && (
-        <div className="flex items-start gap-2 p-4 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
-          <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">العنوان غير مكتمل</p>
-            <p className="text-xs mt-1">يرجى تحديث عنوان متجرك (المحافظة) من الإعدادات أولاً قبل إنشاء أي طلب شحن.</p>
-          </div>
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs">
+          <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+          <p>تنبيه: لم تحدد محافظة متجرك بعد. يمكنك متابعة إنشاء الشحنة، ولكن يُفضّل ضبطها من الإعدادات لتحسين مطابقة شركات الشحن.</p>
         </div>
       )}
 
@@ -479,10 +480,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             <Loader2 className="h-3 w-3 animate-spin" /> جاري جلب الشركات المتاحة...
           </p>
         )}
-        {finalDistrictId && !loadingCouriers && courierOptions.length === 0 && (
+        {finalDistrictId && weightNum > 0 && !loadingCouriers && courierOptions.length === 0 && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <p>عذراً، لا توجد شركات شحن تغطي هذه المنطقة حالياً. يرجى التواصل مع الإدارة.</p>
+            <p>لا توجد شركة شحن تغطي هذه المنطقة بهذا الوزن.</p>
           </div>
         )}
 
@@ -574,7 +575,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
       )}
 
-      <Button type="submit" disabled={loading || lossOrder || !selectedCourier || !merchantProvinceId || weightNum <= 0} className="w-full">
+      <Button type="submit" disabled={loading || lossOrder || !selectedCourier || weightNum <= 0} className="w-full">
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
