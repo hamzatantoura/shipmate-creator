@@ -908,6 +908,98 @@ export default function CourierOrders() {
         </DialogContent>
       </Dialog>
 
+      {/* === Quick Action dialog (after scan) === */}
+      <Dialog open={!!quickAction} onOpenChange={(o) => !o && setQuickAction(null)}>
+        <DialogContent dir="rtl" className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              تأكيد التحديث السريع
+            </DialogTitle>
+            <DialogDescription>
+              {quickAction && (
+                <>
+                  الطلب <span className="font-mono">{silaCodeOf(quickAction.order.id)}</span> — {quickAction.order.receiver_name}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {quickAction && (
+            <div className="space-y-3 py-1">
+              <div className="rounded-md bg-muted/50 p-3 text-sm space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">الحالة الحالية</span>
+                  <span className="font-medium">{getOrderStatusMeta(quickAction.order.status).label}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">الحالة المقترحة</span>
+                  <span className="font-bold text-primary">
+                    {NEXT_STATUS_MAP[quickAction.order.status]?.find(s => s.value === quickAction.nextStatus)?.label
+                      || getOrderStatusMeta(quickAction.nextStatus).label}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">تغيير الإجراء (اختياري)</Label>
+                <Select
+                  value={quickAction.nextStatus}
+                  onValueChange={(v) => setQuickAction({ ...quickAction, nextStatus: v })}
+                >
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(NEXT_STATUS_MAP[quickAction.order.status] || []).map(s => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {quickAction.nextStatus === "returned" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">سبب الإرجاع *</Label>
+                  <Select value={quickReason} onValueChange={setQuickReason}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="اختر السبب" /></SelectTrigger>
+                    <SelectContent>
+                      {RETURN_REASONS.map(r => (
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setQuickAction(null)}>إلغاء</Button>
+            <Button
+              onClick={confirmQuickAction}
+              disabled={!!updatingId || (quickAction?.nextStatus === "returned" && !quickReason)}
+              className="gap-1.5"
+            >
+              {updatingId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              تأكيد التحديث
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* === Camera Scanner dialog === */}
+      <Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-4 w-4 text-primary" />
+              مسح الباركود بالكاميرا
+            </DialogTitle>
+            <DialogDescription>
+              وجّه الكاميرا نحو الباركود. سيُحدَّث الطلب المرتبط تلقائياً.
+            </DialogDescription>
+          </DialogHeader>
+          <BarcodeScanner />
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Weight & Price dialog */}
       <Dialog open={!!editDialog} onOpenChange={(o) => !o && setEditDialog(null)}>
         <DialogContent dir="rtl" className="max-w-sm">
