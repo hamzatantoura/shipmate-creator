@@ -678,16 +678,20 @@ export default function CourierOrders() {
             </div>
 
             <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-              <TabsList className="grid grid-cols-5 w-full md:w-auto md:inline-grid">
+              <TabsList className="grid grid-cols-5 w-full gap-1 h-auto p-1 md:w-auto md:inline-grid">
                 {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
-                  <TabsTrigger key={k} value={k} className="text-xs gap-1.5">
-                    <span>{TAB_LABELS[k]}</span>
+                  <TabsTrigger
+                    key={k}
+                    value={k}
+                    className="flex flex-col items-center justify-center gap-1 px-1 py-2 h-auto min-h-14 text-[11px] leading-tight whitespace-normal text-center md:flex-row md:gap-1.5 md:text-xs md:min-h-0 md:py-1.5"
+                  >
                     <Badge
                       variant={tab === k ? "default" : "secondary"}
-                      className="h-4 min-w-4 px-1 text-[10px] tabular-nums"
+                      className="h-4 min-w-4 px-1 text-[10px] tabular-nums shrink-0"
                     >
                       {tabCounts[k]}
                     </Badge>
+                    <span className="block">{TAB_LABELS[k]}</span>
                   </TabsTrigger>
                 ))}
               </TabsList>
