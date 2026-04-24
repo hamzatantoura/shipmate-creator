@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Truck, Store } from "lucide-react";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+import { isValidSyrianPhone } from "@/lib/syrian-phone";
 
 const CITIES = ["دمشق", "حلب", "حمص", "حماة", "اللاذقية", "طرطوس", "ريف دمشق", "دير الزور", "الرقة", "الحسكة", "درعا", "السويداء", "إدلب", "القنيطرة"];
 
@@ -24,6 +26,10 @@ export default function Signup() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!city) { toast.error("الرجاء اختيار المدينة"); return; }
+    if (!isValidSyrianPhone(phone)) {
+      toast.error("رقم سوري غير صحيح. مثال: 0933123456");
+      return;
+    }
     setLoading(true);
 
     const { data, error } = await supabase.auth.signUp({
@@ -98,7 +104,7 @@ export default function Signup() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>رقم الهاتف</Label>
-                <Input value={phone} onChange={e => setPhone(e.target.value)} required placeholder="+905xxxxxxxxx" dir="ltr" />
+                <SyrianPhoneInput value={phone} onChange={setPhone} required />
               </div>
               <div className="space-y-2">
                 <Label>المدينة</Label>
