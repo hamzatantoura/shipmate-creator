@@ -10,6 +10,7 @@ import { generateShippingLabel } from "@/lib/shipping-label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
+import { usePlatformSettings } from "@/hooks/use-platform-settings";
 import type { Database } from "@/integrations/supabase/types";
 
 const STATUS_AR: Record<string, string> = {
@@ -54,6 +55,7 @@ const createTrackingNumber = () => `SIL-${Date.now().toString(36).toUpperCase()}
 
 export default function MerchantOrders() {
   const { user } = useAuth();
+  const { settings: platformSettings } = usePlatformSettings();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -96,8 +98,9 @@ export default function MerchantOrders() {
 
   const [carrierFeeForOrder, setCarrierFeeForOrder] = useState(0);
   const [carrierIdForOrder, setCarrierIdForOrder] = useState<string | null>(null);
+  const [courierCodConfig, setCourierCodConfig] = useState<{ type: "fixed" | "percentage"; value: number } | null>(null);
   useEffect(() => {
-    if (!confirmOrder) { setCarrierFeeForOrder(0); setCarrierIdForOrder(null); return; }
+    if (!confirmOrder) { setCarrierFeeForOrder(0); setCarrierIdForOrder(null); setCourierCodConfig(null); return; }
     // Source of truth: districts (hierarchical). Fallback to order's saved delivery_fee.
     (async () => {
       let fee = Number(confirmOrder.delivery_fee || 0);
@@ -127,16 +130,30 @@ export default function MerchantOrders() {
       }
       // Default carrier: first active courier (vendor) — admin can refine later via courier_district_rates
       const { data: courier } = await supabase
-        .from("couriers").select("id").eq("is_active", true).limit(1).maybeSingle();
+        .from("couriers").select("id, cod_fee_type, cod_fee_value").eq("is_active", true).limit(1).maybeSingle();
       setCarrierFeeForOrder(fee);
       setCarrierIdForOrder(courier?.id || null);
+      setCourierCodConfig(
+        courier
+          ? { type: ((courier as any).cod_fee_type === "fixed" ? "fixed" : "percentage"), value: Number((courier as any).cod_fee_value) || 0 }
+          : null
+      );
     })();
   }, [confirmOrder]);
 
   const confirmPricing = (() => {
     if (!confirmOrder) return null;
     const finalPrice = parseFloat(editPrice) || confirmOrder.total_amount;
-    return calculatePricing({ carrier_fee: carrierFeeForOrder, cod_amount: finalPrice });
+    return calculatePricing({
+      carrier_fee: carrierFeeForOrder,
+      cod_amount: finalPrice,
+      settings: {
+        platform_margin_pct: platformSettings.default_platform_margin_pct,
+        default_collection_fee_pct: platformSettings.default_collection_fee_pct,
+        courier_cod_fee_type: courierCodConfig?.type,
+        courier_cod_fee_value: courierCodConfig?.value,
+      },
+    });
   })();
 
   const isLoss = confirmPricing ? isLossOrder(confirmPricing, parseFloat(editPrice) || 0) : false;

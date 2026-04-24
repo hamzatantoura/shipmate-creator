@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
+import { usePlatformSettings } from "@/hooks/use-platform-settings";
 
 interface District {
   id: string;
@@ -65,6 +66,7 @@ const CITY_MAP: Record<string, "Damascus" | "Aleppo" | "Homs" | "Lattakia" | "Ha
 
 export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) {
   const { user } = useAuth();
+  const { settings: platformSettings } = usePlatformSettings();
   const [loading, setLoading] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
 
@@ -269,8 +271,17 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   // Use pricing engine — merchant sees merchant_shipping_fee + collection_fee
   const pricing = useMemo(() => {
-    return calculatePricing({ carrier_fee: carrierFee, cod_amount: codAmount });
-  }, [carrierFee, codAmount]);
+    return calculatePricing({
+      carrier_fee: carrierFee,
+      cod_amount: codAmount,
+      settings: {
+        platform_margin_pct: platformSettings.default_platform_margin_pct,
+        default_collection_fee_pct: platformSettings.default_collection_fee_pct,
+        courier_cod_fee_type: selectedCourier?.cod_fee_type,
+        courier_cod_fee_value: selectedCourier?.cod_fee_value,
+      },
+    });
+  }, [carrierFee, codAmount, platformSettings, selectedCourier]);
 
   const lossOrder = codAmount > 0 && isLossOrder(pricing, codAmount);
 

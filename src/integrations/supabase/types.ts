@@ -474,8 +474,11 @@ export type Database = {
           email_confirmed: boolean
           free_shipping_threshold: number
           id: string
+          id_back_url: string | null
+          id_front_url: string | null
           id_image_url: string | null
           is_active: boolean
+          logo_url: string | null
           phone: string | null
           phone_verified: boolean
           platform_fee_rate: number
@@ -485,7 +488,11 @@ export type Database = {
           updated_at: string
           user_id: string
           verification_status: string
+          verification_video_url: string | null
           wallet_balance: number
+          warehouse_address: string | null
+          warehouse_lat: number | null
+          warehouse_lng: number | null
           whatsapp_number: string | null
         }
         Insert: {
@@ -495,8 +502,11 @@ export type Database = {
           email_confirmed?: boolean
           free_shipping_threshold?: number
           id?: string
+          id_back_url?: string | null
+          id_front_url?: string | null
           id_image_url?: string | null
           is_active?: boolean
+          logo_url?: string | null
           phone?: string | null
           phone_verified?: boolean
           platform_fee_rate?: number
@@ -506,7 +516,11 @@ export type Database = {
           updated_at?: string
           user_id: string
           verification_status?: string
+          verification_video_url?: string | null
           wallet_balance?: number
+          warehouse_address?: string | null
+          warehouse_lat?: number | null
+          warehouse_lng?: number | null
           whatsapp_number?: string | null
         }
         Update: {
@@ -516,8 +530,11 @@ export type Database = {
           email_confirmed?: boolean
           free_shipping_threshold?: number
           id?: string
+          id_back_url?: string | null
+          id_front_url?: string | null
           id_image_url?: string | null
           is_active?: boolean
+          logo_url?: string | null
           phone?: string | null
           phone_verified?: boolean
           platform_fee_rate?: number
@@ -527,7 +544,11 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verification_status?: string
+          verification_video_url?: string | null
           wallet_balance?: number
+          warehouse_address?: string | null
+          warehouse_lat?: number | null
+          warehouse_lng?: number | null
           whatsapp_number?: string | null
         }
         Relationships: [
@@ -688,6 +709,39 @@ export type Database = {
           method?: string
           receipt_url?: string | null
           status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          created_at: string
+          default_collection_fee_pct: number
+          default_platform_margin_pct: number
+          default_return_fee: number
+          id: string
+          return_cost_responsibility: Database["public"]["Enums"]["return_responsibility"]
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_collection_fee_pct?: number
+          default_platform_margin_pct?: number
+          default_return_fee?: number
+          id?: string
+          return_cost_responsibility?: Database["public"]["Enums"]["return_responsibility"]
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_collection_fee_pct?: number
+          default_platform_margin_pct?: number
+          default_return_fee?: number
+          id?: string
+          return_cost_responsibility?: Database["public"]["Enums"]["return_responsibility"]
+          singleton?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -1243,6 +1297,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "merchant" | "vendor"
+      return_responsibility: "merchant" | "platform" | "carrier"
       shipment_city:
         | "Damascus"
         | "Aleppo"
@@ -1379,6 +1434,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "merchant", "vendor"],
+      return_responsibility: ["merchant", "platform", "carrier"],
       shipment_city: [
         "Damascus",
         "Aleppo",

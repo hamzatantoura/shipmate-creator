@@ -7,6 +7,11 @@ export interface VerificationState {
   phone_verified: boolean;
   email_confirmed: boolean;
   id_image_url: string | null;
+  id_front_url: string | null;
+  id_back_url: string | null;
+  verification_video_url: string | null;
+  logo_url: string | null;
+  warehouse_address: string | null;
   store_name: string;
   contact_person: string | null;
   phone: string | null;
@@ -26,6 +31,11 @@ const DEFAULT_STATE: VerificationState = {
   phone_verified: false,
   email_confirmed: false,
   id_image_url: null,
+  id_front_url: null,
+  id_back_url: null,
+  verification_video_url: null,
+  logo_url: null,
+  warehouse_address: null,
   store_name: "",
   contact_person: null,
   phone: null,
@@ -69,7 +79,12 @@ export function useMerchantVerification() {
         !!m.store_name?.trim() &&
         !!m.contact_person?.trim() &&
         !!m.city?.trim() &&
-        !!m.shipping_policy;
+        !!m.shipping_policy &&
+        !!m.id_front_url &&
+        !!m.id_back_url &&
+        !!m.verification_video_url &&
+        !!m.logo_url &&
+        !!m.warehouse_address?.trim();
       let currentStatus = m.verification_status || "pending_verification";
       if (allCriticalPassed && currentStatus === "pending_verification") {
         await supabase
@@ -84,6 +99,11 @@ export function useMerchantVerification() {
         phone_verified: m.phone_verified || false,
         email_confirmed: emailConfirmed,
         id_image_url: m.id_image_url || null,
+        id_front_url: m.id_front_url || null,
+        id_back_url: m.id_back_url || null,
+        verification_video_url: m.verification_video_url || null,
+        logo_url: m.logo_url || null,
+        warehouse_address: m.warehouse_address || null,
         store_name: m.store_name || "",
         contact_person: m.contact_person,
         phone: m.phone,
@@ -98,7 +118,11 @@ export function useMerchantVerification() {
         { key: "store_name", label: "اسم المتجر", ok: !!m.store_name?.trim() },
         { key: "contact_person", label: "اسم التاجر", ok: !!m.contact_person?.trim() },
         { key: "city", label: "المحافظة", ok: !!m.city?.trim() },
-        { key: "id_image_url", label: "رفع صورة الهوية", ok: !!m.id_image_url },
+        { key: "id_front_url", label: "صورة الهوية – أمامي", ok: !!m.id_front_url },
+        { key: "id_back_url", label: "صورة الهوية – خلفي", ok: !!m.id_back_url },
+        { key: "verification_video_url", label: "فيديو التحقق (5 ثوانٍ)", ok: !!m.verification_video_url },
+        { key: "logo_url", label: "شعار المتجر", ok: !!m.logo_url },
+        { key: "warehouse_address", label: "عنوان المستودع", ok: !!m.warehouse_address?.trim() },
         { key: "shipping_policy", label: "سياسة الشحن", ok: !!m.shipping_policy },
       ];
       setChecks(c);
@@ -132,7 +156,12 @@ export function useMerchantVerification() {
   const missingChecks = checks.filter((c) => !c.ok);
 
   // Critical checks that block product/shipment access
-  const criticalBlocked = !state.email_confirmed || !state.id_image_url;
+  const criticalBlocked =
+    !state.email_confirmed ||
+    !state.id_front_url ||
+    !state.id_back_url ||
+    !state.verification_video_url ||
+    !state.logo_url;
 
   return {
     ...state,

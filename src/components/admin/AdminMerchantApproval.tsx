@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, Eye, Loader2, Store, Mail, Phone, Shield, Image as ImageIcon } from "lucide-react";
+import { CheckCircle, XCircle, Eye, Loader2, Store, Mail, Phone, Shield, Image as ImageIcon, Video, IdCard, MapPin, Building2 } from "lucide-react";
 
 interface Merchant {
   id: string;
@@ -19,6 +19,11 @@ interface Merchant {
   email_confirmed: boolean;
   phone_verified: boolean;
   id_image_url: string | null;
+  id_front_url: string | null;
+  id_back_url: string | null;
+  verification_video_url: string | null;
+  logo_url: string | null;
+  warehouse_address: string | null;
   verification_status: string;
   whatsapp_number: string | null;
   created_at: string;
@@ -186,18 +191,69 @@ export default function AdminMerchantApproval() {
                   </div>
                 </div>
 
-                {selectedMerchant.id_image_url && (
-                  <div>
-                    <p className="text-sm font-medium mb-2">صورة الهوية:</p>
-                    <a href={selectedMerchant.id_image_url} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={selectedMerchant.id_image_url}
-                        alt="صورة الهوية"
-                        className="max-h-48 rounded-lg border border-border object-contain cursor-pointer hover:opacity-80 transition-opacity"
-                      />
-                    </a>
+                <div className="space-y-3 rounded-lg border border-border p-3 bg-muted/30">
+                  <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <IdCard className="h-4 w-4 text-primary" /> توثيق الهوية (KYC)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { url: selectedMerchant.id_front_url, label: "هوية أمامي" },
+                      { url: selectedMerchant.id_back_url, label: "هوية خلفي" },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+                        {item.url ? (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer">
+                            <img src={item.url} alt={item.label}
+                              className="h-32 w-full rounded border border-border object-cover hover:opacity-80" />
+                          </a>
+                        ) : (
+                          <div className="h-32 rounded border border-dashed border-destructive/40 bg-destructive/5 flex items-center justify-center text-xs text-destructive">
+                            غير مرفوع
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                )}
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <Video className="h-3 w-3" /> فيديو التحقق
+                    </p>
+                    {selectedMerchant.verification_video_url ? (
+                      <video
+                        src={selectedMerchant.verification_video_url}
+                        controls
+                        className="w-full max-h-48 rounded border border-border bg-black"
+                      />
+                    ) : (
+                      <div className="h-20 rounded border border-dashed border-destructive/40 bg-destructive/5 flex items-center justify-center text-xs text-destructive">
+                        لا يوجد فيديو
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
+                  <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 text-primary" /> هوية المتجر
+                  </p>
+                  <div className="flex items-center gap-3">
+                    {selectedMerchant.logo_url ? (
+                      <img src={selectedMerchant.logo_url} alt="logo"
+                        className="h-16 w-16 rounded-lg border border-border object-cover" />
+                    ) : (
+                      <div className="h-16 w-16 rounded-lg border border-dashed border-destructive/40 bg-destructive/5 flex items-center justify-center text-[10px] text-destructive text-center">
+                        لا شعار
+                      </div>
+                    )}
+                    <div className="text-xs flex-1">
+                      <p className="text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" /> عنوان المستودع</p>
+                      <p className={selectedMerchant.warehouse_address ? "text-foreground" : "text-destructive"}>
+                        {selectedMerchant.warehouse_address || "— غير مُدخل —"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium">ملاحظات المراجعة (اختياري):</p>
