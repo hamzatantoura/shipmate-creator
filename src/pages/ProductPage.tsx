@@ -43,11 +43,9 @@ interface MerchantShippingInfo {
   is_active: boolean;
 }
 
-// Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
-const INTL_PHONE_REGEX = /^\+?\d{7,15}$/;
-function validatePhone(phone: string): boolean {
-  return INTL_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
-}
+import { isValidSyrianPhone } from "@/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+const validatePhone = isValidSyrianPhone;
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -155,7 +153,7 @@ export default function ProductPage() {
 
   const handlePhoneChange = (val: string) => {
     setForm({ ...form, phone_number: val });
-    setPhoneError(val && !validatePhone(val) ? "صيغة الرقم غير صحيحة. مثال: +905xxxxxxxxx" : "");
+    setPhoneError(val && !validatePhone(val) ? "رقم سوري غير صحيح. مثال: 0933123456" : "");
   };
 
   const handleOrder = async (e: React.FormEvent) => {
@@ -365,11 +363,11 @@ export default function ProductPage() {
 
                   <div className="space-y-1.5">
                     <Label>رقم الهاتف <span className="text-destructive">*</span></Label>
-                    <Input
+                    <SyrianPhoneInput
                       value={form.phone_number}
-                      onChange={e => handlePhoneChange(e.target.value)}
-                      required dir="ltr" placeholder="0912345678"
-                      className={phoneError ? "border-destructive" : ""}
+                      onChange={handlePhoneChange}
+                      required
+                      className={phoneError ? "border-destructive rounded-md" : ""}
                     />
                     {phoneError && (
                       <p className="text-xs text-destructive flex items-center gap-1">
