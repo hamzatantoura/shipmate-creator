@@ -21,6 +21,7 @@ import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
 import AdminDistricts from "./pages/AdminDistricts";
 import AdminSettlements from "./pages/AdminSettlements";
+import AdminSettings from "./pages/AdminSettings";
 import TrackShipment from "./pages/TrackShipment";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import Storefront from "./pages/Storefront";
@@ -113,6 +114,11 @@ const App = () => (
           <Route path="/admin/settlements" element={
             <AuthGuard allowedRoles={["admin"]}>
               <AdminSettlements />
+            </AuthGuard>
+          } />
+          <Route path="/admin/settings" element={
+            <AuthGuard allowedRoles={["admin"]}>
+              <AdminSettings />
             </AuthGuard>
           } />
 
