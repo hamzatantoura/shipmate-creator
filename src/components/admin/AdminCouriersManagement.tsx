@@ -165,7 +165,7 @@ export default function AdminCouriersManagement() {
               </div>
               <div className="space-y-1.5">
                 <Label>رقم الهاتف</Label>
-                <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="09xxxxxxxx" dir="ltr" />
+                <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="0933123456" dir="ltr" />
               </div>
               <div className="space-y-1.5">
                 <Label>المدينة الرئيسية</Label>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+import { isValidSyrianPhone } from "@/lib/syrian-phone";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
 import { Button } from "@/components/ui/button";
@@ -239,6 +241,10 @@ export default function MerchantOrdersPage() {
       toast.error("يرجى تعبئة الحقول المطلوبة");
       return;
     }
+    if (!isValidSyrianPhone(form.phone)) {
+      toast.error("رقم سوري غير صحيح. مثال: 0933123456");
+      return;
+    }
     const prov = provinces.find(p => p.id === form.provinceId);
     const area = allDistricts.find(d => d.id === form.districtId);
     const finalDistrictId = area?.id || prov?.id || null;
@@ -390,12 +396,10 @@ export default function MerchantOrdersPage() {
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="phone">رقم الهاتف *</Label>
-                          <Input
+                          <SyrianPhoneInput
                             id="phone"
                             value={form.phone}
-                            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                            placeholder="09xxxxxxxx"
-                            dir="ltr"
+                            onChange={(v) => setForm({ ...form, phone: v })}
                           />
                         </div>
                         <div className="space-y-1.5 md:col-span-2">

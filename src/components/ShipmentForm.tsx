@@ -53,11 +53,9 @@ interface ShipmentFormProps {
   };
 }
 
-// Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
-const INTL_PHONE_REGEX = /^\+?\d{7,15}$/;
-function validatePhone(phone: string): boolean {
-  return INTL_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
-}
+import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+const validatePhone = isValidSyrianPhone;
 
 const CITY_MAP: Record<string, "Damascus" | "Aleppo" | "Homs" | "Lattakia" | "Hama" | "Tartous"> = {
   Damascus: "Damascus", "Rural Damascus": "Damascus", Aleppo: "Aleppo",
@@ -287,7 +285,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   const handlePhoneChange = (val: string) => {
     setForm({ ...form, phone_number: val });
-    setPhoneError(val && !validatePhone(val) ? "صيغة الرقم غير صحيحة. مثال: +905xxxxxxxxx أو 0912345678" : "");
+    setPhoneError(val && !validatePhone(val) ? "رقم سوري غير صحيح. مثال: 0933123456" : "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -375,7 +373,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         </div>
         <div className="space-y-2">
           <Label>رقم الهاتف <span className="text-destructive">*</span></Label>
-          <Input placeholder="0912345678" value={form.phone_number} onChange={e => handlePhoneChange(e.target.value)} required dir="ltr" className={phoneError ? "border-destructive" : ""} />
+          <SyrianPhoneInput value={form.phone_number} onChange={handlePhoneChange} required className={phoneError ? "border-destructive rounded-md" : ""} />
           {phoneError && <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {phoneError}</p>}
         </div>
       </div>

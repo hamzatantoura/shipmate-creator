@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+import { isValidSyrianPhone } from "@/lib/syrian-phone";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,6 +103,10 @@ export default function EditOrderDialog({
       toast.error("يرجى تعبئة الحقول المطلوبة");
       return;
     }
+    if (!isValidSyrianPhone(form.phone)) {
+      toast.error("رقم سوري غير صحيح. مثال: 0933123456");
+      return;
+    }
     const prov = provinces.find(p => p.id === form.provinceId);
     const area = districts.find(d => d.id === form.districtId);
     const finalDistrictId = area?.id || prov?.id || null;
@@ -141,7 +147,7 @@ export default function EditOrderDialog({
           </div>
           <div className="space-y-1.5">
             <Label>رقم الهاتف *</Label>
-            <Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} dir="ltr" />
+            <SyrianPhoneInput value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
           </div>
           <div className="space-y-1.5 md:col-span-2">
             <Label>العنوان التفصيلي</Label>
