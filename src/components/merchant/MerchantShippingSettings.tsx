@@ -12,11 +12,9 @@ import { toast } from "sonner";
 
 type ShippingPolicy = "customer_pays" | "free_all" | "free_above";
 
-// Testing mode: accept international numbers (+90xxx, +963xxx, 09xxx, etc.)
-const INTL_PHONE_REGEX = /^\+?\d{7,15}$/;
-function isValidPhone(phone: string): boolean {
-  return INTL_PHONE_REGEX.test(phone.replace(/[\s-]/g, ""));
-}
+import { isValidSyrianPhone } from "@/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+const isValidPhone = isValidSyrianPhone;
 
 export default function MerchantShippingSettings() {
   const { user } = useAuth();
@@ -65,8 +63,8 @@ export default function MerchantShippingSettings() {
     if (!user) return;
     if (!storeName.trim()) { toast.error("اسم المتجر مطلوب"); return; }
     if (!contactPerson.trim()) { toast.error("اسم التاجر مطلوب"); return; }
-    if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم الهاتف غير صحيح — مثال: +905xxxxxxxxx"); return; }
-    if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح — مثال: +905xxxxxxxxx"); return; }
+    if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم سوري غير صحيح — مثال: 0933123456"); return; }
+    if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح — مثال: 0933123456"); return; }
     if (!city.trim()) { toast.error("يرجى اختيار المحافظة"); return; }
 
     setSaving(true);
@@ -120,15 +118,14 @@ export default function MerchantShippingSettings() {
           </div>
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> رقم الهاتف <span className="text-destructive">*</span></Label>
-            <Input value={phone} onChange={e => setPhone(e.target.value)} dir="ltr" placeholder="+905xxxxxxxxx" />
-            <p className="text-xs text-muted-foreground">أدخل الرقم بالصيغة الدولية مع مفتاح الدولة</p>
+            <SyrianPhoneInput value={phone} onChange={setPhone} />
+            <p className="text-xs text-muted-foreground">رقم سوري — مثال: 0933123456</p>
           </div>
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> رقم واتساب <span className="text-destructive">*</span></Label>
-            <Input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} dir="ltr" placeholder="+905xxxxxxxxx" />
+            <SyrianPhoneInput value={whatsappNumber} onChange={setWhatsappNumber} />
             <p className="text-xs text-muted-foreground">
-              أدخل الرقم بالصيغة الدولية مع مفتاح الدولة (مثال: +905xxxxxxxxx).
-              سيستخدم هذا الرقم لزر تأكيد الطلب عبر واتساب.
+              رقم سوري — سيستخدم هذا الرقم لزر تأكيد الطلب عبر واتساب.
               {phone && <><br />💡 إذا كان نفس رقم الهاتف، اتركه كما هو.</>}
             </p>
           </div>
