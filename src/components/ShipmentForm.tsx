@@ -20,6 +20,22 @@ interface District {
   province: string;
   province_ar: string;
   delivery_fee: number;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+interface NearestBranch {
+  id: string;
+  courier_id: string;
+  courier_name: string;
+  name: string;
+  province_id: string | null;
+  district_id: string | null;
+  address_details: string | null;
+  lat: number;
+  lng: number;
+  phone: string | null;
+  distance_km: number;
 }
 
 interface CourierOption {
@@ -94,7 +110,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   });
 
   useEffect(() => {
-    supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee").eq("is_active", true)
+    supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee,lat,lng").eq("is_active", true)
       .then(({ data }) => { if (data) setDistricts(data as any); });
   }, []);
 
@@ -145,6 +161,69 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
   // Resolve final district id (area takes precedence, fallback to province row)
   const finalDistrictId = selectedArea?.id || selectedProvince?.id || "";
+
+  // Nearest branches (geospatial) — uses lat/lng on the selected district.
+  // Falls back to listing active branches in the province when coordinates are missing.
+  const [nearestBranches, setNearestBranches] = useState<NearestBranch[]>([]);
+  const [fallbackBranches, setFallbackBranches] = useState<NearestBranch[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [usedFallback, setUsedFallback] = useState(false);
+
+  useEffect(() => {
+    setNearestBranches([]);
+    setFallbackBranches([]);
+    setUsedFallback(false);
+    if (!finalDistrictId) return;
+
+    const targetDistrict = selectedArea || selectedProvince;
+    if (!targetDistrict) return;
+
+    const lat = targetDistrict.lat;
+    const lng = targetDistrict.lng;
+
+    setLoadingBranches(true);
+    (async () => {
+      try {
+        if (lat != null && lng != null) {
+          const { data, error } = await supabase.rpc("get_nearest_branches", {
+            target_lat: Number(lat),
+            target_lng: Number(lng),
+            max_radius_km: 30,
+          });
+          if (!error && data && (data as any[]).length > 0) {
+            setNearestBranches(data as any);
+            setUsedFallback(false);
+            return;
+          }
+        }
+        // Fallback: list active branches in the selected province
+        if (selectedProvinceId) {
+          const { data } = await supabase
+            .from("courier_branches")
+            .select("id, courier_id, name, province_id, district_id, address_details, lat, lng, phone, couriers(name)")
+            .eq("is_active", true)
+            .eq("province_id", selectedProvinceId);
+          const mapped: NearestBranch[] = (data || []).map((b: any) => ({
+            id: b.id,
+            courier_id: b.courier_id,
+            courier_name: b.couriers?.name || "",
+            name: b.name,
+            province_id: b.province_id,
+            district_id: b.district_id,
+            address_details: b.address_details,
+            lat: b.lat,
+            lng: b.lng,
+            phone: b.phone,
+            distance_km: NaN,
+          }));
+          setFallbackBranches(mapped);
+          setUsedFallback(true);
+        }
+      } finally {
+        setLoadingBranches(false);
+      }
+    })();
+  }, [finalDistrictId, selectedArea, selectedProvince, selectedProvinceId]);
 
   // Smart Routing V2: filter by destination district + weight range,
   // and require courier to also operate in the merchant's origin province.
@@ -384,6 +463,49 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
           </Select>
         </div>
       </div>
+
+      {/* Nearest courier branches (geospatial) */}
+      {finalDistrictId && (loadingBranches || nearestBranches.length > 0 || fallbackBranches.length > 0) && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">
+              {usedFallback ? "فروع الشحن في المحافظة" : "أقرب فروع الاستلام"}
+            </span>
+            {usedFallback && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                بدون إحداثيات للمنطقة
+              </span>
+            )}
+          </div>
+          {loadingBranches ? (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" /> جاري البحث عن الفروع...
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {(usedFallback ? fallbackBranches : nearestBranches).map(b => (
+                <div key={b.id} className="flex items-center gap-2 text-xs p-2 rounded bg-background border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{b.name}</p>
+                    <p className="text-muted-foreground truncate">
+                      {b.courier_name}{b.address_details ? ` • ${b.address_details}` : ""}
+                    </p>
+                  </div>
+                  {!usedFallback && !isNaN(b.distance_km) && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 whitespace-nowrap">
+                      {b.distance_km.toFixed(1)} كم
+                    </span>
+                  )}
+                  {b.phone && (
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap" dir="ltr">{b.phone}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Smart Routing: Courier selection bound to district rates */}
       <div className="space-y-2">

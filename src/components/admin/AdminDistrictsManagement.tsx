@@ -33,6 +33,8 @@ interface District {
   parent_id: string | null;
   delivery_fee: number;
   is_active: boolean;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
@@ -47,7 +49,7 @@ export default function AdminDistrictsManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<District | null>(null);
   const [parentForNew, setParentForNew] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", parent_id: "", delivery_fee: "" });
+  const [form, setForm] = useState({ name: "", parent_id: "", delivery_fee: "", lat: "", lng: "" });
 
   const [confirmDelete, setConfirmDelete] = useState<District | null>(null);
   const [confirmDeleteAllChildren, setConfirmDeleteAllChildren] = useState<District | null>(null);
@@ -59,7 +61,7 @@ export default function AdminDistrictsManagement() {
     setLoading(true);
     const { data, error } = await supabase
       .from("districts")
-      .select("id, name, parent_id, delivery_fee, is_active")
+      .select("id, name, parent_id, delivery_fee, is_active, lat, lng")
       .order("name", { ascending: true });
     if (error) { toast.error("فشل تحميل المناطق"); setLoading(false); return; }
     setDistricts((data || []) as District[]);
@@ -94,24 +96,37 @@ export default function AdminDistrictsManagement() {
   const openCreate = (parentId: string | null) => {
     setEditing(null);
     setParentForNew(parentId);
-    setForm({ name: "", parent_id: parentId || "", delivery_fee: "" });
+    setForm({ name: "", parent_id: parentId || "", delivery_fee: "", lat: "", lng: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (d: District) => {
     setEditing(d);
     setParentForNew(null);
-    setForm({ name: d.name, parent_id: d.parent_id || "", delivery_fee: String(d.delivery_fee) });
+    setForm({
+      name: d.name,
+      parent_id: d.parent_id || "",
+      delivery_fee: String(d.delivery_fee),
+      lat: d.lat != null ? String(d.lat) : "",
+      lng: d.lng != null ? String(d.lng) : "",
+    });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("الاسم مطلوب"); return; }
     const fee = Number(form.delivery_fee) || 0;
+    const latVal = form.lat.trim() === "" ? null : Number(form.lat);
+    const lngVal = form.lng.trim() === "" ? null : Number(form.lng);
+    if ((latVal !== null && isNaN(latVal)) || (lngVal !== null && isNaN(lngVal))) {
+      toast.error("الإحداثيات غير صالحة"); return;
+    }
     const payload: any = {
       name: form.name.trim(),
       parent_id: form.parent_id || null,
       delivery_fee: fee,
+      lat: latVal,
+      lng: lngVal,
       // Legacy required columns – fill from name
       province: form.parent_id
         ? districts.find(d => d.id === form.parent_id)?.name || form.name.trim()
@@ -429,6 +444,36 @@ export default function AdminDistrictsManagement() {
                 dir="ltr"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="d-lat">خط العرض (Lat)</Label>
+                <Input
+                  id="d-lat"
+                  type="number"
+                  step="any"
+                  value={form.lat}
+                  onChange={(e) => setForm({ ...form, lat: e.target.value })}
+                  placeholder="33.5138"
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="d-lng">خط الطول (Lng)</Label>
+                <Input
+                  id="d-lng"
+                  type="number"
+                  step="any"
+                  value={form.lng}
+                  onChange={(e) => setForm({ ...form, lng: e.target.value })}
+                  placeholder="36.2765"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+              الإحداثيات اختيارية، تُستخدم لحساب أقرب فرع شحن (Haversine).
+            </p>
           </div>
 
           <DialogFooter className="gap-2">

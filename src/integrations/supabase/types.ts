@@ -55,6 +55,73 @@ export type Database = {
           },
         ]
       }
+      courier_branches: {
+        Row: {
+          address_details: string | null
+          courier_id: string
+          created_at: string
+          district_id: string | null
+          id: string
+          is_active: boolean
+          lat: number | null
+          lng: number | null
+          name: string
+          phone: string | null
+          province_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address_details?: string | null
+          courier_id: string
+          created_at?: string
+          district_id?: string | null
+          id?: string
+          is_active?: boolean
+          lat?: number | null
+          lng?: number | null
+          name: string
+          phone?: string | null
+          province_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address_details?: string | null
+          courier_id?: string
+          created_at?: string
+          district_id?: string | null
+          id?: string
+          is_active?: boolean
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          phone?: string | null
+          province_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_branches_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_branches_district_id_fkey"
+            columns: ["district_id"]
+            isOneToOne: false
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_branches_province_id_fkey"
+            columns: ["province_id"]
+            isOneToOne: false
+            referencedRelation: "provinces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_district_rates: {
         Row: {
           courier_id: string
@@ -225,6 +292,8 @@ export type Database = {
           delivery_fee: number
           id: string
           is_active: boolean
+          lat: number | null
+          lng: number | null
           name: string
           parent_id: string | null
           province: string
@@ -237,6 +306,8 @@ export type Database = {
           delivery_fee?: number
           id?: string
           is_active?: boolean
+          lat?: number | null
+          lng?: number | null
           name: string
           parent_id?: string | null
           province: string
@@ -249,6 +320,8 @@ export type Database = {
           delivery_fee?: number
           id?: string
           is_active?: boolean
+          lat?: number | null
+          lng?: number | null
           name?: string
           parent_id?: string | null
           province?: string
@@ -1072,6 +1145,22 @@ export type Database = {
       complete_payout: {
         Args: { p_new_status: string; p_payout_id: string }
         Returns: undefined
+      }
+      get_nearest_branches: {
+        Args: { max_radius_km?: number; target_lat: number; target_lng: number }
+        Returns: {
+          address_details: string
+          courier_id: string
+          courier_name: string
+          distance_km: number
+          district_id: string
+          id: string
+          lat: number
+          lng: number
+          name: string
+          phone: string
+          province_id: string
+        }[]
       }
       get_public_merchant_info: {
         Args: { p_merchant_user_id: string }
