@@ -12,7 +12,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
-import AdminZonesManagement from "@/components/admin/AdminZonesManagement";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
 import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
 import AdminCouriersManagement from "@/components/admin/AdminCouriersManagement";
@@ -20,9 +19,6 @@ import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
-
-const PLATFORM_MARKUP = 2000;
-const RETURN_FEE = 5000;
 
 const STATUS_OPTIONS = [
   { value: "pending_pickup", label: "بانتظار الاستلام" },
@@ -98,11 +94,12 @@ export default function AdminLogistics() {
   const totalPending = pendingTopups + pendingPayouts;
 
   const fetchData = async () => {
-    const [pRes, tRes, sAllRes, sActiveRes] = await Promise.all([
+    const [pRes, tRes, sAllRes, sActiveRes, platformWalletRes] = await Promise.all([
       supabase.from("payout_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("top_up_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("shipments").select("status"),
       supabase.from("shipments").select("*").not("status", "in", '("delivered","returned")').order("created_at", { ascending: false }),
+      supabase.from("wallets").select("balance").eq("merchant_id", "00000000-0000-0000-0000-000000000001").maybeSingle(),
     ]);
     if (pRes.data) {
       const merchantIds = [...new Set(pRes.data.map((p) => p.merchant_id).filter(Boolean))];
@@ -135,7 +132,10 @@ export default function AdminLogistics() {
       setTotalShipments(sAllRes.data.length);
       const delivered = sAllRes.data.filter(s => s.status === "delivered").length;
       setDeliveredCount(delivered);
-      setTotalProfit(delivered * PLATFORM_MARKUP);
+    }
+    // Platform earnings come from the platform wallet ledger (handled by trigger)
+    if (platformWalletRes?.data) {
+      setTotalProfit(Number((platformWalletRes.data as any).balance) || 0);
     }
     if (sActiveRes.data) setShipments(sActiveRes.data);
   };
@@ -201,32 +201,16 @@ export default function AdminLogistics() {
     await supabase.from("shipment_status_history").insert({
       shipment_id: shipment.id, old_status: shipment.status, new_status: ns, changed_by: "admin",
     } as any);
-    await supabase.from("shipments").update({ status: ns }).eq("id", shipment.id);
-
-    const { data: wallet } = await supabase.from("wallets").select("*").eq("merchant_id", shipment.merchant_id).single();
-    if (wallet) {
-      if (ns === "delivered") {
-        const codAmount = Number(shipment.cod_amount);
-        const shippingFee = Number(shipment.shipping_fee || 0) + PLATFORM_MARKUP;
-        const net = codAmount - shippingFee;
-        const newBalance = Number(wallet.balance) + net;
-        await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
-        await supabase.from("wallet_transactions").insert([
-          { wallet_id: wallet.id, type: "cod_settlement", amount: codAmount, description: `تسوية COD - ${shipment.tracking_number}`, reference_id: shipment.id },
-          { wallet_id: wallet.id, type: "shipping_fee", amount: -shippingFee, description: `رسوم شحن نهائية - ${shipment.tracking_number}`, reference_id: shipment.id },
-        ] as any);
-        toast.success("تم التسليم وتسوية المبلغ!");
-      } else if (ns === "returned") {
-        const newBalance = Number(wallet.balance) - RETURN_FEE;
-        await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
-        await supabase.from("wallet_transactions").insert({
-          wallet_id: wallet.id, type: "return_fee", amount: -RETURN_FEE,
-          description: `رسوم إرجاع - ${shipment.tracking_number}`, reference_id: shipment.id,
-        } as any);
-        toast.success("تم تسجيل المرتجع وخصم رسوم الإرجاع");
-      } else {
-        toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[ns] || ns}`);
-      }
+    // Trigger handle_shipment_wallet_settlement performs all financial moves automatically
+    const { error: upErr } = await supabase.from("shipments").update({ status: ns }).eq("id", shipment.id);
+    if (upErr) {
+      toast.error(upErr.message);
+    } else if (ns === "delivered") {
+      toast.success("تم التسليم — سيتم تسوية المبلغ تلقائياً");
+    } else if (ns === "returned") {
+      toast.success("تم تسجيل المرتجع — سيتم تطبيق سياسة الإرجاع تلقائياً");
+    } else {
+      toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[ns] || ns}`);
     }
     setUpdatingId(null);
     setStatusMap(prev => ({ ...prev, [shipment.id]: "" }));
@@ -287,9 +271,6 @@ export default function AdminLogistics() {
             <TabsTrigger value="payouts" className="gap-1.5">
               <CreditCard className="h-3.5 w-3.5" /> طلبات التسوية
               {pendingPayouts > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingPayouts}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="zones" className="gap-1.5">
-              <MapPin className="h-3.5 w-3.5" /> مناطق الشحن
             </TabsTrigger>
             <TabsTrigger value="districts" className="gap-1.5">
               <MapPin className="h-3.5 w-3.5" /> إدارة المناطق
@@ -448,9 +429,6 @@ export default function AdminLogistics() {
                 ))}
               </div>
             )}
-          </TabsContent>
-          <TabsContent value="zones" className="mt-4">
-            <AdminZonesManagement />
           </TabsContent>
           <TabsContent value="districts" className="mt-4">
             <AdminDistrictsManagement />
