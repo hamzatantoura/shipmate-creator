@@ -110,7 +110,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   });
 
   useEffect(() => {
-    supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee").eq("is_active", true)
+    supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee,lat,lng").eq("is_active", true)
       .then(({ data }) => { if (data) setDistricts(data as any); });
   }, []);
 
