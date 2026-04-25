@@ -445,7 +445,7 @@ export default function MerchantOrdersPage() {
                             <SelectContent>
                               {areasOf(form.provinceId).map((a) => (
                                 <SelectItem key={a.id} value={a.id}>
-                                  {a.name} <span className="text-xs text-muted-foreground mr-2">({fmtSYP(a.delivery_fee)})</span>
+                                  {a.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -462,26 +462,40 @@ export default function MerchantOrdersPage() {
                             dir="ltr"
                           />
                         </div>
-                        <div className="space-y-1.5 md:col-span-2">
-                          <Label htmlFor="courier">شركة الشحن (اختياري)</Label>
-                          <Select
-                            value={form.courierId}
-                            onValueChange={(v) => setForm({ ...form, courierId: v })}
-                          >
-                            <SelectTrigger id="courier">
-                              <SelectValue placeholder={couriers.length === 0 ? "لا توجد شركات شحن مفعلة" : "اختر شركة شحن"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {couriers.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {form.provinceId && (
-                            <p className="text-xs text-muted-foreground">
-                              رسوم الشحن المحسوبة: <span className="font-semibold text-primary">{fmtSYP(resolveDeliveryFee(form.districtId || null, form.provinceId, form.courierId || null))}</span>
-                              {form.courierId && " (سعر مخصص للشركة إن وُجد)"}
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>شركة الشحن *</Label>
+                          {!form.provinceId ? (
+                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                              اختر المحافظة أولاً لعرض شركات الشحن وأسعارها
                             </p>
+                          ) : couriers.length === 0 ? (
+                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                              لا توجد شركات شحن مفعلة لهذه الوجهة
+                            </p>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {couriers.map((c) => {
+                                const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.id);
+                                const selected = form.courierId === c.id;
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => setForm({ ...form, courierId: c.id })}
+                                    className={`text-right p-3 rounded-md border transition-all ${
+                                      selected
+                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                        : "border-border hover:border-primary/40 bg-card"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-medium text-sm text-foreground">{c.name}</span>
+                                      <span className="text-sm font-bold text-primary">{fmtSYP(fee)}</span>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
                       </div>
