@@ -444,6 +444,36 @@ export default function AdminDistrictsManagement() {
                 dir="ltr"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="d-lat">خط العرض (Lat)</Label>
+                <Input
+                  id="d-lat"
+                  type="number"
+                  step="any"
+                  value={form.lat}
+                  onChange={(e) => setForm({ ...form, lat: e.target.value })}
+                  placeholder="33.5138"
+                  dir="ltr"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="d-lng">خط الطول (Lng)</Label>
+                <Input
+                  id="d-lng"
+                  type="number"
+                  step="any"
+                  value={form.lng}
+                  onChange={(e) => setForm({ ...form, lng: e.target.value })}
+                  placeholder="36.2765"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-1">
+              الإحداثيات اختيارية، تُستخدم لحساب أقرب فرع شحن (Haversine).
+            </p>
           </div>
 
           <DialogFooter className="gap-2">
