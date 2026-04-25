@@ -30,7 +30,7 @@ const TYPE_AR: Record<string, string> = {
   topup: "شحن رصيد",
   shipping_fee: "رسوم شحن",
   cod_settlement: "تسوية COD",
-  commission: "عمولة المنصة",
+  commission: "رسوم خدمة",
   carrier_adjustment: "تعديل الناقل",
   return_fee: "رسوم إرجاع",
   payout: "تسوية مالية",

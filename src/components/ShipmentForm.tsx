@@ -252,6 +252,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       cod_amount: codAmount,
       settings: {
         platform_margin_pct: platformSettings.default_platform_margin_pct,
+        platform_margin_flat: platformSettings.default_platform_margin_flat,
         default_collection_fee_pct: platformSettings.default_collection_fee_pct,
         courier_cod_fee_type: selectedCourier?.cod_fee_type,
         courier_cod_fee_value: selectedCourier?.cod_fee_value,
