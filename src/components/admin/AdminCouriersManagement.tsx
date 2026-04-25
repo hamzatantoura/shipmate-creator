@@ -907,16 +907,12 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
           <TabsContent value="coverage" className="mt-4 space-y-4">
             <Card className="p-4 space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2">
-                <MapIcon className="h-4 w-4 text-primary" /> القسم أ — مناطق التغطية
+                <MapIcon className="h-4 w-4 text-primary" /> مصفوفة التغطية والأسعار
               </h4>
-              <CoverageEditor courierId={courier.id} provinces={provinces} areasOf={areasOf} />
-            </Card>
-
-            <Card className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" /> القسم ب — شرائح الأوزان والأسعار (خاصة بهذه الشركة)
-              </h4>
-              <WeightTiersEditor courierId={courier.id} />
+              <p className="text-xs text-muted-foreground">
+                المصدر الموحَّد للتغطية والتسعير حسب المنطقة وشريحة الوزن.
+              </p>
+              <PricingMatrix courierId={courier.id} provinces={provinces} areasOf={areasOf} />
             </Card>
           </TabsContent>
 
