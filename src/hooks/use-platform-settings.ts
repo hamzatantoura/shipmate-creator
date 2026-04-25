@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface PlatformSettings {
   id: string;
   default_platform_margin_pct: number;
+  default_platform_margin_flat: number;
   default_collection_fee_pct: number;
   return_cost_responsibility: "merchant" | "platform" | "carrier";
   default_return_fee: number;
@@ -12,6 +13,7 @@ export interface PlatformSettings {
 const FALLBACK: PlatformSettings = {
   id: "",
   default_platform_margin_pct: 10,
+  default_platform_margin_flat: 0,
   default_collection_fee_pct: 1,
   return_cost_responsibility: "merchant",
   default_return_fee: 0,
@@ -34,6 +36,7 @@ async function fetchSettings(): Promise<PlatformSettings> {
       ? {
           id: row.id,
           default_platform_margin_pct: Number(row.default_platform_margin_pct) || 10,
+          default_platform_margin_flat: Number(row.default_platform_margin_flat) || 0,
           default_collection_fee_pct: Number(row.default_collection_fee_pct) || 1,
           return_cost_responsibility: row.return_cost_responsibility || "merchant",
           default_return_fee: Number(row.default_return_fee) || 0,
