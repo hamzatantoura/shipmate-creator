@@ -55,113 +55,6 @@ export type Database = {
           },
         ]
       }
-      carrier_coverage: {
-        Row: {
-          carrier_id: string
-          created_at: string
-          id: string
-          inter_city_rate: number
-          intra_city_rate: number
-          is_available: boolean
-          province_id: string
-        }
-        Insert: {
-          carrier_id: string
-          created_at?: string
-          id?: string
-          inter_city_rate?: number
-          intra_city_rate?: number
-          is_available?: boolean
-          province_id: string
-        }
-        Update: {
-          carrier_id?: string
-          created_at?: string
-          id?: string
-          inter_city_rate?: number
-          intra_city_rate?: number
-          is_available?: boolean
-          province_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "carrier_coverage_carrier_id_fkey"
-            columns: ["carrier_id"]
-            isOneToOne: false
-            referencedRelation: "carriers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "carrier_coverage_province_id_fkey"
-            columns: ["province_id"]
-            isOneToOne: false
-            referencedRelation: "provinces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      carriers: {
-        Row: {
-          base_rate: number
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          name_ar: string
-          per_kg_rate: number
-        }
-        Insert: {
-          base_rate?: number
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          name_ar: string
-          per_kg_rate?: number
-        }
-        Update: {
-          base_rate?: number
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          name_ar?: string
-          per_kg_rate?: number
-        }
-        Relationships: []
-      }
-      courier_coverage_areas: {
-        Row: {
-          courier_id: string
-          created_at: string
-          district_id: string | null
-          id: string
-          province_id: string | null
-        }
-        Insert: {
-          courier_id: string
-          created_at?: string
-          district_id?: string | null
-          id?: string
-          province_id?: string | null
-        }
-        Update: {
-          courier_id?: string
-          created_at?: string
-          district_id?: string | null
-          id?: string
-          province_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "courier_coverage_areas_courier_id_fkey"
-            columns: ["courier_id"]
-            isOneToOne: false
-            referencedRelation: "couriers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       courier_district_rates: {
         Row: {
           courier_id: string
@@ -260,41 +153,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      courier_weight_tiers: {
-        Row: {
-          courier_id: string
-          created_at: string
-          id: string
-          max_weight: number
-          min_weight: number
-          price: number
-        }
-        Insert: {
-          courier_id: string
-          created_at?: string
-          id?: string
-          max_weight?: number
-          min_weight?: number
-          price?: number
-        }
-        Update: {
-          courier_id?: string
-          created_at?: string
-          id?: string
-          max_weight?: number
-          min_weight?: number
-          price?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "courier_weight_tiers_courier_id_fkey"
-            columns: ["courier_id"]
-            isOneToOne: false
-            referencedRelation: "couriers"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       couriers: {
         Row: {
@@ -981,7 +839,6 @@ export type Database = {
         Row: {
           billable_weight: number | null
           carrier_fee: number | null
-          carrier_id: string | null
           city: Database["public"]["Enums"]["shipment_city"]
           cod_amount: number
           collection_fee: number | null
@@ -1006,7 +863,6 @@ export type Database = {
         Insert: {
           billable_weight?: number | null
           carrier_fee?: number | null
-          carrier_id?: string | null
           city: Database["public"]["Enums"]["shipment_city"]
           cod_amount?: number
           collection_fee?: number | null
@@ -1031,7 +887,6 @@ export type Database = {
         Update: {
           billable_weight?: number | null
           carrier_fee?: number | null
-          carrier_id?: string | null
           city?: Database["public"]["Enums"]["shipment_city"]
           cod_amount?: number
           collection_fee?: number | null
@@ -1053,68 +908,7 @@ export type Database = {
           updated_at?: string
           volumetric_weight?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "shipments_carrier_id_fkey"
-            columns: ["carrier_id"]
-            isOneToOne: false
-            referencedRelation: "carriers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      shipping_zones: {
-        Row: {
-          area_name: string | null
-          area_name_ar: string | null
-          carrier_id: string | null
-          created_at: string
-          delivery_fee: number
-          id: string
-          is_active: boolean
-          neighborhood_name: string | null
-          neighborhood_name_ar: string | null
-          province_name: string
-          province_name_ar: string
-          updated_at: string
-        }
-        Insert: {
-          area_name?: string | null
-          area_name_ar?: string | null
-          carrier_id?: string | null
-          created_at?: string
-          delivery_fee?: number
-          id?: string
-          is_active?: boolean
-          neighborhood_name?: string | null
-          neighborhood_name_ar?: string | null
-          province_name: string
-          province_name_ar: string
-          updated_at?: string
-        }
-        Update: {
-          area_name?: string | null
-          area_name_ar?: string | null
-          carrier_id?: string | null
-          created_at?: string
-          delivery_fee?: number
-          id?: string
-          is_active?: boolean
-          neighborhood_name?: string | null
-          neighborhood_name_ar?: string | null
-          province_name?: string
-          province_name_ar?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shipping_zones_carrier_id_fkey"
-            columns: ["carrier_id"]
-            isOneToOne: false
-            referencedRelation: "carriers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       sub_regions: {
         Row: {

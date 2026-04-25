@@ -12,9 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft, Search, AlertTriangle, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
+import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
 
 interface Courier {
   id: string;
@@ -48,22 +54,35 @@ interface DistrictRow {
   delivery_fee: number;
 }
 
-interface WeightTier {
+interface DistrictRate {
   id: string;
   courier_id: string;
-  min_weight: number;
-  max_weight: number;
-  price: number;
-}
-
-interface CoverageArea {
-  id: string;
-  courier_id: string;
-  province_id: string | null;
-  district_id: string | null;
+  district_id: string;
+  custom_delivery_fee: number;
+  min_weight_kg: number;
+  max_weight_kg: number;
+  estimated_days: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
+
+// Computes a simple completion score (0-100) from a courier's filled fields
+function profileCompletion(c: Courier): number {
+  const checks = [
+    !!c.name?.trim(),
+    !!c.phone?.trim(),
+    !!c.city?.trim(),
+    !!c.logo_url,
+    !!c.contact_person?.trim(),
+    !!c.contact_email?.trim(),
+    !!c.tax_id?.trim(),
+    (c.cod_fee_value ?? 0) > 0,
+    !!c.vendor_id,
+    (c.services?.length ?? 0) > 0,
+  ];
+  const passed = checks.filter(Boolean).length;
+  return Math.round((passed / checks.length) * 100);
+}
 
 export default function AdminCouriersManagement() {
   const [couriers, setCouriers] = useState<Courier[]>([]);
@@ -72,6 +91,9 @@ export default function AdminCouriersManagement() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [profileCourier, setProfileCourier] = useState<Courier | null>(null);
+  const [toDelete, setToDelete] = useState<Courier | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [form, setForm] = useState({ name: "", phone: "", city: "" });
 
@@ -111,15 +133,30 @@ export default function AdminCouriersManagement() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { toast.error("غير مصرّح"); return; }
 
+    const dup = couriers.some(c => c.name.trim().toLowerCase() === form.name.trim().toLowerCase());
+    if (dup) { toast.error("يوجد شركة شحن بنفس الاسم بالفعل"); return; }
+    if (form.phone.trim() && !isValidSyrianPhone(form.phone.trim())) {
+      toast.error("رقم الهاتف السوري غير صحيح. مثال: 0933123456");
+      return;
+    }
+
+    // CRITICAL FIX: NEVER auto-link to admin. Account is created later via "الدخول" tab.
     const { error } = await supabase.from("couriers").insert({
       name: form.name.trim(),
       phone: form.phone.trim() || null,
       city: form.city.trim() || null,
       is_active: true,
-      vendor_id: user.id,
+      vendor_id: null,
+      cod_fee_type: "percentage",
+      cod_fee_value: 1,
+      services: ["standard"],
     } as any);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تمت إضافة شركة الشحن");
+    if (error) {
+      const msg = error.message.toLowerCase().includes("unique") ? "اسم الشركة مستخدم مسبقاً" : error.message;
+      toast.error(msg);
+      return;
+    }
+    toast.success("تمت الإضافة — افتح ملف الشركة لإكمال البيانات وإنشاء حساب الدخول");
     setForm({ name: "", phone: "", city: "" });
     setCreateOpen(false);
     fetchAll();
@@ -129,16 +166,32 @@ export default function AdminCouriersManagement() {
     const { error } = await supabase.from("couriers")
       .update({ is_active: !c.is_active } as any).eq("id", c.id);
     if (error) { toast.error(error.message); return; }
+    toast.success(c.is_active ? "تم إيقاف الشركة" : "تم تفعيل الشركة");
     fetchAll();
   };
 
-  const handleDelete = async (c: Courier) => {
-    if (!confirm(`حذف شركة الشحن "${c.name}"؟ سيتم حذف جميع تسعيراتها وتغطياتها.`)) return;
-    const { error } = await supabase.from("couriers").delete().eq("id", c.id);
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    const { error } = await supabase.from("couriers").delete().eq("id", toDelete.id);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم الحذف");
+    toast.success(`تم حذف "${toDelete.name}"`);
+    setToDelete(null);
     fetchAll();
   };
+
+  const filteredCouriers = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return couriers.filter(c => {
+      if (statusFilter === "active" && !c.is_active) return false;
+      if (statusFilter === "inactive" && c.is_active) return false;
+      if (!q) return true;
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.phone || "").toLowerCase().includes(q) ||
+        (c.city || "").toLowerCase().includes(q)
+      );
+    });
+  }, [couriers, searchTerm, statusFilter]);
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -261,7 +314,7 @@ export default function AdminCouriersManagement() {
                           <Button variant="ghost" size="sm" onClick={() => setProfileCourier(c)} className="gap-1">
                             <Settings2 className="h-3.5 w-3.5" /> ملف الشركة
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(c)} className="text-destructive">
+                          <Button variant="ghost" size="icon" onClick={() => setToDelete(c)} className="text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -302,99 +355,185 @@ const INTEGRATION_OPTIONS = [
   { id: "manual", label: "يدوي" },
 ];
 
-// ============ Coverage editor ============
-function CoverageEditor({ courierId, provinces, areasOf }: {
+// ============ Unified Pricing Matrix (district-based) ============
+function PricingMatrix({ courierId, provinces, areasOf }: {
   courierId: string;
   provinces: DistrictRow[];
   areasOf: (id: string) => DistrictRow[];
 }) {
-  const [areas, setAreas] = useState<CoverageArea[]>([]);
+  const [rates, setRates] = useState<DistrictRate[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [bulkProvId, setBulkProvId] = useState<string>("");
+  const [bulkFee, setBulkFee] = useState<string>("");
+  const [bulkMinW, setBulkMinW] = useState<string>("0");
+  const [bulkMaxW, setBulkMaxW] = useState<string>("999");
+  const [bulkDays, setBulkDays] = useState<string>("");
+  const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("courier_coverage_areas" as any)
-      .select("*").eq("courier_id", courierId);
-    setAreas((data || []) as unknown as CoverageArea[]);
+    const { data } = await supabase
+      .from("courier_district_rates")
+      .select("*")
+      .eq("courier_id", courierId);
+    setRates((data || []) as DistrictRate[]);
     setLoading(false);
   };
-
   useEffect(() => { load(); }, [courierId]);
 
-  const provinceCovered = (provId: string) =>
-    areas.some(a => a.province_id === provId);
-  const districtCovered = (distId: string) =>
-    areas.some(a => a.district_id === distId);
+  const rateFor = (districtId: string) =>
+    rates.find(r => r.district_id === districtId);
 
-  const toggleProvince = async (provId: string) => {
-    if (provinceCovered(provId)) {
-      const row = areas.find(a => a.province_id === provId);
-      if (!row) return;
-      const { error } = await supabase.from("courier_coverage_areas" as any).delete().eq("id", row.id);
+  const upsertRate = async (
+    districtId: string,
+    fee: number,
+    minW = 0,
+    maxW = 999,
+    days: string | null = null,
+  ) => {
+    if (fee < 0) { toast.error("السعر لا يمكن أن يكون سالباً"); return; }
+    if (maxW < minW) { toast.error("الحد الأقصى للوزن يجب أن يكون ≥ الأدنى"); return; }
+    const existing = rateFor(districtId);
+    if (existing) {
+      const { error } = await supabase.from("courier_district_rates")
+        .update({ custom_delivery_fee: fee, min_weight_kg: minW, max_weight_kg: maxW, estimated_days: days })
+        .eq("id", existing.id);
       if (error) { toast.error(error.message); return; }
     } else {
-      const { error } = await supabase.from("courier_coverage_areas" as any).insert({
-        courier_id: courierId, province_id: provId,
+      const { error } = await supabase.from("courier_district_rates").insert({
+        courier_id: courierId, district_id: districtId,
+        custom_delivery_fee: fee, min_weight_kg: minW, max_weight_kg: maxW,
+        estimated_days: days,
       } as any);
       if (error) { toast.error(error.message); return; }
     }
     load();
   };
 
-  const toggleDistrict = async (distId: string) => {
-    if (districtCovered(distId)) {
-      const row = areas.find(a => a.district_id === distId);
-      if (!row) return;
-      const { error } = await supabase.from("courier_coverage_areas" as any).delete().eq("id", row.id);
-      if (error) { toast.error(error.message); return; }
-    } else {
-      const { error } = await supabase.from("courier_coverage_areas" as any).insert({
-        courier_id: courierId, district_id: distId,
-      } as any);
-      if (error) { toast.error(error.message); return; }
-    }
+  const removeRate = async (districtId: string) => {
+    const existing = rateFor(districtId);
+    if (!existing) return;
+    const { error } = await supabase.from("courier_district_rates").delete().eq("id", existing.id);
+    if (error) { toast.error(error.message); return; }
     load();
+  };
+
+  const applyBulk = async () => {
+    if (!bulkProvId) { toast.error("اختر المحافظة أولاً"); return; }
+    const fee = Number(bulkFee);
+    const mn = Number(bulkMinW);
+    const mx = Number(bulkMaxW);
+    if (isNaN(fee) || fee < 0) { toast.error("أدخل سعراً صحيحاً"); return; }
+    if (isNaN(mn) || isNaN(mx) || mx < mn) { toast.error("أدخل وزناً صحيحاً"); return; }
+
+    setSaving(true);
+    const targets = [bulkProvId, ...areasOf(bulkProvId).map(a => a.id)];
+    for (const did of targets) {
+      await upsertRate(did, fee, mn, mx, bulkDays.trim() || null);
+    }
+    setSaving(false);
+    toast.success(`تم تطبيق السعر على ${targets.length} منطقة`);
+    setBulkFee(""); setBulkDays("");
   };
 
   if (loading) return <p className="text-sm text-muted-foreground text-center py-4">جاري التحميل...</p>;
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">حدّد المحافظات أو المناطق الفرعية التي تُغطّيها هذه الشركة. لا توجد أسعار هنا — التسعير يُدار في القسم أدناه.</p>
-      <div className="border border-border rounded-md divide-y divide-border max-h-72 overflow-y-auto">
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        حدّد سعر التوصيل لكل منطقة. الشركة تظهر للتجار فقط في المناطق المسعّرة هنا.
+      </p>
+
+      {/* Bulk apply */}
+      <Card className="p-3 bg-muted/30 space-y-2">
+        <h4 className="text-sm font-semibold flex items-center gap-1.5">
+          <DollarSign className="h-4 w-4 text-primary" /> تسعير سريع لمحافظة كاملة
+        </h4>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <Select value={bulkProvId} onValueChange={setBulkProvId}>
+            <SelectTrigger><SelectValue placeholder="المحافظة" /></SelectTrigger>
+            <SelectContent>
+              {provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input type="number" min="0" placeholder="من وزن" value={bulkMinW} onChange={e => setBulkMinW(e.target.value)} dir="ltr" />
+          <Input type="number" min="0" placeholder="إلى وزن" value={bulkMaxW} onChange={e => setBulkMaxW(e.target.value)} dir="ltr" />
+          <Input type="number" min="0" placeholder="السعر (ل.س)" value={bulkFee} onChange={e => setBulkFee(e.target.value)} dir="ltr" />
+          <Input placeholder="مدة (مثلاً 1-2 أيام)" value={bulkDays} onChange={e => setBulkDays(e.target.value)} />
+        </div>
+        <Button onClick={applyBulk} disabled={saving} size="sm" className="gap-1.5">
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+          تطبيق على المحافظة وكل مناطقها
+        </Button>
+      </Card>
+
+      {/* Per-district matrix */}
+      <div className="border border-border rounded-md divide-y divide-border max-h-96 overflow-y-auto">
         {provinces.map(p => {
           const isExp = expanded[p.id];
           const subs = areasOf(p.id);
+          const provRate = rateFor(p.id);
           return (
             <div key={p.id}>
               <div className="flex items-center gap-2 p-2 hover:bg-muted/40">
-                <Checkbox
-                  checked={provinceCovered(p.id)}
-                  onCheckedChange={() => toggleProvince(p.id)}
-                />
                 <button
                   type="button"
-                  className="flex-1 text-right text-sm font-medium flex items-center justify-between"
+                  className="flex-1 text-right text-sm font-medium flex items-center gap-2"
                   onClick={() => setExpanded(s => ({ ...s, [p.id]: !s[p.id] }))}
                 >
-                  <span>{p.name}</span>
                   {subs.length > 0 && (
                     isExp ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
+                  <span>{p.name}</span>
+                  {provRate && <Badge variant="outline" className="text-[10px]">{fmtSYP(provRate.custom_delivery_fee)}</Badge>}
                 </button>
+                <Input
+                  type="number" min="0" step="500"
+                  className="h-7 w-24 text-xs" dir="ltr"
+                  placeholder="السعر"
+                  defaultValue={provRate?.custom_delivery_fee || ""}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (!isNaN(v) && v >= 0 && v !== (provRate?.custom_delivery_fee ?? -1)) {
+                      upsertRate(p.id, v);
+                    }
+                  }}
+                />
+                {provRate && (
+                  <Button variant="ghost" size="icon" onClick={() => removeRate(p.id)} className="h-7 w-7 text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
               {isExp && subs.length > 0 && (
                 <div className="bg-muted/20 border-t border-border px-3 py-2 space-y-1">
-                  {subs.map(s => (
-                    <label key={s.id} className="flex items-center gap-2 text-xs cursor-pointer p-1 rounded hover:bg-muted/50">
-                      <Checkbox
-                        checked={districtCovered(s.id)}
-                        onCheckedChange={() => toggleDistrict(s.id)}
-                      />
-                      <span>{s.name}</span>
-                    </label>
-                  ))}
+                  {subs.map(s => {
+                    const r = rateFor(s.id);
+                    return (
+                      <div key={s.id} className="flex items-center gap-2 text-xs p-1">
+                        <span className="flex-1">{s.name}</span>
+                        {r && <Badge variant="outline" className="text-[10px]">{fmtSYP(r.custom_delivery_fee)}</Badge>}
+                        <Input
+                          type="number" min="0" step="500"
+                          className="h-7 w-24 text-xs" dir="ltr"
+                          placeholder="السعر"
+                          defaultValue={r?.custom_delivery_fee || ""}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value);
+                            if (!isNaN(v) && v >= 0 && v !== (r?.custom_delivery_fee ?? -1)) {
+                              upsertRate(s.id, v);
+                            }
+                          }}
+                        />
+                        {r && (
+                          <Button variant="ghost" size="icon" onClick={() => removeRate(s.id)} className="h-7 w-7 text-destructive">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -402,120 +541,8 @@ function CoverageEditor({ courierId, provinces, areasOf }: {
         })}
       </div>
       <p className="text-[11px] text-muted-foreground">
-        المغطّى حالياً: {areas.length} منطقة/محافظة
+        إجمالي المناطق المسعّرة: {rates.length}
       </p>
-    </div>
-  );
-}
-
-// ============ Weight tiers editor ============
-function WeightTiersEditor({ courierId }: { courierId: string }) {
-  const [tiers, setTiers] = useState<WeightTier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [minW, setMinW] = useState("");
-  const [maxW, setMaxW] = useState("");
-  const [price, setPrice] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    const { data } = await supabase.from("courier_weight_tiers" as any)
-      .select("*").eq("courier_id", courierId).order("min_weight");
-    setTiers((data || []) as unknown as WeightTier[]);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, [courierId]);
-
-  const addTier = async () => {
-    const mn = Number(minW), mx = Number(maxW), pr = Number(price);
-    if ([mn, mx, pr].some(v => isNaN(v)) || mn < 0 || mx < mn || pr < 0) {
-      toast.error("أدخل قيماً صحيحة (الحد الأقصى ≥ الأدنى)");
-      return;
-    }
-    // Overlap check (client-side)
-    const overlaps = tiers.some(t =>
-      !(mx < t.min_weight || mn > t.max_weight)
-    );
-    if (overlaps) { toast.error("هذه الشريحة تتداخل مع شريحة موجودة"); return; }
-
-    setSaving(true);
-    const { error } = await supabase.from("courier_weight_tiers" as any).insert({
-      courier_id: courierId, min_weight: mn, max_weight: mx, price: pr,
-    } as any);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تمت إضافة الشريحة");
-    setMinW(""); setMaxW(""); setPrice("");
-    load();
-  };
-
-  const removeTier = async (id: string) => {
-    const { error } = await supabase.from("courier_weight_tiers" as any).delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف الشريحة");
-    load();
-  };
-
-  return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        أسعار خاصة بهذه الشركة فقط. كل شريحة وزن لها سعرها الموحّد بغضّ النظر عن المنطقة.
-      </p>
-
-      <Card className="p-3 bg-muted/30">
-        <h4 className="text-sm font-semibold mb-3">إضافة شريحة وزن جديدة</h4>
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-1">
-            <Label className="text-xs">من وزن (كغ)</Label>
-            <Input type="number" min="0" step="0.1" value={minW} onChange={e => setMinW(e.target.value)} dir="ltr" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">إلى وزن (كغ)</Label>
-            <Input type="number" min="0" step="0.1" value={maxW} onChange={e => setMaxW(e.target.value)} dir="ltr" />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">السعر (ل.س)</Label>
-            <Input type="number" min="0" step="100" value={price} onChange={e => setPrice(e.target.value)} dir="ltr" />
-          </div>
-        </div>
-        <Button onClick={addTier} disabled={saving} className="mt-3 gap-1" size="sm">
-          <Plus className="h-3.5 w-3.5" /> {saving ? "جاري الحفظ..." : "إضافة الشريحة"}
-        </Button>
-      </Card>
-
-      <div>
-        <h4 className="text-sm font-semibold mb-2">شرائح الأوزان ({tiers.length})</h4>
-        {loading ? (
-          <p className="text-sm text-muted-foreground text-center py-4">جاري التحميل...</p>
-        ) : tiers.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">لا توجد شرائح مُعرّفة بعد</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>من (كغ)</TableHead>
-                <TableHead>إلى (كغ)</TableHead>
-                <TableHead>السعر</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tiers.map(t => (
-                <TableRow key={t.id}>
-                  <TableCell dir="ltr" className="text-sm">{t.min_weight}</TableCell>
-                  <TableCell dir="ltr" className="text-sm">{t.max_weight}</TableCell>
-                  <TableCell className="font-semibold text-primary">{fmtSYP(Number(t.price))}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => removeTier(t.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
     </div>
   );
 }

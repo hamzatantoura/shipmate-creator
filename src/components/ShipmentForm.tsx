@@ -28,10 +28,11 @@ interface CourierOption {
   logo_url: string | null;
   services: string[];
   fee: number;
-  tier_label: string; // e.g. "0–5 كغ"
+  weight_label: string; // e.g. "0–10 كغ"
   cod_fee_type: "fixed" | "percentage";
   cod_fee_value: number;
   cod_fee: number; // computed for current cod amount
+  estimated_days: string | null;
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -156,83 +157,59 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   useEffect(() => {
     setSelectedCourierId("");
     setCourierOptions([]);
-    // Origin (merchant province) is OPTIONAL for matching — if set we narrow further,
-    // but missing origin must NOT block courier discovery.
     if (!finalDistrictId || weightNum <= 0) return;
     let cancelled = false;
     (async () => {
       setLoadingCouriers(true);
 
-      // V3 routing: use courier_coverage_areas (where) + courier_weight_tiers (price).
-      // Coverage matches if courier covers the destination district OR its parent province.
+      // SINGLE SOURCE OF TRUTH: courier_district_rates
+      // Match couriers whose rate covers (destination district OR its parent province)
+      // AND whose weight range fits the package.
       const destProvinceId = selectedProvince?.id || null;
+      const districtIds = destProvinceId
+        ? [finalDistrictId, destProvinceId]
+        : [finalDistrictId];
 
-      // Step 1: which couriers cover this destination?
-      const coverageOr = [
-        `district_id.eq.${finalDistrictId}`,
-        ...(destProvinceId ? [`province_id.eq.${destProvinceId}`] : []),
-      ].join(",");
-      const { data: destCov, error: destErr } = await supabase
-        .from("courier_coverage_areas" as any)
-        .select("courier_id")
-        .or(coverageOr);
+      const { data: rates, error: ratesErr } = await supabase
+        .from("courier_district_rates")
+        .select("courier_id, custom_delivery_fee, min_weight_kg, max_weight_kg, estimated_days, district_id")
+        .in("district_id", districtIds)
+        .lte("min_weight_kg", weightNum)
+        .gte("max_weight_kg", weightNum);
       if (cancelled) return;
-      if (destErr) {
-        toast.error("تعذر جلب شركات الشحن");
+      if (ratesErr) {
+        toast.error("تعذر جلب أسعار شركات الشحن");
         setLoadingCouriers(false);
         return;
       }
-      const destCourierIds = Array.from(new Set((destCov || []).map((r: any) => r.courier_id)));
 
-      // Step 2 (optional): if merchant origin is set, prefer couriers that also cover origin.
-      // If none match origin, fall back to all destination-covering couriers so the merchant
-      // is never blocked by an incomplete origin profile.
-      let validIds = destCourierIds;
-      if (merchantProvinceId && destCourierIds.length > 0) {
-        const { data: originCov } = await supabase
-          .from("courier_coverage_areas" as any)
-          .select("courier_id")
-          .in("courier_id", destCourierIds)
-          .eq("province_id", merchantProvinceId);
-        const originSet = new Set<string>((originCov || []).map((r: any) => r.courier_id));
-        const intersected = destCourierIds.filter(id => originSet.has(id));
-        if (intersected.length > 0) validIds = intersected;
-      }
-      if (validIds.length === 0) {
+      // Prefer the most-specific rate (district over province) per courier
+      const bestRate = new Map<string, any>();
+      (rates || []).forEach((r: any) => {
+        const prev = bestRate.get(r.courier_id);
+        const isDistrictMatch = r.district_id === finalDistrictId;
+        if (!prev || (isDistrictMatch && prev.district_id !== finalDistrictId)) {
+          bestRate.set(r.courier_id, r);
+        }
+      });
+
+      const courierIds = Array.from(bestRate.keys());
+      if (courierIds.length === 0) {
         setCourierOptions([]);
         setLoadingCouriers(false);
         return;
       }
 
-      // Step 3: load courier profiles + their matching weight tier
-      const [{ data: couriersData }, { data: tiers }] = await Promise.all([
-        supabase
-          .from("couriers")
-          .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value")
-          .in("id", validIds)
-          .eq("is_active", true),
-        supabase
-          .from("courier_weight_tiers" as any)
-          .select("courier_id, min_weight, max_weight, price")
-          .in("courier_id", validIds)
-          .lte("min_weight", weightNum)
-          .gte("max_weight", weightNum),
-      ]);
+      const { data: couriersData } = await supabase
+        .from("couriers")
+        .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value")
+        .in("id", courierIds)
+        .eq("is_active", true);
       if (cancelled) return;
 
-      const tierByCourier = new Map<string, any>();
-      (tiers || []).forEach((t: any) => {
-        // pick the narrowest tier in case of overlap
-        const prev = tierByCourier.get(t.courier_id);
-        if (!prev || (Number(t.max_weight) - Number(t.min_weight)) < (Number(prev.max_weight) - Number(prev.min_weight))) {
-          tierByCourier.set(t.courier_id, t);
-        }
-      });
-
       const opts: CourierOption[] = (couriersData || [])
-        .filter((c: any) => tierByCourier.has(c.id))
         .map((c: any) => {
-          const t = tierByCourier.get(c.id);
+          const r = bestRate.get(c.id);
           const feeType = (c.cod_fee_type as "fixed" | "percentage") || "percentage";
           const feeVal = Number(c.cod_fee_value) || 0;
           const codFee = codAmountNum > 0
@@ -243,11 +220,12 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             name: c.name,
             logo_url: c.logo_url || null,
             services: c.services || [],
-            fee: Number(t.price) || 0,
-            tier_label: `${Number(t.min_weight)}–${Number(t.max_weight)} كغ`,
+            fee: Number(r.custom_delivery_fee) || 0,
+            weight_label: `${Number(r.min_weight_kg)}–${Number(r.max_weight_kg)} كغ`,
             cod_fee_type: feeType,
             cod_fee_value: feeVal,
             cod_fee: Math.round(codFee),
+            estimated_days: r.estimated_days || null,
           };
         })
         .sort((a, b) => (a.fee + a.cod_fee) - (b.fee + b.cod_fee));
@@ -255,7 +233,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       setLoadingCouriers(false);
     })();
     return () => { cancelled = true; };
-  }, [finalDistrictId, merchantProvinceId, weightNum, codAmountNum, selectedProvince]);
+  }, [finalDistrictId, weightNum, codAmountNum, selectedProvince]);
 
   const selectedCourier = useMemo(
     () => courierOptions.find(c => c.courier_id === selectedCourierId) || null,
@@ -337,7 +315,6 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       billable_weight: pricing.billable_weight,
       volumetric_weight: pricing.volumetric_weight,
       order_id: (order as any)?.id || prefill?.order_id || null,
-      carrier_id: null,
       courier_id: selectedCourier.courier_id,
       notes: form.notes.trim() || null,
       status: "pending",
@@ -459,8 +436,13 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
                     )}
                     <span className="font-semibold">{c.name}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 flex items-center gap-1">
-                      <Weight className="h-2.5 w-2.5" /> فئة {c.tier_label}
+                      <Weight className="h-2.5 w-2.5" /> {c.weight_label}
                     </span>
+                    {c.estimated_days && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/10 text-info border border-info/30">
+                        ⏱ {c.estimated_days}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 text-xs">
                     <span className="text-foreground">
@@ -511,7 +493,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
                 <p className="font-semibold text-foreground text-sm">{selectedCourier.name}</p>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
-                    <Weight className="h-3 w-3" /> فئة الوزن: {selectedCourier.tier_label}
+                    <Weight className="h-3 w-3" /> فئة الوزن: {selectedCourier.weight_label}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                     أجرة الشحن: {selectedCourier.fee.toLocaleString()} ل.س
