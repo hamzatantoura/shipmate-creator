@@ -32,6 +32,7 @@ interface Courier {
   services?: string[] | null;
   cod_fee_type?: "fixed" | "percentage" | null;
   cod_fee_value?: number | null;
+  return_fee_percentage?: number | null;
   tax_id?: string | null;
   contact_person?: string | null;
   contact_email?: string | null;
@@ -568,6 +569,9 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
   const [codFeeValue, setCodFeeValue] = useState<string>(
     courier.cod_fee_value != null ? String(courier.cod_fee_value) : "0"
   );
+  const [returnFeePct, setReturnFeePct] = useState<string>(
+    courier.return_fee_percentage != null ? String(courier.return_fee_percentage) : "50"
+  );
   const [taxId, setTaxId] = useState(courier.tax_id || "");
   const [contactPerson, setContactPerson] = useState(courier.contact_person || "");
   const [contactEmail, setContactEmail] = useState(courier.contact_email || "");
@@ -652,6 +656,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
       services,
       cod_fee_type: codFeeType,
       cod_fee_value: Number(codFeeValue) || 0,
+      return_fee_percentage: Math.max(0, Math.min(100, Number(returnFeePct) || 0)),
       tax_id: taxId.trim() || null,
       contact_person: contactPerson.trim() || null,
       contact_email: contactEmail.trim() || null,
