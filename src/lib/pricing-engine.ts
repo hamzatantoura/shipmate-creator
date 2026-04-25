@@ -24,6 +24,8 @@ export interface VolumetricInput {
 export interface PricingSettings {
   /** Platform margin percent applied to carrier_fee. Required. */
   platform_margin_pct: number;
+  /** Flat platform margin amount added on top (manual control by admin). */
+  platform_margin_flat?: number;
   /** Courier-specific COD fee. If absent, falls back to platform default %. */
   courier_cod_fee_type?: "fixed" | "percentage";
   courier_cod_fee_value?: number;
@@ -95,7 +97,8 @@ export function calculatePricing(input: PricingInput): PricingBreakdown {
 
   // Dynamic platform margin (from platform_settings)
   const marginPct = Number(settings.platform_margin_pct) || 0;
-  const platform_margin = Math.round((carrier_fee * marginPct) / 100);
+  const marginFlat = Number(settings.platform_margin_flat) || 0;
+  const platform_margin = Math.round((carrier_fee * marginPct) / 100) + Math.max(0, marginFlat);
 
   // What merchant sees as "shipping fee" (includes hidden margin)
   const merchant_shipping_fee = carrier_fee + platform_margin;
