@@ -50,6 +50,7 @@ export default function AdminDistrictsManagement() {
   const [form, setForm] = useState({ name: "", parent_id: "", delivery_fee: "" });
 
   const [confirmDelete, setConfirmDelete] = useState<District | null>(null);
+  const [confirmDeleteAllChildren, setConfirmDeleteAllChildren] = useState<District | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -141,6 +142,25 @@ export default function AdminDistrictsManagement() {
     if (error) { toast.error("فشل الحذف: " + error.message); return; }
     toast.success("تم الحذف");
     setConfirmDelete(null);
+    fetchDistricts();
+  };
+
+  const handleDeleteAllChildren = async () => {
+    if (!confirmDeleteAllChildren) return;
+    const province = confirmDeleteAllChildren;
+    const kids = childrenOf(province.id);
+    if (kids.length === 0) {
+      toast.info("لا توجد مناطق لحذفها");
+      setConfirmDeleteAllChildren(null);
+      return;
+    }
+    const { error } = await supabase
+      .from("districts")
+      .delete()
+      .eq("parent_id", province.id);
+    if (error) { toast.error("فشل الحذف: " + error.message); return; }
+    toast.success(`تم حذف ${kids.length} منطقة من ${province.name}`);
+    setConfirmDeleteAllChildren(null);
     fetchDistricts();
   };
 
@@ -303,6 +323,17 @@ export default function AdminDistrictsManagement() {
                   <Button size="sm" variant="ghost" onClick={() => openCreate(p.id)} className="gap-1 h-8">
                     <Plus className="h-3.5 w-3.5" /> منطقة
                   </Button>
+                  {kids.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setConfirmDeleteAllChildren(p)}
+                      className="gap-1 h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      title="حذف كل المناطق التابعة"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> حذف الكل
+                    </Button>
+                  )}
                   <Button size="icon" variant="ghost" onClick={() => openEdit(p)} className="h-8 w-8">
                     <Edit2 className="h-3.5 w-3.5" />
                   </Button>
