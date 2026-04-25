@@ -168,6 +168,7 @@ export type Database = {
           logo_url: string | null
           name: string
           phone: string | null
+          return_fee_percentage: number
           services: string[]
           tax_id: string | null
           user_id: string | null
@@ -187,6 +188,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           phone?: string | null
+          return_fee_percentage?: number
           services?: string[]
           tax_id?: string | null
           user_id?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           phone?: string | null
+          return_fee_percentage?: number
           services?: string[]
           tax_id?: string | null
           user_id?: string | null
@@ -575,6 +578,7 @@ export type Database = {
         Row: {
           created_at: string
           default_collection_fee_pct: number
+          default_platform_margin_flat: number
           default_platform_margin_pct: number
           default_return_fee: number
           id: string
@@ -585,6 +589,7 @@ export type Database = {
         Insert: {
           created_at?: string
           default_collection_fee_pct?: number
+          default_platform_margin_flat?: number
           default_platform_margin_pct?: number
           default_return_fee?: number
           id?: string
@@ -595,6 +600,7 @@ export type Database = {
         Update: {
           created_at?: string
           default_collection_fee_pct?: number
+          default_platform_margin_flat?: number
           default_platform_margin_pct?: number
           default_return_fee?: number
           id?: string

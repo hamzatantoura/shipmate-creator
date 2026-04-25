@@ -149,6 +149,7 @@ export default function MerchantOrders() {
       cod_amount: finalPrice,
       settings: {
         platform_margin_pct: platformSettings.default_platform_margin_pct,
+        platform_margin_flat: platformSettings.default_platform_margin_flat,
         default_collection_fee_pct: platformSettings.default_collection_fee_pct,
         courier_cod_fee_type: courierCodConfig?.type,
         courier_cod_fee_value: courierCodConfig?.value,

@@ -17,6 +17,7 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [id, setId] = useState<string | null>(null);
   const [marginPct, setMarginPct] = useState("10");
+  const [marginFlat, setMarginFlat] = useState("0");
   const [collectionPct, setCollectionPct] = useState("1");
   const [returnFee, setReturnFee] = useState("0");
   const [resp, setResp] = useState<Resp>("merchant");
@@ -28,6 +29,7 @@ export default function AdminSettings() {
       if (r) {
         setId(r.id);
         setMarginPct(String(r.default_platform_margin_pct ?? 10));
+        setMarginFlat(String(r.default_platform_margin_flat ?? 0));
         setCollectionPct(String(r.default_collection_fee_pct ?? 1));
         setReturnFee(String(r.default_return_fee ?? 0));
         setResp((r.return_cost_responsibility as Resp) || "merchant");
@@ -40,6 +42,7 @@ export default function AdminSettings() {
     setSaving(true);
     const payload = {
       default_platform_margin_pct: parseFloat(marginPct) || 0,
+      default_platform_margin_flat: parseFloat(marginFlat) || 0,
       default_collection_fee_pct: parseFloat(collectionPct) || 0,
       default_return_fee: parseFloat(returnFee) || 0,
       return_cost_responsibility: resp,
@@ -78,6 +81,12 @@ export default function AdminSettings() {
                 <Label>هامش المنصة الافتراضي (%) من رسم الشاحن</Label>
                 <Input type="number" min="0" step="0.1" value={marginPct} onChange={(e) => setMarginPct(e.target.value)} />
                 <p className="text-xs text-muted-foreground">يُضاف فوق رسم شركة الشحن الصافي ويظهر للتاجر كرسم شحن.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>هامش ثابت إضافي (ل.س) — يدوي</Label>
+                <Input type="number" min="0" step="1" value={marginFlat} onChange={(e) => setMarginFlat(e.target.value)} />
+                <p className="text-xs text-muted-foreground">مبلغ ثابت يُضاف يدوياً فوق هامش النسبة المئوية. يبقى مخفياً عن التاجر ضمن "رسوم الشحن".</p>
               </div>
 
               <div className="space-y-1.5">
