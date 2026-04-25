@@ -12,9 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft, Search, AlertTriangle, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
+import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
 
 interface Courier {
   id: string;
@@ -48,22 +54,35 @@ interface DistrictRow {
   delivery_fee: number;
 }
 
-interface WeightTier {
+interface DistrictRate {
   id: string;
   courier_id: string;
-  min_weight: number;
-  max_weight: number;
-  price: number;
-}
-
-interface CoverageArea {
-  id: string;
-  courier_id: string;
-  province_id: string | null;
-  district_id: string | null;
+  district_id: string;
+  custom_delivery_fee: number;
+  min_weight_kg: number;
+  max_weight_kg: number;
+  estimated_days: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
+
+// Computes a simple completion score (0-100) from a courier's filled fields
+function profileCompletion(c: Courier): number {
+  const checks = [
+    !!c.name?.trim(),
+    !!c.phone?.trim(),
+    !!c.city?.trim(),
+    !!c.logo_url,
+    !!c.contact_person?.trim(),
+    !!c.contact_email?.trim(),
+    !!c.tax_id?.trim(),
+    (c.cod_fee_value ?? 0) > 0,
+    !!c.vendor_id,
+    (c.services?.length ?? 0) > 0,
+  ];
+  const passed = checks.filter(Boolean).length;
+  return Math.round((passed / checks.length) * 100);
+}
 
 export default function AdminCouriersManagement() {
   const [couriers, setCouriers] = useState<Courier[]>([]);
