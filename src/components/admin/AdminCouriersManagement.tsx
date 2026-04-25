@@ -314,7 +314,7 @@ export default function AdminCouriersManagement() {
                           <Button variant="ghost" size="sm" onClick={() => setProfileCourier(c)} className="gap-1">
                             <Settings2 className="h-3.5 w-3.5" /> ملف الشركة
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(c)} className="text-destructive">
+                          <Button variant="ghost" size="icon" onClick={() => setToDelete(c)} className="text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
