@@ -20,6 +20,22 @@ interface District {
   province: string;
   province_ar: string;
   delivery_fee: number;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+interface NearestBranch {
+  id: string;
+  courier_id: string;
+  courier_name: string;
+  name: string;
+  province_id: string | null;
+  district_id: string | null;
+  address_details: string | null;
+  lat: number;
+  lng: number;
+  phone: string | null;
+  distance_km: number;
 }
 
 interface CourierOption {
