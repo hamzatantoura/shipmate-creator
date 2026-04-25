@@ -377,47 +377,90 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
     const { data } = await supabase
       .from("courier_district_rates")
       .select("*")
-      .eq("courier_id", courierId);
+      .eq("courier_id", courierId)
+      .order("min_weight_kg", { ascending: true });
     setRates((data || []) as DistrictRate[]);
     setLoading(false);
   };
   useEffect(() => { load(); }, [courierId]);
 
-  const rateFor = (districtId: string) =>
-    rates.find(r => r.district_id === districtId);
+  // All tiers (rows) for a given district, sorted by min_weight_kg asc
+  const tiersFor = (districtId: string) =>
+    rates.filter(r => r.district_id === districtId)
+         .sort((a, b) => a.min_weight_kg - b.min_weight_kg);
 
-  const upsertRate = async (
+  // Client-side overlap check (mirrors DB trigger) for instant feedback
+  const overlaps = (
     districtId: string,
-    fee: number,
-    minW = 0,
-    maxW = 999,
-    days: string | null = null,
+    minW: number,
+    maxW: number,
+    ignoreId?: string,
   ) => {
-    if (fee < 0) { toast.error("السعر لا يمكن أن يكون سالباً"); return; }
-    if (maxW < minW) { toast.error("الحد الأقصى للوزن يجب أن يكون ≥ الأدنى"); return; }
-    const existing = rateFor(districtId);
-    if (existing) {
-      const { error } = await supabase.from("courier_district_rates")
-        .update({ custom_delivery_fee: fee, min_weight_kg: minW, max_weight_kg: maxW, estimated_days: days })
-        .eq("id", existing.id);
-      if (error) { toast.error(error.message); return; }
-    } else {
-      const { error } = await supabase.from("courier_district_rates").insert({
-        courier_id: courierId, district_id: districtId,
-        custom_delivery_fee: fee, min_weight_kg: minW, max_weight_kg: maxW,
-        estimated_days: days,
-      } as any);
-      if (error) { toast.error(error.message); return; }
-    }
-    load();
+    return tiersFor(districtId).some(r =>
+      r.id !== ignoreId && minW < r.max_weight_kg && maxW > r.min_weight_kg
+    );
   };
 
-  const removeRate = async (districtId: string) => {
-    const existing = rateFor(districtId);
-    if (!existing) return;
-    const { error } = await supabase.from("courier_district_rates").delete().eq("id", existing.id);
+  const validateTier = (
+    districtId: string,
+    fee: number,
+    minW: number,
+    maxW: number,
+    ignoreId?: string,
+  ): string | null => {
+    if (isNaN(fee) || fee < 0) return "السعر غير صالح";
+    if (isNaN(minW) || isNaN(maxW)) return "أوزان غير صالحة";
+    if (minW < 0) return "الحد الأدنى للوزن يجب أن يكون ≥ 0";
+    if (maxW <= minW) return "الحد الأقصى يجب أن يكون أكبر من الحد الأدنى";
+    if (overlaps(districtId, minW, maxW, ignoreId)) return "تتداخل شريحة الوزن مع شريحة موجودة لهذه المنطقة";
+    return null;
+  };
+
+  const insertTier = async (
+    districtId: string,
+    fee: number,
+    minW: number,
+    maxW: number,
+    days: string | null,
+  ) => {
+    const err = validateTier(districtId, fee, minW, maxW);
+    if (err) { toast.error(err); return false; }
+    const { error } = await supabase.from("courier_district_rates").insert({
+      courier_id: courierId, district_id: districtId,
+      custom_delivery_fee: fee, min_weight_kg: minW, max_weight_kg: maxW,
+      estimated_days: days,
+    } as any);
+    if (error) { toast.error(error.message); return false; }
+    await load();
+    return true;
+  };
+
+  const updateTier = async (
+    rateId: string,
+    patch: Partial<Pick<DistrictRate, "custom_delivery_fee" | "min_weight_kg" | "max_weight_kg" | "estimated_days">>,
+  ) => {
+    const cur = rates.find(r => r.id === rateId);
+    if (!cur) return false;
+    const next = { ...cur, ...patch };
+    const err = validateTier(cur.district_id, Number(next.custom_delivery_fee), Number(next.min_weight_kg), Number(next.max_weight_kg), rateId);
+    if (err) { toast.error(err); return false; }
+    const { error } = await supabase.from("courier_district_rates")
+      .update({
+        custom_delivery_fee: Number(next.custom_delivery_fee),
+        min_weight_kg: Number(next.min_weight_kg),
+        max_weight_kg: Number(next.max_weight_kg),
+        estimated_days: next.estimated_days || null,
+      })
+      .eq("id", rateId);
+    if (error) { toast.error(error.message); return false; }
+    await load();
+    return true;
+  };
+
+  const deleteTier = async (rateId: string) => {
+    const { error } = await supabase.from("courier_district_rates").delete().eq("id", rateId);
     if (error) { toast.error(error.message); return; }
-    load();
+    await load();
   };
 
   const applyBulk = async () => {
@@ -426,15 +469,24 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
     const mn = Number(bulkMinW);
     const mx = Number(bulkMaxW);
     if (isNaN(fee) || fee < 0) { toast.error("أدخل سعراً صحيحاً"); return; }
-    if (isNaN(mn) || isNaN(mx) || mx < mn) { toast.error("أدخل وزناً صحيحاً"); return; }
+    if (isNaN(mn) || isNaN(mx) || mx <= mn) { toast.error("أدخل نطاق وزن صحيحاً (الأقصى > الأدنى)"); return; }
 
     setSaving(true);
     const targets = [bulkProvId, ...areasOf(bulkProvId).map(a => a.id)];
+    let ok = 0, skipped = 0;
     for (const did of targets) {
-      await upsertRate(did, fee, mn, mx, bulkDays.trim() || null);
+      if (overlaps(did, mn, mx)) { skipped++; continue; }
+      const { error } = await supabase.from("courier_district_rates").insert({
+        courier_id: courierId, district_id: did,
+        custom_delivery_fee: fee, min_weight_kg: mn, max_weight_kg: mx,
+        estimated_days: bulkDays.trim() || null,
+      } as any);
+      if (!error) ok++; else skipped++;
     }
+    await load();
     setSaving(false);
-    toast.success(`تم تطبيق السعر على ${targets.length} منطقة`);
+    if (ok > 0) toast.success(`تم إنشاء ${ok} شريحة` + (skipped ? ` (تخطي ${skipped} للتداخل)` : ""));
+    else toast.error("لم تُنشأ أي شريحة — تحقق من التداخل مع الشرائح الموجودة");
     setBulkFee(""); setBulkDays("");
   };
 
@@ -443,13 +495,13 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        حدّد سعر التوصيل لكل منطقة. الشركة تظهر للتجار فقط في المناطق المسعّرة هنا.
+        حدّد شرائح الوزن وأسعار التوصيل لكل منطقة. لكل منطقة يمكن إضافة عدة شرائح بدون تداخل (مثل: 0–5كغ، 5–10كغ).
       </p>
 
       {/* Bulk apply */}
       <Card className="p-3 bg-muted/30 space-y-2">
         <h4 className="text-sm font-semibold flex items-center gap-1.5">
-          <DollarSign className="h-4 w-4 text-primary" /> تسعير سريع لمحافظة كاملة
+          <DollarSign className="h-4 w-4 text-primary" /> تسعير سريع — إضافة شريحة واحدة لكل المحافظة
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Select value={bulkProvId} onValueChange={setBulkProvId}>
@@ -465,76 +517,52 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
         </div>
         <Button onClick={applyBulk} disabled={saving} size="sm" className="gap-1.5">
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-          تطبيق على المحافظة وكل مناطقها
+          إضافة الشريحة لكل مناطق المحافظة
         </Button>
       </Card>
 
       {/* Per-district matrix */}
-      <div className="border border-border rounded-md divide-y divide-border max-h-96 overflow-y-auto">
+      <div className="border border-border rounded-md divide-y divide-border max-h-[28rem] overflow-y-auto">
         {provinces.map(p => {
           const isExp = expanded[p.id];
           const subs = areasOf(p.id);
-          const provRate = rateFor(p.id);
+          const provTiers = tiersFor(p.id);
           return (
             <div key={p.id}>
-              <div className="flex items-center gap-2 p-2 hover:bg-muted/40">
-                <button
-                  type="button"
-                  className="flex-1 text-right text-sm font-medium flex items-center gap-2"
-                  onClick={() => setExpanded(s => ({ ...s, [p.id]: !s[p.id] }))}
-                >
-                  {subs.length > 0 && (
-                    isExp ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
-                  <span>{p.name}</span>
-                  {provRate && <Badge variant="outline" className="text-[10px]">{fmtSYP(provRate.custom_delivery_fee)}</Badge>}
-                </button>
-                <Input
-                  type="number" min="0" step="500"
-                  className="h-7 w-24 text-xs" dir="ltr"
-                  placeholder="السعر"
-                  defaultValue={provRate?.custom_delivery_fee || ""}
-                  onBlur={(e) => {
-                    const v = Number(e.target.value);
-                    if (!isNaN(v) && v >= 0 && v !== (provRate?.custom_delivery_fee ?? -1)) {
-                      upsertRate(p.id, v);
-                    }
-                  }}
-                />
-                {provRate && (
-                  <Button variant="ghost" size="icon" onClick={() => removeRate(p.id)} className="h-7 w-7 text-destructive">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-              {isExp && subs.length > 0 && (
-                <div className="bg-muted/20 border-t border-border px-3 py-2 space-y-1">
-                  {subs.map(s => {
-                    const r = rateFor(s.id);
-                    return (
-                      <div key={s.id} className="flex items-center gap-2 text-xs p-1">
-                        <span className="flex-1">{s.name}</span>
-                        {r && <Badge variant="outline" className="text-[10px]">{fmtSYP(r.custom_delivery_fee)}</Badge>}
-                        <Input
-                          type="number" min="0" step="500"
-                          className="h-7 w-24 text-xs" dir="ltr"
-                          placeholder="السعر"
-                          defaultValue={r?.custom_delivery_fee || ""}
-                          onBlur={(e) => {
-                            const v = Number(e.target.value);
-                            if (!isNaN(v) && v >= 0 && v !== (r?.custom_delivery_fee ?? -1)) {
-                              upsertRate(s.id, v);
-                            }
-                          }}
-                        />
-                        {r && (
-                          <Button variant="ghost" size="icon" onClick={() => removeRate(s.id)} className="h-7 w-7 text-destructive">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 p-2 hover:bg-muted/40 text-right"
+                onClick={() => setExpanded(s => ({ ...s, [p.id]: !s[p.id] }))}
+              >
+                {isExp ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />}
+                <span className="flex-1 text-sm font-medium">{p.name}</span>
+                <Badge variant="outline" className="text-[10px]">
+                  {provTiers.length} شريحة (المحافظة)
+                </Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {subs.length} منطقة فرعية
+                </Badge>
+              </button>
+              {isExp && (
+                <div className="bg-muted/10 border-t border-border px-3 py-2 space-y-3">
+                  <DistrictTiers
+                    district={p}
+                    tiers={provTiers}
+                    onAdd={(fee, mn, mx, d) => insertTier(p.id, fee, mn, mx, d)}
+                    onUpdate={updateTier}
+                    onDelete={deleteTier}
+                  />
+                  {subs.map(s => (
+                    <DistrictTiers
+                      key={s.id}
+                      district={s}
+                      tiers={tiersFor(s.id)}
+                      onAdd={(fee, mn, mx, d) => insertTier(s.id, fee, mn, mx, d)}
+                      onUpdate={updateTier}
+                      onDelete={deleteTier}
+                      isSub
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -542,9 +570,123 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
         })}
       </div>
       <p className="text-[11px] text-muted-foreground">
-        إجمالي المناطق المسعّرة: {rates.length}
+        إجمالي شرائح الوزن المُسعّرة: {rates.length}
       </p>
     </div>
+  );
+}
+
+// ============ Per-district tiers sub-table ============
+function DistrictTiers({ district, tiers, onAdd, onUpdate, onDelete, isSub }: {
+  district: DistrictRow;
+  tiers: DistrictRate[];
+  onAdd: (fee: number, minW: number, maxW: number, days: string | null) => Promise<boolean>;
+  onUpdate: (id: string, patch: Partial<Pick<DistrictRate, "custom_delivery_fee" | "min_weight_kg" | "max_weight_kg" | "estimated_days">>) => Promise<boolean>;
+  onDelete: (id: string) => void;
+  isSub?: boolean;
+}) {
+  const [draft, setDraft] = useState({ minW: "", maxW: "", fee: "", days: "" });
+
+  const submit = async () => {
+    const ok = await onAdd(
+      Number(draft.fee),
+      Number(draft.minW),
+      Number(draft.maxW),
+      draft.days.trim() || null,
+    );
+    if (ok) setDraft({ minW: "", maxW: "", fee: "", days: "" });
+  };
+
+  return (
+    <Card className={`p-2 space-y-2 ${isSub ? "bg-background" : "bg-background border-primary/30"}`}>
+      <div className="flex items-center gap-2">
+        <span className={`text-xs font-medium ${isSub ? "text-muted-foreground" : "text-foreground"}`}>
+          {isSub ? "↳ " : ""}{district.name}
+        </span>
+        <Badge variant="outline" className="text-[10px]">
+          {tiers.length} شريحة
+        </Badge>
+      </div>
+
+      {tiers.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-muted-foreground border-b border-border">
+                <th className="px-1 py-1 text-right font-normal">من (كغ)</th>
+                <th className="px-1 py-1 text-right font-normal">إلى (كغ)</th>
+                <th className="px-1 py-1 text-right font-normal">السعر (ل.س)</th>
+                <th className="px-1 py-1 text-right font-normal">المدة</th>
+                <th className="px-1 py-1 w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {tiers.map(t => (
+                <tr key={t.id} className="border-b border-border/50">
+                  <td className="px-1 py-1">
+                    <Input dir="ltr" type="number" min="0" defaultValue={t.min_weight_kg}
+                      className="h-7 text-xs"
+                      onBlur={(e) => {
+                        const v = Number(e.target.value);
+                        if (v !== t.min_weight_kg) onUpdate(t.id, { min_weight_kg: v });
+                      }} />
+                  </td>
+                  <td className="px-1 py-1">
+                    <Input dir="ltr" type="number" min="0" defaultValue={t.max_weight_kg}
+                      className="h-7 text-xs"
+                      onBlur={(e) => {
+                        const v = Number(e.target.value);
+                        if (v !== t.max_weight_kg) onUpdate(t.id, { max_weight_kg: v });
+                      }} />
+                  </td>
+                  <td className="px-1 py-1">
+                    <Input dir="ltr" type="number" min="0" step="500" defaultValue={t.custom_delivery_fee}
+                      className="h-7 text-xs"
+                      onBlur={(e) => {
+                        const v = Number(e.target.value);
+                        if (v !== t.custom_delivery_fee) onUpdate(t.id, { custom_delivery_fee: v });
+                      }} />
+                  </td>
+                  <td className="px-1 py-1">
+                    <Input defaultValue={t.estimated_days || ""}
+                      placeholder="1-2 أيام"
+                      className="h-7 text-xs"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v !== (t.estimated_days || "")) onUpdate(t.id, { estimated_days: v || null });
+                      }} />
+                  </td>
+                  <td className="px-1 py-1 text-center">
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(t.id)} className="h-6 w-6 text-destructive">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* New tier draft */}
+      <div className="grid grid-cols-12 gap-1 items-center">
+        <Input dir="ltr" type="number" min="0" placeholder="من" value={draft.minW}
+          onChange={(e) => setDraft(d => ({ ...d, minW: e.target.value }))}
+          className="h-7 text-xs col-span-2" />
+        <Input dir="ltr" type="number" min="0" placeholder="إلى" value={draft.maxW}
+          onChange={(e) => setDraft(d => ({ ...d, maxW: e.target.value }))}
+          className="h-7 text-xs col-span-2" />
+        <Input dir="ltr" type="number" min="0" step="500" placeholder="السعر" value={draft.fee}
+          onChange={(e) => setDraft(d => ({ ...d, fee: e.target.value }))}
+          className="h-7 text-xs col-span-3" />
+        <Input placeholder="مدة" value={draft.days}
+          onChange={(e) => setDraft(d => ({ ...d, days: e.target.value }))}
+          className="h-7 text-xs col-span-3" />
+        <Button size="sm" onClick={submit} className="h-7 text-xs col-span-2 gap-1">
+          <Plus className="h-3 w-3" /> إضافة
+        </Button>
+      </div>
+    </Card>
   );
 }
 
