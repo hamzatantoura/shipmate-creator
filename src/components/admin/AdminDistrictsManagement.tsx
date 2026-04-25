@@ -496,6 +496,29 @@ export default function AdminDistrictsManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete All Children Confirmation */}
+      <AlertDialog open={!!confirmDeleteAllChildren} onOpenChange={(o) => !o && setConfirmDeleteAllChildren(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف جميع المناطق</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف <span className="font-bold text-destructive">
+                {confirmDeleteAllChildren ? childrenOf(confirmDeleteAllChildren.id).length : 0}
+              </span> منطقة تابعة لمحافظة "{confirmDeleteAllChildren?.name}".
+              <span className="block mt-2 text-destructive font-medium">
+                ⚠ هذا الإجراء لا يمكن التراجع عنه. المحافظة نفسها لن تُحذف.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAllChildren} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              حذف الكل
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
