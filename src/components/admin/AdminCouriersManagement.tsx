@@ -91,6 +91,9 @@ export default function AdminCouriersManagement() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [profileCourier, setProfileCourier] = useState<Courier | null>(null);
+  const [toDelete, setToDelete] = useState<Courier | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [form, setForm] = useState({ name: "", phone: "", city: "" });
 
@@ -130,15 +133,30 @@ export default function AdminCouriersManagement() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { toast.error("غير مصرّح"); return; }
 
+    const dup = couriers.some(c => c.name.trim().toLowerCase() === form.name.trim().toLowerCase());
+    if (dup) { toast.error("يوجد شركة شحن بنفس الاسم بالفعل"); return; }
+    if (form.phone.trim() && !isValidSyrianPhone(form.phone.trim())) {
+      toast.error("رقم الهاتف السوري غير صحيح. مثال: 0933123456");
+      return;
+    }
+
+    // CRITICAL FIX: NEVER auto-link to admin. Account is created later via "الدخول" tab.
     const { error } = await supabase.from("couriers").insert({
       name: form.name.trim(),
       phone: form.phone.trim() || null,
       city: form.city.trim() || null,
       is_active: true,
-      vendor_id: user.id,
+      vendor_id: null,
+      cod_fee_type: "percentage",
+      cod_fee_value: 1,
+      services: ["standard"],
     } as any);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تمت إضافة شركة الشحن");
+    if (error) {
+      const msg = error.message.toLowerCase().includes("unique") ? "اسم الشركة مستخدم مسبقاً" : error.message;
+      toast.error(msg);
+      return;
+    }
+    toast.success("تمت الإضافة — افتح ملف الشركة لإكمال البيانات وإنشاء حساب الدخول");
     setForm({ name: "", phone: "", city: "" });
     setCreateOpen(false);
     fetchAll();
@@ -148,16 +166,32 @@ export default function AdminCouriersManagement() {
     const { error } = await supabase.from("couriers")
       .update({ is_active: !c.is_active } as any).eq("id", c.id);
     if (error) { toast.error(error.message); return; }
+    toast.success(c.is_active ? "تم إيقاف الشركة" : "تم تفعيل الشركة");
     fetchAll();
   };
 
-  const handleDelete = async (c: Courier) => {
-    if (!confirm(`حذف شركة الشحن "${c.name}"؟ سيتم حذف جميع تسعيراتها وتغطياتها.`)) return;
-    const { error } = await supabase.from("couriers").delete().eq("id", c.id);
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    const { error } = await supabase.from("couriers").delete().eq("id", toDelete.id);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم الحذف");
+    toast.success(`تم حذف "${toDelete.name}"`);
+    setToDelete(null);
     fetchAll();
   };
+
+  const filteredCouriers = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return couriers.filter(c => {
+      if (statusFilter === "active" && !c.is_active) return false;
+      if (statusFilter === "inactive" && c.is_active) return false;
+      if (!q) return true;
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.phone || "").toLowerCase().includes(q) ||
+        (c.city || "").toLowerCase().includes(q)
+      );
+    });
+  }, [couriers, searchTerm, statusFilter]);
 
   return (
     <div className="space-y-4" dir="rtl">
