@@ -849,6 +849,21 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
                   </p>
                 </div>
               </div>
+              <div className="space-y-1.5 pt-2 border-t">
+                <Label>نسبة رسوم المرتجع (%)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={returnFeePct}
+                  onChange={(e) => setReturnFeePct(e.target.value)}
+                  dir="ltr"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  النسبة من رسم الشحن التي تُحتسب للشركة عند إرجاع الشحنة (مثال: 50 = نصف الرسم).
+                </p>
+              </div>
             </Card>
 
             <Button onClick={saveInfo} disabled={savingInfo} className="w-full">
