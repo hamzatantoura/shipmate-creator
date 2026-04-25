@@ -490,6 +490,38 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
     setBulkFee(""); setBulkDays("");
   };
 
+  // Bulk delete: removes tiers matching the bulk weight range across the chosen province + its sub-districts.
+  // If min/max are left as defaults (0–999) it effectively wipes all tiers for the province.
+  const deleteBulk = async () => {
+    if (!bulkProvId) { toast.error("اختر المحافظة أولاً"); return; }
+    const mn = Number(bulkMinW);
+    const mx = Number(bulkMaxW);
+    if (isNaN(mn) || isNaN(mx) || mx <= mn) { toast.error("أدخل نطاق وزن صحيحاً"); return; }
+
+    const targets = [bulkProvId, ...areasOf(bulkProvId).map(a => a.id)];
+    // Match tiers that exactly fit the entered range (safer than "any overlap")
+    const toDelete = rates.filter(r =>
+      targets.includes(r.district_id) &&
+      Number(r.min_weight_kg) === mn &&
+      Number(r.max_weight_kg) === mx
+    );
+    if (toDelete.length === 0) {
+      toast.error("لا توجد شرائح بنفس نطاق الوزن في هذه المحافظة");
+      return;
+    }
+    if (!confirm(`سيتم حذف ${toDelete.length} شريحة (${mn}–${mx}كغ) من هذه المحافظة. متابعة؟`)) return;
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("courier_district_rates")
+      .delete()
+      .in("id", toDelete.map(r => r.id));
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم حذف ${toDelete.length} شريحة`);
+    await load();
+  };
+
   if (loading) return <p className="text-sm text-muted-foreground text-center py-4">جاري التحميل...</p>;
 
   return (
@@ -519,6 +551,19 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
           إضافة الشريحة لكل مناطق المحافظة
         </Button>
+        <Button
+          onClick={deleteBulk}
+          disabled={saving}
+          size="sm"
+          variant="outline"
+          className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive mr-2"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          حذف نفس الشريحة من كل مناطق المحافظة
+        </Button>
+        <p className="text-[11px] text-muted-foreground">
+          💡 الحذف يطابق نطاق الوزن (من/إلى) في المحافظة المختارة فقط.
+        </p>
       </Card>
 
       {/* Per-district matrix */}
