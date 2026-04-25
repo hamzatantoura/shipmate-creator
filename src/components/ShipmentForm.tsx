@@ -162,6 +162,69 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   // Resolve final district id (area takes precedence, fallback to province row)
   const finalDistrictId = selectedArea?.id || selectedProvince?.id || "";
 
+  // Nearest branches (geospatial) — uses lat/lng on the selected district.
+  // Falls back to listing active branches in the province when coordinates are missing.
+  const [nearestBranches, setNearestBranches] = useState<NearestBranch[]>([]);
+  const [fallbackBranches, setFallbackBranches] = useState<NearestBranch[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [usedFallback, setUsedFallback] = useState(false);
+
+  useEffect(() => {
+    setNearestBranches([]);
+    setFallbackBranches([]);
+    setUsedFallback(false);
+    if (!finalDistrictId) return;
+
+    const targetDistrict = selectedArea || selectedProvince;
+    if (!targetDistrict) return;
+
+    const lat = targetDistrict.lat;
+    const lng = targetDistrict.lng;
+
+    setLoadingBranches(true);
+    (async () => {
+      try {
+        if (lat != null && lng != null) {
+          const { data, error } = await supabase.rpc("get_nearest_branches", {
+            target_lat: Number(lat),
+            target_lng: Number(lng),
+            max_radius_km: 30,
+          });
+          if (!error && data && (data as any[]).length > 0) {
+            setNearestBranches(data as any);
+            setUsedFallback(false);
+            return;
+          }
+        }
+        // Fallback: list active branches in the selected province
+        if (selectedProvinceId) {
+          const { data } = await supabase
+            .from("courier_branches")
+            .select("id, courier_id, name, province_id, district_id, address_details, lat, lng, phone, couriers(name)")
+            .eq("is_active", true)
+            .eq("province_id", selectedProvinceId);
+          const mapped: NearestBranch[] = (data || []).map((b: any) => ({
+            id: b.id,
+            courier_id: b.courier_id,
+            courier_name: b.couriers?.name || "",
+            name: b.name,
+            province_id: b.province_id,
+            district_id: b.district_id,
+            address_details: b.address_details,
+            lat: b.lat,
+            lng: b.lng,
+            phone: b.phone,
+            distance_km: NaN,
+          }));
+          setFallbackBranches(mapped);
+          setUsedFallback(true);
+        }
+      } finally {
+        setLoadingBranches(false);
+      }
+    })();
+  }, [finalDistrictId, selectedArea, selectedProvince, selectedProvinceId]);
+
   // Smart Routing V2: filter by destination district + weight range,
   // and require courier to also operate in the merchant's origin province.
   const weightNum = useMemo(() => {
