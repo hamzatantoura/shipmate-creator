@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { MapPin, Locate, Loader2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { Input } from "@/components/ui/input";
+import { MapPin, Locate, Loader2, Search } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { toast } from "sonner";
 
 // Fix default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -28,8 +30,20 @@ function ClickHandler({ onChange }: { onChange: (lat: number, lng: number) => vo
   return null;
 }
 
+function FlyTo({ lat, lng }: { lat: number | null; lng: number | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (lat != null && lng != null) {
+      map.flyTo([lat, lng], Math.max(map.getZoom(), 15), { duration: 1.2 });
+    }
+  }, [lat, lng, map]);
+  return null;
+}
+
 export default function LocationPicker({ lat, lng, onChange }: Props) {
   const [locating, setLocating] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
   const center: [number, number] = [lat || 33.51, lng || 36.29]; // Damascus default
 
   const useGPS = () => {
@@ -45,6 +59,35 @@ export default function LocationPicker({ lat, lng, onChange }: Props) {
     );
   };
 
+  const searchLocation = async () => {
+    const q = query.trim();
+    if (!q) return;
+    setSearching(true);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ar&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        onChange(lat, lng);
+      } else {
+        toast.error("لم يتم العثور على الموقع");
+      }
+    } catch {
+      toast.error("تعذّر البحث عن الموقع");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      searchLocation();
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -56,10 +99,31 @@ export default function LocationPicker({ lat, lng, onChange }: Props) {
           موقعي الحالي
         </Button>
       </div>
+      <div className="flex items-center gap-2" dir="rtl">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onSearchKeyDown}
+          placeholder="ابحث عن منطقة أو شارع..."
+          className="h-9 text-sm"
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          className="gap-1 h-9 shrink-0"
+          onClick={searchLocation}
+          disabled={searching || !query.trim()}
+        >
+          {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+          بحث
+        </Button>
+      </div>
       <div className="h-48 rounded-lg overflow-hidden border border-border">
         <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <ClickHandler onChange={onChange} />
+          <FlyTo lat={lat} lng={lng} />
           {lat && lng && <Marker position={[lat, lng]} />}
         </MapContainer>
       </div>
