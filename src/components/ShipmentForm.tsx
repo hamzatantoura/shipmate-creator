@@ -32,10 +32,10 @@ interface NearestBranch {
   province_id: string | null;
   district_id: string | null;
   address_details: string | null;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   phone: string | null;
-  distance_km: number;
+  distance_km: number | null;
 }
 
 interface CourierOption {
@@ -162,68 +162,77 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
   // Resolve final district id (area takes precedence, fallback to province row)
   const finalDistrictId = selectedArea?.id || selectedProvince?.id || "";
 
-  // Nearest branches (geospatial) — uses lat/lng on the selected district.
-  // Falls back to listing active branches in the province when coordinates are missing.
+  // Strict mode: ONLY active branches from courier_branches. No fallbacks.
+  // If destination has coordinates, sort by Haversine distance (ascending).
   const [nearestBranches, setNearestBranches] = useState<NearestBranch[]>([]);
-  const [fallbackBranches, setFallbackBranches] = useState<NearestBranch[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
-  const [usedFallback, setUsedFallback] = useState(false);
 
   useEffect(() => {
     setNearestBranches([]);
-    setFallbackBranches([]);
-    setUsedFallback(false);
     if (!finalDistrictId) return;
 
     const targetDistrict = selectedArea || selectedProvince;
     if (!targetDistrict) return;
 
-    const lat = targetDistrict.lat;
-    const lng = targetDistrict.lng;
+    const targetLat = targetDistrict.lat != null ? Number(targetDistrict.lat) : null;
+    const targetLng = targetDistrict.lng != null ? Number(targetDistrict.lng) : null;
 
     setLoadingBranches(true);
     (async () => {
       try {
-        if (lat != null && lng != null) {
-          const { data, error } = await supabase.rpc("get_nearest_branches", {
-            target_lat: Number(lat),
-            target_lng: Number(lng),
-            max_radius_km: 30,
+        const { data, error } = await supabase
+          .from("courier_branches")
+          .select("id, courier_id, name, province_id, district_id, address_details, lat, lng, phone, is_active, couriers(name, is_active)")
+          .eq("is_active", true);
+        if (error || !data) return;
+
+        const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+          const R = 6371;
+          const toRad = (v: number) => (v * Math.PI) / 180;
+          const dLat = toRad(lat2 - lat1);
+          const dLng = toRad(lng2 - lng1);
+          const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+          return 2 * R * Math.asin(Math.sqrt(a));
+        };
+
+        const mapped: NearestBranch[] = (data as any[])
+          .filter((b) => b.couriers?.is_active !== false)
+          .map((b) => {
+            const bLat = b.lat != null ? Number(b.lat) : null;
+            const bLng = b.lng != null ? Number(b.lng) : null;
+            const dist =
+              targetLat != null && targetLng != null && bLat != null && bLng != null
+                ? haversine(targetLat, targetLng, bLat, bLng)
+                : null;
+            return {
+              id: b.id,
+              courier_id: b.courier_id,
+              courier_name: b.couriers?.name || "",
+              name: b.name,
+              province_id: b.province_id,
+              district_id: b.district_id,
+              address_details: b.address_details,
+              lat: bLat,
+              lng: bLng,
+              phone: b.phone,
+              distance_km: dist,
+            };
+          })
+          .sort((a, b) => {
+            if (a.distance_km == null && b.distance_km == null) return 0;
+            if (a.distance_km == null) return 1;
+            if (b.distance_km == null) return -1;
+            return a.distance_km - b.distance_km;
           });
-          if (!error && data && (data as any[]).length > 0) {
-            setNearestBranches(data as any);
-            setUsedFallback(false);
-            return;
-          }
-        }
-        // Fallback: list active branches in the selected province
-        if (selectedProvinceId) {
-          const { data } = await supabase
-            .from("courier_branches")
-            .select("id, courier_id, name, province_id, district_id, address_details, lat, lng, phone, couriers(name)")
-            .eq("is_active", true)
-            .eq("province_id", selectedProvinceId);
-          const mapped: NearestBranch[] = (data || []).map((b: any) => ({
-            id: b.id,
-            courier_id: b.courier_id,
-            courier_name: b.couriers?.name || "",
-            name: b.name,
-            province_id: b.province_id,
-            district_id: b.district_id,
-            address_details: b.address_details,
-            lat: b.lat,
-            lng: b.lng,
-            phone: b.phone,
-            distance_km: NaN,
-          }));
-          setFallbackBranches(mapped);
-          setUsedFallback(true);
-        }
+
+        setNearestBranches(mapped);
       } finally {
         setLoadingBranches(false);
       }
     })();
-  }, [finalDistrictId, selectedArea, selectedProvince, selectedProvinceId]);
+  }, [finalDistrictId, selectedArea, selectedProvince]);
 
   // Smart Routing V2: filter by destination district + weight range,
   // and require courier to also operate in the merchant's origin province.
@@ -465,18 +474,16 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       </div>
 
       {/* Nearest courier branches (geospatial) */}
-      {finalDistrictId && (loadingBranches || nearestBranches.length > 0 || fallbackBranches.length > 0) && (
+      {finalDistrictId && (loadingBranches || nearestBranches.length > 0) && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold text-foreground">
-              {usedFallback ? "فروع الشحن في المحافظة" : "أقرب فروع الاستلام"}
+              أقرب فروع الاستلام
             </span>
-            {usedFallback && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-                بدون إحداثيات للمنطقة
-              </span>
-            )}
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+              {nearestBranches.length} فرع
+            </span>
           </div>
           {loadingBranches ? (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -484,17 +491,23 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             </p>
           ) : (
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {(usedFallback ? fallbackBranches : nearestBranches).map(b => (
+              {nearestBranches.map(b => (
                 <div key={b.id} className="flex items-center gap-2 text-xs p-2 rounded bg-background border border-border">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{b.name}</p>
-                    <p className="text-muted-foreground truncate">
-                      {b.courier_name}{b.address_details ? ` • ${b.address_details}` : ""}
+                    <p className="font-medium text-foreground truncate">
+                      {b.courier_name}{b.courier_name ? " — " : ""}<span className="text-muted-foreground font-normal">{b.name}</span>
                     </p>
+                    {b.address_details && (
+                      <p className="text-muted-foreground truncate">{b.address_details}</p>
+                    )}
                   </div>
-                  {!usedFallback && !isNaN(b.distance_km) && (
+                  {b.distance_km != null ? (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 whitespace-nowrap">
                       {b.distance_km.toFixed(1)} كم
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border whitespace-nowrap">
+                      بدون إحداثيات
                     </span>
                   )}
                   {b.phone && (
