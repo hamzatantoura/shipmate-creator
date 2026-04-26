@@ -9,12 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
 import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
 import AdminCouriersManagement from "@/components/admin/AdminCouriersManagement";
+import AdminBranchesManagement from "@/components/admin/AdminBranchesManagement";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -281,6 +282,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="couriers" className="gap-1.5">
               <Truck className="h-3.5 w-3.5" /> شركات الشحن
             </TabsTrigger>
+            <TabsTrigger value="branches" className="gap-1.5">
+              <Building2 className="h-3.5 w-3.5" /> فروع الشحن
+            </TabsTrigger>
             <TabsTrigger value="transactions" className="gap-1.5">
               <Wallet className="h-3.5 w-3.5" /> سجل الحركات
             </TabsTrigger>
@@ -438,6 +442,9 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="couriers" className="mt-4">
             <AdminCouriersManagement />
+          </TabsContent>
+          <TabsContent value="branches" className="mt-4">
+            <AdminBranchesManagement />
           </TabsContent>
           <TabsContent value="transactions" className="mt-4">
             <WalletTransactionsLog showAll />
