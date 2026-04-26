@@ -32,10 +32,10 @@ interface NearestBranch {
   province_id: string | null;
   district_id: string | null;
   address_details: string | null;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   phone: string | null;
-  distance_km: number;
+  distance_km: number | null;
 }
 
 interface CourierOption {
