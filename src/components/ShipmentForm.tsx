@@ -474,18 +474,16 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       </div>
 
       {/* Nearest courier branches (geospatial) */}
-      {finalDistrictId && (loadingBranches || nearestBranches.length > 0 || fallbackBranches.length > 0) && (
+      {finalDistrictId && (loadingBranches || nearestBranches.length > 0) && (
         <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold text-foreground">
-              {usedFallback ? "فروع الشحن في المحافظة" : "أقرب فروع الاستلام"}
+              أقرب فروع الاستلام
             </span>
-            {usedFallback && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-                بدون إحداثيات للمنطقة
-              </span>
-            )}
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+              {nearestBranches.length} فرع
+            </span>
           </div>
           {loadingBranches ? (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -493,17 +491,23 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             </p>
           ) : (
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
-              {(usedFallback ? fallbackBranches : nearestBranches).map(b => (
+              {nearestBranches.map(b => (
                 <div key={b.id} className="flex items-center gap-2 text-xs p-2 rounded bg-background border border-border">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{b.name}</p>
-                    <p className="text-muted-foreground truncate">
-                      {b.courier_name}{b.address_details ? ` • ${b.address_details}` : ""}
+                    <p className="font-medium text-foreground truncate">
+                      {b.courier_name}{b.courier_name ? " — " : ""}<span className="text-muted-foreground font-normal">{b.name}</span>
                     </p>
+                    {b.address_details && (
+                      <p className="text-muted-foreground truncate">{b.address_details}</p>
+                    )}
                   </div>
-                  {!usedFallback && !isNaN(b.distance_km) && (
+                  {b.distance_km != null ? (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 whitespace-nowrap">
                       {b.distance_km.toFixed(1)} كم
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border whitespace-nowrap">
+                      بدون إحداثيات
                     </span>
                   )}
                   {b.phone && (
