@@ -44,7 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
@@ -111,6 +111,20 @@ interface DistrictRowGeo {
   lng: number | null;
 }
 
+interface SmartCourierRow {
+  courier_id: string;
+  courier_name: string;
+  logo_url: string | null;
+  nearest_branch_id: string;
+  nearest_branch_name: string;
+  nearest_branch_address: string | null;
+  nearest_branch_phone: string | null;
+  nearest_branch_lat: number | null;
+  nearest_branch_lng: number | null;
+  distance_km: number | null;
+  total_branches_in_destination: number;
+}
+
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
   no_answer: "لا يرد",
@@ -161,6 +175,7 @@ const sendTrackingViaWhatsApp = (order: OrderRow) => {
 
 export default function MerchantOrdersPage() {
   const { profile, signOut, user } = useAuth();
+  const [merchantProvinceId, setMerchantProvinceId] = useState<string | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -175,6 +190,8 @@ export default function MerchantOrdersPage() {
   const [courierRates, setCourierRates] = useState<CourierRate[]>([]);
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [districtGeo, setDistrictGeo] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
+  const [smartCouriers, setSmartCouriers] = useState<SmartCourierRow[]>([]);
+  const [smartLoading, setSmartLoading] = useState(false);
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
@@ -194,6 +211,17 @@ export default function MerchantOrdersPage() {
       setDistrictGeo(geo);
     });
   }, []);
+
+  // Load merchant's own province (origin of every shipment)
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("merchants")
+      .select("province_id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setMerchantProvinceId((data as any)?.province_id ?? null));
+  }, [user?.id]);
   const provinces = allDistricts.filter(d => !d.parent_id);
   const areasOf = (provId: string) => allDistricts.filter(d => d.parent_id === provId);
 
@@ -277,6 +305,8 @@ export default function MerchantOrdersPage() {
     const cityLabel = prov?.name || "";
     const cod = Number(form.cod) || 0;
     const deliveryFee = resolveDeliveryFee(area?.id || null, prov?.id || null, form.courierId || null);
+    const picked = smartCouriers.find((s) => s.courier_id === form.courierId);
+    const assignedBranchId = picked?.nearest_branch_id || null;
 
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
@@ -287,6 +317,7 @@ export default function MerchantOrdersPage() {
       detailed_address: form.address || "",
       district_id: finalDistrictId,
       courier_id: form.courierId || null,
+      assigned_branch_id: assignedBranchId,
       total_amount: cod,
       delivery_fee: deliveryFee,
       status: "new",
@@ -354,61 +385,37 @@ export default function MerchantOrdersPage() {
     fetchOrders();
   };
 
-  // Strict courier filtering: must have (1) active branch AND (2) rate for selected destination
-  const availableCouriers = useMemo<CourierOption[]>(() => {
-    if (!form.provinceId) return [];
-    const targetDistrictId = form.districtId || form.provinceId;
-
-    // Couriers with at least one active branch
-    const couriersWithBranches = new Set(branches.map((b) => b.courier_id));
-
-    // Couriers with a rate matching the destination (district → province fallback)
-    const couriersWithRate = new Set(
-      courierRates
-        .filter((r) => r.district_id === targetDistrictId || r.district_id === form.provinceId)
-        .map((r) => r.courier_id)
-    );
-
-    // Intersection
-    const filtered = couriers.filter(
-      (c) => couriersWithBranches.has(c.id) && couriersWithRate.has(c.id)
-    );
-
-    // Distance-based sort using destination geo (district preferred, fallback province)
-    const destGeo = districtGeo[targetDistrictId] || districtGeo[form.provinceId];
-    if (destGeo?.lat != null && destGeo?.lng != null) {
-      const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-        const R = 6371;
-        const toRad = (x: number) => (x * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLng = toRad(lng2 - lng1);
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-        return 2 * R * Math.asin(Math.sqrt(a));
-      };
-      const courierMinDist = new Map<string, number>();
-      branches.forEach((b) => {
-        if (b.lat == null || b.lng == null) return;
-        const d = haversine(destGeo.lat as number, destGeo.lng as number, b.lat, b.lng);
-        const prev = courierMinDist.get(b.courier_id);
-        if (prev === undefined || d < prev) courierMinDist.set(b.courier_id, d);
-      });
-      filtered.sort((a, b) => {
-        const da = courierMinDist.get(a.id) ?? Number.POSITIVE_INFINITY;
-        const db = courierMinDist.get(b.id) ?? Number.POSITIVE_INFINITY;
-        return da - db;
-      });
-    } else {
-      filtered.sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  // Smart routing: call RPC whenever province/district selection changes
+  useEffect(() => {
+    if (!merchantProvinceId || !form.provinceId) {
+      setSmartCouriers([]);
+      return;
     }
+    const dest = form.districtId
+      ? districtGeo[form.districtId]
+      : districtGeo[form.provinceId];
+    setSmartLoading(true);
+    (supabase.rpc as any)("find_couriers_for_order", {
+      merchant_province_id: merchantProvinceId,
+      customer_province_id: form.provinceId,
+      customer_lat: dest?.lat ?? null,
+      customer_lng: dest?.lng ?? null,
+    }).then(({ data, error }: any) => {
+      if (error) {
+        toast.error("تعذر تحميل شركات الشحن");
+        setSmartCouriers([]);
+      } else {
+        setSmartCouriers((data || []) as SmartCourierRow[]);
+      }
+      setSmartLoading(false);
+    });
+  }, [merchantProvinceId, form.provinceId, form.districtId, districtGeo]);
 
-    return filtered;
-  }, [form.provinceId, form.districtId, couriers, branches, courierRates, districtGeo]);
+  const availableCouriers = smartCouriers;
 
   // Reset selected courier if it's no longer in the available list
   useEffect(() => {
-    if (form.courierId && !availableCouriers.find((c) => c.id === form.courierId)) {
+    if (form.courierId && !availableCouriers.find((c) => c.courier_id === form.courierId)) {
       setForm((f) => ({ ...f, courierId: "" }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -550,54 +557,97 @@ export default function MerchantOrdersPage() {
                         </div>
                         <div className="space-y-2 md:col-span-2">
                           <Label>شركة الشحن *</Label>
-                          {!form.provinceId ? (
+                          {!merchantProvinceId ? (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 p-3 bg-amber-500/10 rounded-md border border-amber-500/30">
+                              يجب تحديد محافظتك في إعدادات الحساب أولاً ليتمكن النظام من إيجاد شركات الشحن المناسبة.
+                            </p>
+                          ) : !form.provinceId ? (
                             <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
                               اختر المحافظة أولاً لعرض شركات الشحن وأسعارها
                             </p>
+                          ) : smartLoading ? (
+                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                              جاري البحث عن شركات الشحن المناسبة...
+                            </p>
                           ) : availableCouriers.length === 0 ? (
-                            (() => {
-                              const targetId = form.districtId || form.provinceId;
-                              const hasBranchForArea = branches.some(
-                                (b) =>
-                                  b.district_id === targetId ||
-                                  b.province_id === form.provinceId ||
-                                  // also accept couriers with any active branch (cross-province coverage)
-                                  true
-                              );
-                              const anyBranches = branches.length > 0;
-                              const msg = !anyBranches
-                                ? "لا يوجد فرع شحن متاح لهذه المنطقة"
-                                : "لا توجد تسعيرة لهذه الوجهة";
-                              return (
-                                <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
-                                  {msg}
-                                </p>
-                              );
-                            })()
+                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                              لا توجد شركة شحن تخدم المسار من محافظتك إلى المحافظة المختارة.
+                              <br />
+                              يجب أن يكون لدى الشركة فرع نشط في كلتا المحافظتين.
+                            </p>
                           ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {availableCouriers.map((c) => {
-                                const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.id);
-                                const selected = form.courierId === c.id;
-                                return (
-                                  <button
-                                    key={c.id}
-                                    type="button"
-                                    onClick={() => setForm({ ...form, courierId: c.id })}
-                                    className={`text-right p-3 rounded-md border transition-all ${
-                                      selected
-                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                        : "border-border hover:border-primary/40 bg-card"
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="font-medium text-sm text-foreground">{c.name}</span>
-                                      <span className="text-sm font-bold text-primary">{fmtSYP(fee)}</span>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                            <>
+                              {(() => {
+                                const dest = form.districtId
+                                  ? districtGeo[form.districtId]
+                                  : districtGeo[form.provinceId];
+                                const hasGeo = dest?.lat != null && dest?.lng != null;
+                                if (!hasGeo) {
+                                  return (
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2">
+                                      ⚠ ترتيب الفروع تقريبي — لم تُضبط إحداثيات هذه المنطقة بعد.
+                                    </p>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              <div className="grid grid-cols-1 gap-2">
+                                {availableCouriers.map((c, idx) => {
+                                  const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.courier_id);
+                                  const selected = form.courierId === c.courier_id;
+                                  const isClosest = idx === 0 && c.distance_km != null;
+                                  return (
+                                    <button
+                                      key={c.courier_id}
+                                      type="button"
+                                      onClick={() => setForm({ ...form, courierId: c.courier_id })}
+                                      className={`text-right p-3 rounded-md border transition-all ${
+                                        selected
+                                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                          : "border-border hover:border-primary/40 bg-card"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                          {c.logo_url ? (
+                                            <img src={c.logo_url} alt="" className="h-9 w-9 rounded-md object-cover border border-border shrink-0" />
+                                          ) : (
+                                            <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                                              <Building2 className="h-4 w-4 text-primary" />
+                                            </div>
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="font-medium text-sm text-foreground">{c.courier_name}</span>
+                                              {isClosest && (
+                                                <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] px-1.5 py-0">
+                                                  ⭐ الأقرب
+                                                </Badge>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                                              <MapPin className="h-3 w-3 shrink-0" />
+                                              <span className="truncate">{c.nearest_branch_name}</span>
+                                              {c.distance_km != null && (
+                                                <span className="text-primary font-medium shrink-0">
+                                                  · {c.distance_km.toFixed(1)} كم
+                                                </span>
+                                              )}
+                                            </div>
+                                            {c.total_branches_in_destination > 1 && (
+                                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                                ({c.total_branches_in_destination} فروع متاحة في المحافظة)
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <span className="text-sm font-bold text-primary shrink-0">{fmtSYP(fee)}</span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
