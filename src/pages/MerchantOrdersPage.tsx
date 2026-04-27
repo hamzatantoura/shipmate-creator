@@ -44,7 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
@@ -111,6 +111,20 @@ interface DistrictRowGeo {
   lng: number | null;
 }
 
+interface SmartCourierRow {
+  courier_id: string;
+  courier_name: string;
+  logo_url: string | null;
+  nearest_branch_id: string;
+  nearest_branch_name: string;
+  nearest_branch_address: string | null;
+  nearest_branch_phone: string | null;
+  nearest_branch_lat: number | null;
+  nearest_branch_lng: number | null;
+  distance_km: number | null;
+  total_branches_in_destination: number;
+}
+
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
   no_answer: "لا يرد",
@@ -161,6 +175,7 @@ const sendTrackingViaWhatsApp = (order: OrderRow) => {
 
 export default function MerchantOrdersPage() {
   const { profile, signOut, user } = useAuth();
+  const [merchantProvinceId, setMerchantProvinceId] = useState<string | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -175,6 +190,8 @@ export default function MerchantOrdersPage() {
   const [courierRates, setCourierRates] = useState<CourierRate[]>([]);
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [districtGeo, setDistrictGeo] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
+  const [smartCouriers, setSmartCouriers] = useState<SmartCourierRow[]>([]);
+  const [smartLoading, setSmartLoading] = useState(false);
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
@@ -194,6 +211,17 @@ export default function MerchantOrdersPage() {
       setDistrictGeo(geo);
     });
   }, []);
+
+  // Load merchant's own province (origin of every shipment)
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("merchants")
+      .select("province_id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setMerchantProvinceId((data as any)?.province_id ?? null));
+  }, [user?.id]);
   const provinces = allDistricts.filter(d => !d.parent_id);
   const areasOf = (provId: string) => allDistricts.filter(d => d.parent_id === provId);
 
