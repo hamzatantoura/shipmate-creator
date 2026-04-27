@@ -662,15 +662,15 @@ export default function AdminBranchesManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* ===== Bulk CSV Import Dialog ===== */}
+      {/* ===== Bulk Import Dialog (Excel + CSV) ===== */}
       <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportRows([]); setImportCourier(""); } }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-primary" /> استيراد فروع من CSV
+              <FileSpreadsheet className="h-5 w-5 text-primary" /> استيراد فروع من Excel / CSV
             </DialogTitle>
             <DialogDescription>
-              الأعمدة المطلوبة: province_id, district_id, branch_name, address_details, phone, lat, lng
+              يقبل الملف صيغ متعددة: <code>province_id</code> كـ UUID أو رقم مختصر (1=دمشق، 3=حلب، 6=اللاذقية...)، أو اسم المحافظة العربي. أعمدة المنطقة والهاتف والإحداثيات اختيارية ويتم استنتاجها تلقائياً.
             </DialogDescription>
           </DialogHeader>
 
@@ -686,11 +686,11 @@ export default function AdminBranchesManagement() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>ملف CSV</Label>
+                <Label>ملف Excel (.xlsx) أو CSV</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) onCsvFile(f); }}
                   />
                   <Button type="button" variant="outline" size="sm" onClick={downloadTemplate}>قالب</Button>
@@ -703,11 +703,15 @@ export default function AdminBranchesManagement() {
                 <div className="flex items-center gap-3 text-sm">
                   <Badge variant="outline" className="gap-1">
                     <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    صالح: {importRows.filter(r => r._valid).length}
+                    جاهز: {importRows.filter(r => r._status === "ready").length}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    تحذير: {importRows.filter(r => r._status === "warn").length}
                   </Badge>
                   <Badge variant="outline" className="gap-1">
                     <XCircle className="h-3 w-3 text-destructive" />
-                    خطأ: {importRows.filter(r => !r._valid).length}
+                    خطأ: {importRows.filter(r => r._status === "error").length}
                   </Badge>
                   <Badge variant="outline">المجموع: {importRows.length}</Badge>
                 </div>
@@ -727,18 +731,37 @@ export default function AdminBranchesManagement() {
                     </TableHeader>
                     <TableBody>
                       {importRows.map((r, i) => (
-                        <TableRow key={i} className={!r._valid ? "bg-destructive/5" : ""}>
+                        <TableRow
+                          key={i}
+                          className={
+                            r._status === "error" ? "bg-destructive/10"
+                            : r._status === "warn" ? "bg-amber-500/10"
+                            : "bg-green-500/5"
+                          }
+                        >
                           <TableCell className="text-xs">{i + 1}</TableCell>
                           <TableCell className="text-sm font-medium">{r.branch_name || "—"}</TableCell>
-                          <TableCell className="text-xs">{provinceName(r.province_id)}</TableCell>
-                          <TableCell className="text-xs">{districtName(r.district_id)}</TableCell>
+                          <TableCell className="text-xs">
+                            {r.province_id ? provinceName(r.province_id) : <span className="text-destructive">{r._raw_province || "—"}</span>}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {r.district_id
+                              ? districtName(r.district_id)
+                              : <span className="text-amber-600">{r._raw_area || "—"}</span>}
+                          </TableCell>
                           <TableCell className="text-xs" dir="ltr">{r.phone || "—"}</TableCell>
                           <TableCell className="text-xs" dir="ltr">{r.lat && r.lng ? `${r.lat}, ${r.lng}` : "—"}</TableCell>
                           <TableCell>
-                            {r._valid ? (
-                              <Badge className="bg-green-500/10 text-green-600 border-green-500/30 text-[10px]">جاهز</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-destructive text-[10px]">{r._error}</Badge>
+                            {r._status === "ready" && (
+                              <Badge className="bg-green-500/15 text-green-600 border-green-500/30 text-[10px]">جاهز</Badge>
+                            )}
+                            {r._status === "warn" && (
+                              <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]" title={r._message}>
+                                بدون منطقة
+                              </Badge>
+                            )}
+                            {r._status === "error" && (
+                              <Badge variant="outline" className="text-destructive text-[10px]">{r._message}</Badge>
                             )}
                           </TableCell>
                         </TableRow>
@@ -754,10 +777,10 @@ export default function AdminBranchesManagement() {
             <Button variant="outline" onClick={() => setImportOpen(false)}>إلغاء</Button>
             <Button
               onClick={confirmImport}
-              disabled={importing || !importCourier || importRows.filter(r => r._valid).length === 0}
+              disabled={importing || !importCourier || importRows.filter(r => r._status !== "error").length === 0}
             >
               {importing && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
-              تأكيد وحفظ ({importRows.filter(r => r._valid).length})
+              تأكيد وحفظ ({importRows.filter(r => r._status !== "error").length})
             </Button>
           </DialogFooter>
         </DialogContent>
