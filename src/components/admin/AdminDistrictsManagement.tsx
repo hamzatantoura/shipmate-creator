@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronLeft, Plus, Edit2, Trash2, Upload, Download, MapPin, Building2, Search } from "lucide-react";
 import { toast } from "sonner";
+import LocationPicker from "@/components/LocationPicker";
 
 interface District {
   id: string;
@@ -386,7 +387,7 @@ export default function AdminDistrictsManagement() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent dir="rtl" className="max-w-md">
+        <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editing
@@ -474,6 +475,12 @@ export default function AdminDistrictsManagement() {
             <p className="text-xs text-muted-foreground -mt-1">
               الإحداثيات اختيارية، تُستخدم لحساب أقرب فرع شحن (Haversine).
             </p>
+
+            <LocationPicker
+              lat={form.lat ? Number(form.lat) : null}
+              lng={form.lng ? Number(form.lng) : null}
+              onChange={(lat, lng) => setForm({ ...form, lat: String(lat), lng: String(lng) })}
+            />
           </div>
 
           <DialogFooter className="gap-2">
