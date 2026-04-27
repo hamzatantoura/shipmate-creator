@@ -23,7 +23,8 @@ import {
 import { Plus, Trash2, Pencil, MapPin, Phone, Building2, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import LocationPicker from "@/components/LocationPicker";
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface Branch {
   id: string;
@@ -41,6 +42,50 @@ interface Branch {
 interface CourierLite { id: string; name: string }
 interface ProvinceLite { id: string; name_ar: string }
 interface DistrictLite { id: string; name: string; parent_id: string | null; province_ar: string }
+
+// Numeric ID -> Province Arabic name (fallback mapping for Excel files using short numeric IDs)
+const NUMERIC_PROVINCE_MAP: Record<string, string> = {
+  "1": "دمشق",
+  "2": "ريف دمشق",
+  "3": "حلب",
+  "4": "حمص",
+  "5": "حماة",
+  "6": "اللاذقية",
+  "7": "طرطوس",
+  "8": "درعا",
+  "9": "السويداء",
+  "14": "إدلب",
+};
+
+// Normalize Arabic text for fuzzy matching: strip diacritics, unify alef/yaa/taa marbuta, collapse spaces
+const normalizeAr = (s: string) =>
+  (s || "")
+    .toString()
+    .replace(/[\u064B-\u0652\u0670]/g, "") // tashkeel
+    .replace(/[إأآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/[^\u0600-\u06FF\w]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type ImportRow = {
+  province_id: string;       // resolved UUID (may be empty if unresolved)
+  district_id: string;       // resolved UUID (may be empty)
+  branch_name: string;
+  address_details: string;
+  phone: string;
+  lat: string;
+  lng: string;
+  _raw_province: string;
+  _raw_district: string;
+  _raw_area: string;
+  _status: "ready" | "warn" | "error";
+  _message?: string;
+};
 
 const emptyForm = {
   id: "" as string,
@@ -71,17 +116,7 @@ export default function AdminBranchesManagement() {
   // ===== Bulk Import State =====
   const [importOpen, setImportOpen] = useState(false);
   const [importCourier, setImportCourier] = useState<string>("");
-  const [importRows, setImportRows] = useState<Array<{
-    province_id: string;
-    district_id: string;
-    branch_name: string;
-    address_details: string;
-    phone: string;
-    lat: string;
-    lng: string;
-    _valid: boolean;
-    _error?: string;
-  }>>([]);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
 
   const fetchAll = async () => {
@@ -180,90 +215,203 @@ export default function AdminBranchesManagement() {
   const provinceIds = useMemo(() => new Set(provinces.map(p => p.id)), [provinces]);
   const districtIds = useMemo(() => new Set(districts.map(d => d.id)), [districts]);
 
-  const parseCsv = (text: string) => {
-    // Handle BOM + CRLF
-    const clean = text.replace(/^\uFEFF/, "").trim();
-    const lines = clean.split(/\r?\n/).filter(l => l.trim().length > 0);
-    if (lines.length < 2) return [];
-    const splitRow = (line: string) => {
-      // Simple CSV split that respects double-quoted fields
-      const out: string[] = [];
-      let cur = "";
-      let inQ = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-          else inQ = !inQ;
-        } else if (ch === "," && !inQ) {
-          out.push(cur); cur = "";
-        } else cur += ch;
-      }
-      out.push(cur);
-      return out.map(s => s.trim());
-    };
-    const headers = splitRow(lines[0]).map(h => h.toLowerCase());
-    const required = ["province_id", "district_id", "branch_name", "address_details", "phone", "lat", "lng"];
-    const idx: Record<string, number> = {};
-    required.forEach(k => { idx[k] = headers.indexOf(k); });
-    const missing = required.filter(k => idx[k] === -1);
-    if (missing.length) {
-      toast.error(`أعمدة مفقودة في الملف: ${missing.join(", ")}`);
-      return [];
+  // Index: normalized province name_ar -> UUID
+  const provinceByName = useMemo(() => {
+    const m = new Map<string, string>();
+    provinces.forEach(p => m.set(normalizeAr(p.name_ar), p.id));
+    return m;
+  }, [provinces]);
+
+  // Index: normalized district name -> [{id, province_ar}]
+  const districtIndex = useMemo(() => {
+    const m = new Map<string, Array<{ id: string; province_ar: string }>>();
+    districts.forEach(d => {
+      const k = normalizeAr(d.name);
+      const arr = m.get(k) || [];
+      arr.push({ id: d.id, province_ar: d.province_ar });
+      m.set(k, arr);
+    });
+    return m;
+  }, [districts]);
+
+  const courierNameById = (id: string) => couriers.find(c => c.id === id)?.name || "";
+
+  // Resolve a raw province cell (UUID, numeric ID, or Arabic name) -> UUID or ""
+  const resolveProvince = (rawId: string, rawName: string): string => {
+    const v = (rawId || "").toString().trim();
+    if (v && UUID_RE.test(v) && provinceIds.has(v)) return v;
+    // Numeric short ID fallback
+    if (v && NUMERIC_PROVINCE_MAP[v]) {
+      const arName = NUMERIC_PROVINCE_MAP[v];
+      const id = provinceByName.get(normalizeAr(arName));
+      if (id) return id;
     }
-    return lines.slice(1).map(line => {
-      const cols = splitRow(line);
-      const province_id = cols[idx.province_id] || "";
-      const district_id = cols[idx.district_id] || "";
-      const branch_name = cols[idx.branch_name] || "";
-      const address_details = cols[idx.address_details] || "";
-      const phone = cols[idx.phone] || "";
-      const lat = cols[idx.lat] || "";
-      const lng = cols[idx.lng] || "";
-      let _error: string | undefined;
-      if (!branch_name) _error = "اسم الفرع مفقود";
-      else if (!province_id || !provinceIds.has(province_id)) _error = "المحافظة غير موجودة";
-      else if (!district_id || !districtIds.has(district_id)) _error = "المنطقة غير موجودة";
-      else if (lat && isNaN(Number(lat))) _error = "خط العرض غير صالح";
-      else if (lng && isNaN(Number(lng))) _error = "خط الطول غير صالح";
+    // Try name matching on the id column itself
+    if (v) {
+      const id = provinceByName.get(normalizeAr(v));
+      if (id) return id;
+    }
+    // Try the Arabic-name column
+    const n = (rawName || "").toString().trim();
+    if (n) {
+      const id = provinceByName.get(normalizeAr(n));
+      if (id) return id;
+      // Common alias: "ريف طرطوس" -> طرطوس, "صافيتا" -> طرطوس (governorate fallback)
+      const norm = normalizeAr(n);
+      if (norm.includes("طرطوس")) return provinceByName.get(normalizeAr("طرطوس")) || "";
+      if (norm.includes("دمشق")) return provinceByName.get(normalizeAr("ريف دمشق")) || provinceByName.get(normalizeAr("دمشق")) || "";
+    }
+    return "";
+  };
+
+  // Resolve district within a given province
+  const resolveDistrict = (rawId: string, rawArea: string, provinceUuid: string): string => {
+    const v = (rawId || "").toString().trim();
+    if (v && UUID_RE.test(v) && districtIds.has(v)) return v;
+    const provAr = provinces.find(p => p.id === provinceUuid)?.name_ar;
+    const area = (rawArea || "").toString().trim();
+    if (!area || !provAr) return "";
+    const candidates = districtIndex.get(normalizeAr(area));
+    if (!candidates || candidates.length === 0) {
+      // Fuzzy contains: find any district whose name includes the area or vice versa
+      const areaN = normalizeAr(area);
+      const hit = districts.find(d =>
+        d.province_ar === provAr &&
+        (normalizeAr(d.name).includes(areaN) || areaN.includes(normalizeAr(d.name)))
+      );
+      return hit?.id || "";
+    }
+    const inProv = candidates.find(c => c.province_ar === provAr);
+    return inProv?.id || "";
+  };
+
+  // Read .xlsx OR .csv into row objects
+  const readWorkbook = async (file: File): Promise<Record<string, any>[]> => {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "", raw: false });
+  };
+
+  const buildRows = (raw: Record<string, any>[], courierId: string): ImportRow[] => {
+    const cName = courierNameById(courierId) || "فرع";
+    const get = (row: Record<string, any>, ...keys: string[]): string => {
+      for (const k of keys) {
+        // try exact, lower, trimmed variants
+        const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === k.trim().toLowerCase());
+        if (found && row[found] !== undefined && row[found] !== null && String(row[found]).trim() !== "") {
+          return String(row[found]).trim();
+        }
+      }
+      return "";
+    };
+    return raw.map<ImportRow>((row) => {
+      const rawProvinceId = get(row, "province_id");
+      const rawProvinceName = get(row, "المحافظة", "province", "province_ar");
+      const rawDistrictId = get(row, "district_id");
+      const rawArea = get(row, "المنطقة", "area", "district", "district_ar");
+      const rawBranchName = get(row, "branch_name", "اسم الفرع", "name");
+      const address = get(row, "العنوان التفصيلي", "address_details", "address");
+      const phone = get(row, "رقم الهاتف", "phone", "tel");
+      const lat = get(row, "latitude", "lat");
+      const lng = get(row, "longitude", "lng", "long");
+
+      const provinceUuid = resolveProvince(rawProvinceId, rawProvinceName);
+      const districtUuid = provinceUuid ? resolveDistrict(rawDistrictId, rawArea, provinceUuid) : "";
+      const branch_name = rawBranchName || (rawArea ? `${cName} - ${rawArea}` : "");
+
+      let status: ImportRow["_status"] = "ready";
+      let message: string | undefined;
+
+      if (!provinceUuid) {
+        status = "error";
+        message = "تعذّر التعرّف على المحافظة";
+      } else if (!branch_name) {
+        status = "error";
+        message = "اسم الفرع مفقود ولا يمكن توليده";
+      } else if (lat && isNaN(Number(lat))) {
+        status = "error";
+        message = "خط العرض غير صالح";
+      } else if (lng && isNaN(Number(lng))) {
+        status = "error";
+        message = "خط الطول غير صالح";
+      } else if (!districtUuid) {
+        status = "warn";
+        message = "بدون منطقة (سيتم الإدراج على مستوى المحافظة فقط)";
+      }
+
       return {
-        province_id, district_id, branch_name, address_details, phone, lat, lng,
-        _valid: !_error, _error,
+        province_id: provinceUuid,
+        district_id: districtUuid,
+        branch_name,
+        address_details: address,
+        phone,
+        lat,
+        lng,
+        _raw_province: rawProvinceName || rawProvinceId,
+        _raw_district: rawDistrictId,
+        _raw_area: rawArea,
+        _status: status,
+        _message: message,
       };
     });
   };
 
   const onCsvFile = async (file: File) => {
-    const text = await file.text();
-    const rows = parseCsv(text);
-    setImportRows(rows);
-    if (rows.length === 0) return;
-    const ok = rows.filter(r => r._valid).length;
-    toast.success(`تم تحليل ${rows.length} سطر — ${ok} صالح`);
+    if (!importCourier) {
+      toast.error("اختر شركة الشحن أولاً قبل رفع الملف");
+      return;
+    }
+    try {
+      const raw = await readWorkbook(file);
+      if (!raw.length) { toast.error("الملف فارغ أو غير قابل للقراءة"); return; }
+      const rows = buildRows(raw, importCourier);
+      setImportRows(rows);
+      const ok = rows.filter(r => r._status === "ready").length;
+      const warn = rows.filter(r => r._status === "warn").length;
+      const err = rows.filter(r => r._status === "error").length;
+      toast.success(`تم تحليل ${rows.length} سطر — ${ok} جاهز، ${warn} تحذير، ${err} خطأ`);
+    } catch (e: any) {
+      toast.error("فشل قراءة الملف: " + (e?.message || ""));
+    }
   };
 
+  // Re-resolve when courier changes (auto branch naming depends on courier name)
+  useEffect(() => {
+    if (importRows.length === 0 || !importCourier) return;
+    // Rebuild names that were auto-generated (branches without an explicit branch_name source)
+    const cName = courierNameById(importCourier);
+    setImportRows(prev => prev.map(r => {
+      if (r._raw_area && r.branch_name.includes(" - ") && cName) {
+        return { ...r, branch_name: `${cName} - ${r._raw_area}` };
+      }
+      return r;
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [importCourier]);
+
   const downloadTemplate = () => {
-    const sample = provinces[0] && districts[0]
-      ? `${provinces[0].id},${districts[0].id},فرع نموذجي,شارع رئيسي,0999999999,33.5138,36.2765`
-      : `province-uuid,district-uuid,اسم الفرع,العنوان التفصيلي,0999999999,33.5,36.3`;
-    const csv = `province_id,district_id,branch_name,address_details,phone,lat,lng\n${sample}\n`;
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "branches_template.csv"; a.click();
-    URL.revokeObjectURL(url);
+    const data = [
+      ["province_id", "district_id", "branch_name", "المحافظة", "المنطقة", "العنوان التفصيلي", "رقم الهاتف", "latitude", "longitude"],
+      ["3", "", "", "حلب", "بستان الباشا", "جانب مشفى الحميات", "0999999999", "36.2021", "37.1343"],
+      ["1", "", "فرع برامكة", "دمشق", "برامكة", "دوار الحلبوني", "0989555835", "33.5138", "36.2765"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Branches");
+    XLSX.writeFile(wb, "branches_template.xlsx");
   };
 
   const confirmImport = async () => {
     if (!importCourier) { toast.error("اختر شركة الشحن أولاً"); return; }
-    const valid = importRows.filter(r => r._valid);
+    const valid = importRows.filter(r => r._status !== "error");
     if (valid.length === 0) { toast.error("لا توجد صفوف صالحة للاستيراد"); return; }
     setImporting(true);
     const payload = valid.map(r => ({
       courier_id: importCourier,
       name: r.branch_name.trim(),
-      province_id: r.province_id,
-      district_id: r.district_id,
+      province_id: r.province_id || null,
+      district_id: r.district_id || null,
       address_details: r.address_details.trim() || null,
       phone: r.phone.trim() || null,
       lat: r.lat ? Number(r.lat) : null,
@@ -309,7 +457,7 @@ export default function AdminBranchesManagement() {
           <Plus className="h-4 w-4" /> إضافة فرع
         </Button>
         <Button onClick={() => setImportOpen(true)} variant="outline" className="gap-2">
-          <Upload className="h-4 w-4" /> استيراد CSV
+          <Upload className="h-4 w-4" /> استيراد Excel/CSV
         </Button>
       </div>
 
@@ -514,15 +662,15 @@ export default function AdminBranchesManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* ===== Bulk CSV Import Dialog ===== */}
+      {/* ===== Bulk Import Dialog (Excel + CSV) ===== */}
       <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportRows([]); setImportCourier(""); } }}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-primary" /> استيراد فروع من CSV
+              <FileSpreadsheet className="h-5 w-5 text-primary" /> استيراد فروع من Excel / CSV
             </DialogTitle>
             <DialogDescription>
-              الأعمدة المطلوبة: province_id, district_id, branch_name, address_details, phone, lat, lng
+              يقبل الملف صيغ متعددة: <code>province_id</code> كـ UUID أو رقم مختصر (1=دمشق، 3=حلب، 6=اللاذقية...)، أو اسم المحافظة العربي. أعمدة المنطقة والهاتف والإحداثيات اختيارية ويتم استنتاجها تلقائياً.
             </DialogDescription>
           </DialogHeader>
 
@@ -538,11 +686,11 @@ export default function AdminBranchesManagement() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>ملف CSV</Label>
+                <Label>ملف Excel (.xlsx) أو CSV</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) onCsvFile(f); }}
                   />
                   <Button type="button" variant="outline" size="sm" onClick={downloadTemplate}>قالب</Button>
@@ -555,11 +703,15 @@ export default function AdminBranchesManagement() {
                 <div className="flex items-center gap-3 text-sm">
                   <Badge variant="outline" className="gap-1">
                     <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    صالح: {importRows.filter(r => r._valid).length}
+                    جاهز: {importRows.filter(r => r._status === "ready").length}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                    تحذير: {importRows.filter(r => r._status === "warn").length}
                   </Badge>
                   <Badge variant="outline" className="gap-1">
                     <XCircle className="h-3 w-3 text-destructive" />
-                    خطأ: {importRows.filter(r => !r._valid).length}
+                    خطأ: {importRows.filter(r => r._status === "error").length}
                   </Badge>
                   <Badge variant="outline">المجموع: {importRows.length}</Badge>
                 </div>
@@ -579,18 +731,37 @@ export default function AdminBranchesManagement() {
                     </TableHeader>
                     <TableBody>
                       {importRows.map((r, i) => (
-                        <TableRow key={i} className={!r._valid ? "bg-destructive/5" : ""}>
+                        <TableRow
+                          key={i}
+                          className={
+                            r._status === "error" ? "bg-destructive/10"
+                            : r._status === "warn" ? "bg-amber-500/10"
+                            : "bg-green-500/5"
+                          }
+                        >
                           <TableCell className="text-xs">{i + 1}</TableCell>
                           <TableCell className="text-sm font-medium">{r.branch_name || "—"}</TableCell>
-                          <TableCell className="text-xs">{provinceName(r.province_id)}</TableCell>
-                          <TableCell className="text-xs">{districtName(r.district_id)}</TableCell>
+                          <TableCell className="text-xs">
+                            {r.province_id ? provinceName(r.province_id) : <span className="text-destructive">{r._raw_province || "—"}</span>}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {r.district_id
+                              ? districtName(r.district_id)
+                              : <span className="text-amber-600">{r._raw_area || "—"}</span>}
+                          </TableCell>
                           <TableCell className="text-xs" dir="ltr">{r.phone || "—"}</TableCell>
                           <TableCell className="text-xs" dir="ltr">{r.lat && r.lng ? `${r.lat}, ${r.lng}` : "—"}</TableCell>
                           <TableCell>
-                            {r._valid ? (
-                              <Badge className="bg-green-500/10 text-green-600 border-green-500/30 text-[10px]">جاهز</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-destructive text-[10px]">{r._error}</Badge>
+                            {r._status === "ready" && (
+                              <Badge className="bg-green-500/15 text-green-600 border-green-500/30 text-[10px]">جاهز</Badge>
+                            )}
+                            {r._status === "warn" && (
+                              <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 text-[10px]" title={r._message}>
+                                بدون منطقة
+                              </Badge>
+                            )}
+                            {r._status === "error" && (
+                              <Badge variant="outline" className="text-destructive text-[10px]">{r._message}</Badge>
                             )}
                           </TableCell>
                         </TableRow>
@@ -606,10 +777,10 @@ export default function AdminBranchesManagement() {
             <Button variant="outline" onClick={() => setImportOpen(false)}>إلغاء</Button>
             <Button
               onClick={confirmImport}
-              disabled={importing || !importCourier || importRows.filter(r => r._valid).length === 0}
+              disabled={importing || !importCourier || importRows.filter(r => r._status !== "error").length === 0}
             >
               {importing && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
-              تأكيد وحفظ ({importRows.filter(r => r._valid).length})
+              تأكيد وحفظ ({importRows.filter(r => r._status !== "error").length})
             </Button>
           </DialogFooter>
         </DialogContent>
