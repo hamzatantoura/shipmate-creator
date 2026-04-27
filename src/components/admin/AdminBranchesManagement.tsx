@@ -404,14 +404,14 @@ export default function AdminBranchesManagement() {
 
   const confirmImport = async () => {
     if (!importCourier) { toast.error("اختر شركة الشحن أولاً"); return; }
-    const valid = importRows.filter(r => r._valid);
+    const valid = importRows.filter(r => r._status !== "error");
     if (valid.length === 0) { toast.error("لا توجد صفوف صالحة للاستيراد"); return; }
     setImporting(true);
     const payload = valid.map(r => ({
       courier_id: importCourier,
       name: r.branch_name.trim(),
-      province_id: r.province_id,
-      district_id: r.district_id,
+      province_id: r.province_id || null,
+      district_id: r.district_id || null,
       address_details: r.address_details.trim() || null,
       phone: r.phone.trim() || null,
       lat: r.lat ? Number(r.lat) : null,
