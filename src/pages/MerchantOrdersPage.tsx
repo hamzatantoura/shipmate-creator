@@ -412,7 +412,7 @@ export default function MerchantOrdersPage() {
 
   // Reset selected courier if it's no longer in the available list
   useEffect(() => {
-    if (form.courierId && !availableCouriers.find((c) => c.id === form.courierId)) {
+    if (form.courierId && !availableCouriers.find((c) => c.courier_id === form.courierId)) {
       setForm((f) => ({ ...f, courierId: "" }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -554,54 +554,97 @@ export default function MerchantOrdersPage() {
                         </div>
                         <div className="space-y-2 md:col-span-2">
                           <Label>شركة الشحن *</Label>
-                          {!form.provinceId ? (
+                          {!merchantProvinceId ? (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 p-3 bg-amber-500/10 rounded-md border border-amber-500/30">
+                              يجب تحديد محافظتك في إعدادات الحساب أولاً ليتمكن النظام من إيجاد شركات الشحن المناسبة.
+                            </p>
+                          ) : !form.provinceId ? (
                             <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
                               اختر المحافظة أولاً لعرض شركات الشحن وأسعارها
                             </p>
+                          ) : smartLoading ? (
+                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                              جاري البحث عن شركات الشحن المناسبة...
+                            </p>
                           ) : availableCouriers.length === 0 ? (
-                            (() => {
-                              const targetId = form.districtId || form.provinceId;
-                              const hasBranchForArea = branches.some(
-                                (b) =>
-                                  b.district_id === targetId ||
-                                  b.province_id === form.provinceId ||
-                                  // also accept couriers with any active branch (cross-province coverage)
-                                  true
-                              );
-                              const anyBranches = branches.length > 0;
-                              const msg = !anyBranches
-                                ? "لا يوجد فرع شحن متاح لهذه المنطقة"
-                                : "لا توجد تسعيرة لهذه الوجهة";
-                              return (
-                                <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
-                                  {msg}
-                                </p>
-                              );
-                            })()
+                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                              لا توجد شركة شحن تخدم المسار من محافظتك إلى المحافظة المختارة.
+                              <br />
+                              يجب أن يكون لدى الشركة فرع نشط في كلتا المحافظتين.
+                            </p>
                           ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {availableCouriers.map((c) => {
-                                const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.id);
-                                const selected = form.courierId === c.id;
-                                return (
-                                  <button
-                                    key={c.id}
-                                    type="button"
-                                    onClick={() => setForm({ ...form, courierId: c.id })}
-                                    className={`text-right p-3 rounded-md border transition-all ${
-                                      selected
-                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                        : "border-border hover:border-primary/40 bg-card"
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="font-medium text-sm text-foreground">{c.name}</span>
-                                      <span className="text-sm font-bold text-primary">{fmtSYP(fee)}</span>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                            <>
+                              {(() => {
+                                const dest = form.districtId
+                                  ? districtGeo[form.districtId]
+                                  : districtGeo[form.provinceId];
+                                const hasGeo = dest?.lat != null && dest?.lng != null;
+                                if (!hasGeo) {
+                                  return (
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2">
+                                      ⚠ ترتيب الفروع تقريبي — لم تُضبط إحداثيات هذه المنطقة بعد.
+                                    </p>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              <div className="grid grid-cols-1 gap-2">
+                                {availableCouriers.map((c, idx) => {
+                                  const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.courier_id);
+                                  const selected = form.courierId === c.courier_id;
+                                  const isClosest = idx === 0 && c.distance_km != null;
+                                  return (
+                                    <button
+                                      key={c.courier_id}
+                                      type="button"
+                                      onClick={() => setForm({ ...form, courierId: c.courier_id })}
+                                      className={`text-right p-3 rounded-md border transition-all ${
+                                        selected
+                                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                          : "border-border hover:border-primary/40 bg-card"
+                                      }`}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                                          {c.logo_url ? (
+                                            <img src={c.logo_url} alt="" className="h-9 w-9 rounded-md object-cover border border-border shrink-0" />
+                                          ) : (
+                                            <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                                              <Building2 className="h-4 w-4 text-primary" />
+                                            </div>
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="font-medium text-sm text-foreground">{c.courier_name}</span>
+                                              {isClosest && (
+                                                <Badge className="bg-primary/15 text-primary border-primary/30 text-[10px] px-1.5 py-0">
+                                                  ⭐ الأقرب
+                                                </Badge>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
+                                              <MapPin className="h-3 w-3 shrink-0" />
+                                              <span className="truncate">{c.nearest_branch_name}</span>
+                                              {c.distance_km != null && (
+                                                <span className="text-primary font-medium shrink-0">
+                                                  · {c.distance_km.toFixed(1)} كم
+                                                </span>
+                                              )}
+                                            </div>
+                                            {c.total_branches_in_destination > 1 && (
+                                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                                ({c.total_branches_in_destination} فروع متاحة في المحافظة)
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <span className="text-sm font-bold text-primary shrink-0">{fmtSYP(fee)}</span>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
