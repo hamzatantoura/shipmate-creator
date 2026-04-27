@@ -513,6 +513,107 @@ export default function AdminBranchesManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ===== Bulk CSV Import Dialog ===== */}
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportRows([]); setImportCourier(""); } }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" /> استيراد فروع من CSV
+            </DialogTitle>
+            <DialogDescription>
+              الأعمدة المطلوبة: province_id, district_id, branch_name, address_details, phone, lat, lng
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>شركة الشحن (تُطبَّق على جميع الفروع المستوردة) *</Label>
+                <Select value={importCourier} onValueChange={setImportCourier}>
+                  <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
+                  <SelectContent>
+                    {couriers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>ملف CSV</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) onCsvFile(f); }}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={downloadTemplate}>قالب</Button>
+                </div>
+              </div>
+            </div>
+
+            {importRows.length > 0 && (
+              <>
+                <div className="flex items-center gap-3 text-sm">
+                  <Badge variant="outline" className="gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    صالح: {importRows.filter(r => r._valid).length}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <XCircle className="h-3 w-3 text-destructive" />
+                    خطأ: {importRows.filter(r => !r._valid).length}
+                  </Badge>
+                  <Badge variant="outline">المجموع: {importRows.length}</Badge>
+                </div>
+
+                <div className="border border-border rounded-md max-h-[50vh] overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">#</TableHead>
+                        <TableHead className="text-right">الفرع</TableHead>
+                        <TableHead className="text-right">المحافظة</TableHead>
+                        <TableHead className="text-right">المنطقة</TableHead>
+                        <TableHead className="text-right">الهاتف</TableHead>
+                        <TableHead className="text-right">إحداثيات</TableHead>
+                        <TableHead className="text-right">الحالة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importRows.map((r, i) => (
+                        <TableRow key={i} className={!r._valid ? "bg-destructive/5" : ""}>
+                          <TableCell className="text-xs">{i + 1}</TableCell>
+                          <TableCell className="text-sm font-medium">{r.branch_name || "—"}</TableCell>
+                          <TableCell className="text-xs">{provinceName(r.province_id)}</TableCell>
+                          <TableCell className="text-xs">{districtName(r.district_id)}</TableCell>
+                          <TableCell className="text-xs" dir="ltr">{r.phone || "—"}</TableCell>
+                          <TableCell className="text-xs" dir="ltr">{r.lat && r.lng ? `${r.lat}, ${r.lng}` : "—"}</TableCell>
+                          <TableCell>
+                            {r._valid ? (
+                              <Badge className="bg-green-500/10 text-green-600 border-green-500/30 text-[10px]">جاهز</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-destructive text-[10px]">{r._error}</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(false)}>إلغاء</Button>
+            <Button
+              onClick={confirmImport}
+              disabled={importing || !importCourier || importRows.filter(r => r._valid).length === 0}
+            >
+              {importing && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
+              تأكيد وحفظ ({importRows.filter(r => r._valid).length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
