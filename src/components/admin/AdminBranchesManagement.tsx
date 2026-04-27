@@ -23,6 +23,7 @@ import {
 import { Plus, Trash2, Pencil, MapPin, Phone, Building2, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import LocationPicker from "@/components/LocationPicker";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle } from "lucide-react";
 
 interface Branch {
   id: string;
@@ -66,6 +67,22 @@ export default function AdminBranchesManagement() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const isEdit = !!form.id;
+
+  // ===== Bulk Import State =====
+  const [importOpen, setImportOpen] = useState(false);
+  const [importCourier, setImportCourier] = useState<string>("");
+  const [importRows, setImportRows] = useState<Array<{
+    province_id: string;
+    district_id: string;
+    branch_name: string;
+    address_details: string;
+    phone: string;
+    lat: string;
+    lng: string;
+    _valid: boolean;
+    _error?: string;
+  }>>([]);
+  const [importing, setImporting] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -159,6 +176,110 @@ export default function AdminBranchesManagement() {
     fetchAll();
   };
 
+  // ===== Bulk Import Logic =====
+  const provinceIds = useMemo(() => new Set(provinces.map(p => p.id)), [provinces]);
+  const districtIds = useMemo(() => new Set(districts.map(d => d.id)), [districts]);
+
+  const parseCsv = (text: string) => {
+    // Handle BOM + CRLF
+    const clean = text.replace(/^\uFEFF/, "").trim();
+    const lines = clean.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length < 2) return [];
+    const splitRow = (line: string) => {
+      // Simple CSV split that respects double-quoted fields
+      const out: string[] = [];
+      let cur = "";
+      let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+          else inQ = !inQ;
+        } else if (ch === "," && !inQ) {
+          out.push(cur); cur = "";
+        } else cur += ch;
+      }
+      out.push(cur);
+      return out.map(s => s.trim());
+    };
+    const headers = splitRow(lines[0]).map(h => h.toLowerCase());
+    const required = ["province_id", "district_id", "branch_name", "address_details", "phone", "lat", "lng"];
+    const idx: Record<string, number> = {};
+    required.forEach(k => { idx[k] = headers.indexOf(k); });
+    const missing = required.filter(k => idx[k] === -1);
+    if (missing.length) {
+      toast.error(`أعمدة مفقودة في الملف: ${missing.join(", ")}`);
+      return [];
+    }
+    return lines.slice(1).map(line => {
+      const cols = splitRow(line);
+      const province_id = cols[idx.province_id] || "";
+      const district_id = cols[idx.district_id] || "";
+      const branch_name = cols[idx.branch_name] || "";
+      const address_details = cols[idx.address_details] || "";
+      const phone = cols[idx.phone] || "";
+      const lat = cols[idx.lat] || "";
+      const lng = cols[idx.lng] || "";
+      let _error: string | undefined;
+      if (!branch_name) _error = "اسم الفرع مفقود";
+      else if (!province_id || !provinceIds.has(province_id)) _error = "المحافظة غير موجودة";
+      else if (!district_id || !districtIds.has(district_id)) _error = "المنطقة غير موجودة";
+      else if (lat && isNaN(Number(lat))) _error = "خط العرض غير صالح";
+      else if (lng && isNaN(Number(lng))) _error = "خط الطول غير صالح";
+      return {
+        province_id, district_id, branch_name, address_details, phone, lat, lng,
+        _valid: !_error, _error,
+      };
+    });
+  };
+
+  const onCsvFile = async (file: File) => {
+    const text = await file.text();
+    const rows = parseCsv(text);
+    setImportRows(rows);
+    if (rows.length === 0) return;
+    const ok = rows.filter(r => r._valid).length;
+    toast.success(`تم تحليل ${rows.length} سطر — ${ok} صالح`);
+  };
+
+  const downloadTemplate = () => {
+    const sample = provinces[0] && districts[0]
+      ? `${provinces[0].id},${districts[0].id},فرع نموذجي,شارع رئيسي,0999999999,33.5138,36.2765`
+      : `province-uuid,district-uuid,اسم الفرع,العنوان التفصيلي,0999999999,33.5,36.3`;
+    const csv = `province_id,district_id,branch_name,address_details,phone,lat,lng\n${sample}\n`;
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "branches_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const confirmImport = async () => {
+    if (!importCourier) { toast.error("اختر شركة الشحن أولاً"); return; }
+    const valid = importRows.filter(r => r._valid);
+    if (valid.length === 0) { toast.error("لا توجد صفوف صالحة للاستيراد"); return; }
+    setImporting(true);
+    const payload = valid.map(r => ({
+      courier_id: importCourier,
+      name: r.branch_name.trim(),
+      province_id: r.province_id,
+      district_id: r.district_id,
+      address_details: r.address_details.trim() || null,
+      phone: r.phone.trim() || null,
+      lat: r.lat ? Number(r.lat) : null,
+      lng: r.lng ? Number(r.lng) : null,
+      is_active: true,
+    }));
+    const { error } = await supabase.from("courier_branches").insert(payload);
+    setImporting(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`تم استيراد ${payload.length} فرع بنجاح`);
+    setImportOpen(false);
+    setImportRows([]);
+    setImportCourier("");
+    fetchAll();
+  };
+
   const toggleActive = async (b: Branch) => {
     const { error } = await supabase.from("courier_branches").update({ is_active: !b.is_active }).eq("id", b.id);
     if (error) { toast.error(error.message); return; }
@@ -186,6 +307,9 @@ export default function AdminBranchesManagement() {
         </Select>
         <Button onClick={openCreate} className="gap-2">
           <Plus className="h-4 w-4" /> إضافة فرع
+        </Button>
+        <Button onClick={() => setImportOpen(true)} variant="outline" className="gap-2">
+          <Upload className="h-4 w-4" /> استيراد CSV
         </Button>
       </div>
 
@@ -385,6 +509,107 @@ export default function AdminBranchesManagement() {
             <Button onClick={save} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
               {isEdit ? "حفظ التعديلات" : "إضافة الفرع"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Bulk CSV Import Dialog ===== */}
+      <Dialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) { setImportRows([]); setImportCourier(""); } }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" /> استيراد فروع من CSV
+            </DialogTitle>
+            <DialogDescription>
+              الأعمدة المطلوبة: province_id, district_id, branch_name, address_details, phone, lat, lng
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>شركة الشحن (تُطبَّق على جميع الفروع المستوردة) *</Label>
+                <Select value={importCourier} onValueChange={setImportCourier}>
+                  <SelectTrigger><SelectValue placeholder="اختر شركة الشحن" /></SelectTrigger>
+                  <SelectContent>
+                    {couriers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>ملف CSV</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept=".csv,text/csv"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) onCsvFile(f); }}
+                  />
+                  <Button type="button" variant="outline" size="sm" onClick={downloadTemplate}>قالب</Button>
+                </div>
+              </div>
+            </div>
+
+            {importRows.length > 0 && (
+              <>
+                <div className="flex items-center gap-3 text-sm">
+                  <Badge variant="outline" className="gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    صالح: {importRows.filter(r => r._valid).length}
+                  </Badge>
+                  <Badge variant="outline" className="gap-1">
+                    <XCircle className="h-3 w-3 text-destructive" />
+                    خطأ: {importRows.filter(r => !r._valid).length}
+                  </Badge>
+                  <Badge variant="outline">المجموع: {importRows.length}</Badge>
+                </div>
+
+                <div className="border border-border rounded-md max-h-[50vh] overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right">#</TableHead>
+                        <TableHead className="text-right">الفرع</TableHead>
+                        <TableHead className="text-right">المحافظة</TableHead>
+                        <TableHead className="text-right">المنطقة</TableHead>
+                        <TableHead className="text-right">الهاتف</TableHead>
+                        <TableHead className="text-right">إحداثيات</TableHead>
+                        <TableHead className="text-right">الحالة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {importRows.map((r, i) => (
+                        <TableRow key={i} className={!r._valid ? "bg-destructive/5" : ""}>
+                          <TableCell className="text-xs">{i + 1}</TableCell>
+                          <TableCell className="text-sm font-medium">{r.branch_name || "—"}</TableCell>
+                          <TableCell className="text-xs">{provinceName(r.province_id)}</TableCell>
+                          <TableCell className="text-xs">{districtName(r.district_id)}</TableCell>
+                          <TableCell className="text-xs" dir="ltr">{r.phone || "—"}</TableCell>
+                          <TableCell className="text-xs" dir="ltr">{r.lat && r.lng ? `${r.lat}, ${r.lng}` : "—"}</TableCell>
+                          <TableCell>
+                            {r._valid ? (
+                              <Badge className="bg-green-500/10 text-green-600 border-green-500/30 text-[10px]">جاهز</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-destructive text-[10px]">{r._error}</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(false)}>إلغاء</Button>
+            <Button
+              onClick={confirmImport}
+              disabled={importing || !importCourier || importRows.filter(r => r._valid).length === 0}
+            >
+              {importing && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
+              تأكيد وحفظ ({importRows.filter(r => r._valid).length})
             </Button>
           </DialogFooter>
         </DialogContent>

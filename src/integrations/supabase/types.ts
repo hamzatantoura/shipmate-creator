@@ -173,6 +173,47 @@ export type Database = {
           },
         ]
       }
+      courier_pricing_tiers: {
+        Row: {
+          base_price: number
+          courier_id: string
+          created_at: string
+          extra_kg_price: number
+          id: string
+          max_weight: number
+          min_weight: number
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          courier_id: string
+          created_at?: string
+          extra_kg_price?: number
+          id?: string
+          max_weight: number
+          min_weight?: number
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          courier_id?: string
+          created_at?: string
+          extra_kg_price?: number
+          id?: string
+          max_weight?: number
+          min_weight?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_pricing_tiers_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_settlements: {
         Row: {
           admin_note: string | null

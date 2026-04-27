@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+import CourierPricingTiers from "@/components/admin/CourierPricingTiers";
 
 interface Courier {
   id: string;
@@ -1121,6 +1122,8 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
               </p>
               <PricingMatrix courierId={courier.id} provinces={provinces} areasOf={areasOf} />
             </Card>
+
+            <CourierPricingTiers courierId={courier.id} />
           </TabsContent>
 
           {/* TAB 4 — Wallet */}
