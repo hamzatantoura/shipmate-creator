@@ -554,13 +554,29 @@ export default function MerchantOrdersPage() {
                             <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
                               اختر المحافظة أولاً لعرض شركات الشحن وأسعارها
                             </p>
-                          ) : couriers.length === 0 ? (
-                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
-                              لا توجد شركات شحن مفعلة لهذه الوجهة
-                            </p>
+                          ) : availableCouriers.length === 0 ? (
+                            (() => {
+                              const targetId = form.districtId || form.provinceId;
+                              const hasBranchForArea = branches.some(
+                                (b) =>
+                                  b.district_id === targetId ||
+                                  b.province_id === form.provinceId ||
+                                  // also accept couriers with any active branch (cross-province coverage)
+                                  true
+                              );
+                              const anyBranches = branches.length > 0;
+                              const msg = !anyBranches
+                                ? "لا يوجد فرع شحن متاح لهذه المنطقة"
+                                : "لا توجد تسعيرة لهذه الوجهة";
+                              return (
+                                <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                                  {msg}
+                                </p>
+                              );
+                            })()
                           ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {couriers.map((c) => {
+                              {availableCouriers.map((c) => {
                                 const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.id);
                                 const selected = form.courierId === c.id;
                                 return (
