@@ -300,6 +300,13 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         .eq("is_active", true);
       if (cancelled) return;
 
+      // Distance priority: order by nearest branch (nearestBranches is already
+      // sorted ascending by distance). Build a courier_id -> rank map.
+      const distanceRank = new Map<string, number>();
+      nearestBranches.forEach((b, idx) => {
+        if (!distanceRank.has(b.courier_id)) distanceRank.set(b.courier_id, idx);
+      });
+
       const opts: CourierOption[] = (couriersData || [])
         .map((c: any) => {
           const r = bestRate.get(c.id);
@@ -321,7 +328,11 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             estimated_days: r.estimated_days || null,
           };
         })
-        .sort((a, b) => (a.fee + a.cod_fee) - (b.fee + b.cod_fee));
+        .sort((a, b) => {
+          const ra = distanceRank.get(a.courier_id) ?? Number.POSITIVE_INFINITY;
+          const rb = distanceRank.get(b.courier_id) ?? Number.POSITIVE_INFINITY;
+          return ra - rb;
+        });
       setCourierOptions(opts);
       setLoadingCouriers(false);
     })();
