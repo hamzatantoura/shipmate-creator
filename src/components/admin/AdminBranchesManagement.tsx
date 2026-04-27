@@ -116,17 +116,7 @@ export default function AdminBranchesManagement() {
   // ===== Bulk Import State =====
   const [importOpen, setImportOpen] = useState(false);
   const [importCourier, setImportCourier] = useState<string>("");
-  const [importRows, setImportRows] = useState<Array<{
-    province_id: string;
-    district_id: string;
-    branch_name: string;
-    address_details: string;
-    phone: string;
-    lat: string;
-    lng: string;
-    _valid: boolean;
-    _error?: string;
-  }>>([]);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
 
   const fetchAll = async () => {
