@@ -457,7 +457,7 @@ export default function AdminBranchesManagement() {
           <Plus className="h-4 w-4" /> إضافة فرع
         </Button>
         <Button onClick={() => setImportOpen(true)} variant="outline" className="gap-2">
-          <Upload className="h-4 w-4" /> استيراد CSV
+          <Upload className="h-4 w-4" /> استيراد Excel/CSV
         </Button>
       </div>
 
