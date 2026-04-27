@@ -23,7 +23,8 @@ import {
 import { Plus, Trash2, Pencil, MapPin, Phone, Building2, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import LocationPicker from "@/components/LocationPicker";
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface Branch {
   id: string;
@@ -41,6 +42,50 @@ interface Branch {
 interface CourierLite { id: string; name: string }
 interface ProvinceLite { id: string; name_ar: string }
 interface DistrictLite { id: string; name: string; parent_id: string | null; province_ar: string }
+
+// Numeric ID -> Province Arabic name (fallback mapping for Excel files using short numeric IDs)
+const NUMERIC_PROVINCE_MAP: Record<string, string> = {
+  "1": "دمشق",
+  "2": "ريف دمشق",
+  "3": "حلب",
+  "4": "حمص",
+  "5": "حماة",
+  "6": "اللاذقية",
+  "7": "طرطوس",
+  "8": "درعا",
+  "9": "السويداء",
+  "14": "إدلب",
+};
+
+// Normalize Arabic text for fuzzy matching: strip diacritics, unify alef/yaa/taa marbuta, collapse spaces
+const normalizeAr = (s: string) =>
+  (s || "")
+    .toString()
+    .replace(/[\u064B-\u0652\u0670]/g, "") // tashkeel
+    .replace(/[إأآا]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/[^\u0600-\u06FF\w]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type ImportRow = {
+  province_id: string;       // resolved UUID (may be empty if unresolved)
+  district_id: string;       // resolved UUID (may be empty)
+  branch_name: string;
+  address_details: string;
+  phone: string;
+  lat: string;
+  lng: string;
+  _raw_province: string;
+  _raw_district: string;
+  _raw_area: string;
+  _status: "ready" | "warn" | "error";
+  _message?: string;
+};
 
 const emptyForm = {
   id: "" as string,
