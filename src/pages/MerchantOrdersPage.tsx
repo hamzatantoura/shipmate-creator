@@ -382,57 +382,33 @@ export default function MerchantOrdersPage() {
     fetchOrders();
   };
 
-  // Strict courier filtering: must have (1) active branch AND (2) rate for selected destination
-  const availableCouriers = useMemo<CourierOption[]>(() => {
-    if (!form.provinceId) return [];
-    const targetDistrictId = form.districtId || form.provinceId;
-
-    // Couriers with at least one active branch
-    const couriersWithBranches = new Set(branches.map((b) => b.courier_id));
-
-    // Couriers with a rate matching the destination (district → province fallback)
-    const couriersWithRate = new Set(
-      courierRates
-        .filter((r) => r.district_id === targetDistrictId || r.district_id === form.provinceId)
-        .map((r) => r.courier_id)
-    );
-
-    // Intersection
-    const filtered = couriers.filter(
-      (c) => couriersWithBranches.has(c.id) && couriersWithRate.has(c.id)
-    );
-
-    // Distance-based sort using destination geo (district preferred, fallback province)
-    const destGeo = districtGeo[targetDistrictId] || districtGeo[form.provinceId];
-    if (destGeo?.lat != null && destGeo?.lng != null) {
-      const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-        const R = 6371;
-        const toRad = (x: number) => (x * Math.PI) / 180;
-        const dLat = toRad(lat2 - lat1);
-        const dLng = toRad(lng2 - lng1);
-        const a =
-          Math.sin(dLat / 2) ** 2 +
-          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-        return 2 * R * Math.asin(Math.sqrt(a));
-      };
-      const courierMinDist = new Map<string, number>();
-      branches.forEach((b) => {
-        if (b.lat == null || b.lng == null) return;
-        const d = haversine(destGeo.lat as number, destGeo.lng as number, b.lat, b.lng);
-        const prev = courierMinDist.get(b.courier_id);
-        if (prev === undefined || d < prev) courierMinDist.set(b.courier_id, d);
-      });
-      filtered.sort((a, b) => {
-        const da = courierMinDist.get(a.id) ?? Number.POSITIVE_INFINITY;
-        const db = courierMinDist.get(b.id) ?? Number.POSITIVE_INFINITY;
-        return da - db;
-      });
-    } else {
-      filtered.sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  // Smart routing: call RPC whenever province/district selection changes
+  useEffect(() => {
+    if (!merchantProvinceId || !form.provinceId) {
+      setSmartCouriers([]);
+      return;
     }
+    const dest = form.districtId
+      ? districtGeo[form.districtId]
+      : districtGeo[form.provinceId];
+    setSmartLoading(true);
+    (supabase.rpc as any)("find_couriers_for_order", {
+      merchant_province_id: merchantProvinceId,
+      customer_province_id: form.provinceId,
+      customer_lat: dest?.lat ?? null,
+      customer_lng: dest?.lng ?? null,
+    }).then(({ data, error }: any) => {
+      if (error) {
+        toast.error("تعذر تحميل شركات الشحن");
+        setSmartCouriers([]);
+      } else {
+        setSmartCouriers((data || []) as SmartCourierRow[]);
+      }
+      setSmartLoading(false);
+    });
+  }, [merchantProvinceId, form.provinceId, form.districtId, districtGeo]);
 
-    return filtered;
-  }, [form.provinceId, form.districtId, couriers, branches, courierRates, districtGeo]);
+  const availableCouriers = smartCouriers;
 
   // Reset selected courier if it's no longer in the available list
   useEffect(() => {
