@@ -538,6 +538,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          assigned_branch_id: string | null
           city: string
           courier_id: string | null
           created_at: string
@@ -565,6 +566,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_branch_id?: string | null
           city: string
           courier_id?: string | null
           created_at?: string
@@ -592,6 +594,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_branch_id?: string | null
           city?: string
           courier_id?: string | null
           created_at?: string
@@ -1187,6 +1190,27 @@ export type Database = {
         Args: { p_new_status: string; p_payout_id: string }
         Returns: undefined
       }
+      find_couriers_for_order: {
+        Args: {
+          customer_lat?: number
+          customer_lng?: number
+          customer_province_id: string
+          merchant_province_id: string
+        }
+        Returns: {
+          courier_id: string
+          courier_name: string
+          distance_km: number
+          logo_url: string
+          nearest_branch_address: string
+          nearest_branch_id: string
+          nearest_branch_lat: number
+          nearest_branch_lng: number
+          nearest_branch_name: string
+          nearest_branch_phone: string
+          total_branches_in_destination: number
+        }[]
+      }
       get_nearest_branches: {
         Args: { max_radius_km?: number; target_lat: number; target_lng: number }
         Returns: {
@@ -1219,6 +1243,10 @@ export type Database = {
         Returns: boolean
       }
       is_vendor_courier: { Args: { _courier_id: string }; Returns: boolean }
+      set_district_coords: {
+        Args: { p_district_id: string; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
       track_order_by_sila_code: { Args: { p_code: string }; Returns: Json }
       track_shipment_public: {
         Args: { p_tracking_number: string }
