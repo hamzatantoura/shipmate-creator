@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
 import { isValidSyrianPhone } from "@/lib/syrian-phone";
@@ -95,6 +95,22 @@ interface CourierRate {
   custom_delivery_fee: number;
 }
 
+interface BranchRow {
+  id: string;
+  courier_id: string;
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  district_id: string | null;
+  province_id: string | null;
+}
+
+interface DistrictRowGeo {
+  id: string;
+  lat: number | null;
+  lng: number | null;
+}
+
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
   no_answer: "لا يرد",
@@ -157,15 +173,25 @@ export default function MerchantOrdersPage() {
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [courierRates, setCourierRates] = useState<CourierRate[]>([]);
+  const [branches, setBranches] = useState<BranchRow[]>([]);
+  const [districtGeo, setDistrictGeo] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
       supabase.from("couriers").select("id, name").eq("is_active", true).order("name"),
       supabase.from("courier_district_rates" as any).select("courier_id, district_id, custom_delivery_fee"),
-    ]).then(([dRes, cRes, rRes]) => {
+      supabase.from("courier_branches" as any).select("id, courier_id, name, lat, lng, district_id, province_id").eq("is_active", true),
+      supabase.from("districts").select("id, lat, lng"),
+    ]).then(([dRes, cRes, rRes, bRes, gRes]) => {
       setAllDistricts((dRes.data || []) as DistrictRow[]);
       setCouriers((cRes.data || []) as CourierOption[]);
       setCourierRates((rRes.data || []) as unknown as CourierRate[]);
+      setBranches(((bRes.data || []) as unknown as BranchRow[]));
+      const geo: Record<string, { lat: number | null; lng: number | null }> = {};
+      ((gRes.data || []) as unknown as DistrictRowGeo[]).forEach((d) => {
+        geo[d.id] = { lat: d.lat, lng: d.lng };
+      });
+      setDistrictGeo(geo);
     });
   }, []);
   const provinces = allDistricts.filter(d => !d.parent_id);
@@ -328,6 +354,66 @@ export default function MerchantOrdersPage() {
     fetchOrders();
   };
 
+  // Strict courier filtering: must have (1) active branch AND (2) rate for selected destination
+  const availableCouriers = useMemo<CourierOption[]>(() => {
+    if (!form.provinceId) return [];
+    const targetDistrictId = form.districtId || form.provinceId;
+
+    // Couriers with at least one active branch
+    const couriersWithBranches = new Set(branches.map((b) => b.courier_id));
+
+    // Couriers with a rate matching the destination (district → province fallback)
+    const couriersWithRate = new Set(
+      courierRates
+        .filter((r) => r.district_id === targetDistrictId || r.district_id === form.provinceId)
+        .map((r) => r.courier_id)
+    );
+
+    // Intersection
+    const filtered = couriers.filter(
+      (c) => couriersWithBranches.has(c.id) && couriersWithRate.has(c.id)
+    );
+
+    // Distance-based sort using destination geo (district preferred, fallback province)
+    const destGeo = districtGeo[targetDistrictId] || districtGeo[form.provinceId];
+    if (destGeo?.lat != null && destGeo?.lng != null) {
+      const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371;
+        const toRad = (x: number) => (x * Math.PI) / 180;
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(a));
+      };
+      const courierMinDist = new Map<string, number>();
+      branches.forEach((b) => {
+        if (b.lat == null || b.lng == null) return;
+        const d = haversine(destGeo.lat as number, destGeo.lng as number, b.lat, b.lng);
+        const prev = courierMinDist.get(b.courier_id);
+        if (prev === undefined || d < prev) courierMinDist.set(b.courier_id, d);
+      });
+      filtered.sort((a, b) => {
+        const da = courierMinDist.get(a.id) ?? Number.POSITIVE_INFINITY;
+        const db = courierMinDist.get(b.id) ?? Number.POSITIVE_INFINITY;
+        return da - db;
+      });
+    } else {
+      filtered.sort((a, b) => a.name.localeCompare(b.name, "ar"));
+    }
+
+    return filtered;
+  }, [form.provinceId, form.districtId, couriers, branches, courierRates, districtGeo]);
+
+  // Reset selected courier if it's no longer in the available list
+  useEffect(() => {
+    if (form.courierId && !availableCouriers.find((c) => c.id === form.courierId)) {
+      setForm((f) => ({ ...f, courierId: "" }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableCouriers]);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background" dir="rtl">
@@ -468,13 +554,29 @@ export default function MerchantOrdersPage() {
                             <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
                               اختر المحافظة أولاً لعرض شركات الشحن وأسعارها
                             </p>
-                          ) : couriers.length === 0 ? (
-                            <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
-                              لا توجد شركات شحن مفعلة لهذه الوجهة
-                            </p>
+                          ) : availableCouriers.length === 0 ? (
+                            (() => {
+                              const targetId = form.districtId || form.provinceId;
+                              const hasBranchForArea = branches.some(
+                                (b) =>
+                                  b.district_id === targetId ||
+                                  b.province_id === form.provinceId ||
+                                  // also accept couriers with any active branch (cross-province coverage)
+                                  true
+                              );
+                              const anyBranches = branches.length > 0;
+                              const msg = !anyBranches
+                                ? "لا يوجد فرع شحن متاح لهذه المنطقة"
+                                : "لا توجد تسعيرة لهذه الوجهة";
+                              return (
+                                <p className="text-xs text-muted-foreground p-3 bg-muted/30 rounded-md border border-border">
+                                  {msg}
+                                </p>
+                              );
+                            })()
                           ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {couriers.map((c) => {
+                              {availableCouriers.map((c) => {
                                 const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.id);
                                 const selected = form.courierId === c.id;
                                 return (
