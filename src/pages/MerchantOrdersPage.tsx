@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
 import { isValidSyrianPhone } from "@/lib/syrian-phone";
@@ -95,6 +95,22 @@ interface CourierRate {
   custom_delivery_fee: number;
 }
 
+interface BranchRow {
+  id: string;
+  courier_id: string;
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  district_id: string | null;
+  province_id: string | null;
+}
+
+interface DistrictRowGeo {
+  id: string;
+  lat: number | null;
+  lng: number | null;
+}
+
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
   no_answer: "لا يرد",
@@ -157,15 +173,25 @@ export default function MerchantOrdersPage() {
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [courierRates, setCourierRates] = useState<CourierRate[]>([]);
+  const [branches, setBranches] = useState<BranchRow[]>([]);
+  const [districtGeo, setDistrictGeo] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
       supabase.from("couriers").select("id, name").eq("is_active", true).order("name"),
       supabase.from("courier_district_rates" as any).select("courier_id, district_id, custom_delivery_fee"),
-    ]).then(([dRes, cRes, rRes]) => {
+      supabase.from("courier_branches" as any).select("id, courier_id, name, lat, lng, district_id, province_id").eq("is_active", true),
+      supabase.from("districts").select("id, lat, lng"),
+    ]).then(([dRes, cRes, rRes, bRes, gRes]) => {
       setAllDistricts((dRes.data || []) as DistrictRow[]);
       setCouriers((cRes.data || []) as CourierOption[]);
       setCourierRates((rRes.data || []) as unknown as CourierRate[]);
+      setBranches(((bRes.data || []) as unknown as BranchRow[]));
+      const geo: Record<string, { lat: number | null; lng: number | null }> = {};
+      ((gRes.data || []) as unknown as DistrictRowGeo[]).forEach((d) => {
+        geo[d.id] = { lat: d.lat, lng: d.lng };
+      });
+      setDistrictGeo(geo);
     });
   }, []);
   const provinces = allDistricts.filter(d => !d.parent_id);
