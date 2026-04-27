@@ -281,7 +281,12 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         }
       });
 
-      const courierIds = Array.from(bestRate.keys());
+      // STRICT INTERSECTION: only couriers that ALSO have an active branch
+      // present in nearestBranches (fetched from courier_branches).
+      const branchCourierIds = new Set(nearestBranches.map((b) => b.courier_id));
+      const courierIds = Array.from(bestRate.keys()).filter((id) =>
+        branchCourierIds.has(id)
+      );
       if (courierIds.length === 0) {
         setCourierOptions([]);
         setLoadingCouriers(false);
@@ -321,7 +326,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       setLoadingCouriers(false);
     })();
     return () => { cancelled = true; };
-  }, [finalDistrictId, weightNum, codAmountNum, selectedProvince]);
+  }, [finalDistrictId, weightNum, codAmountNum, selectedProvince, nearestBranches]);
 
   const selectedCourier = useMemo(
     () => courierOptions.find(c => c.courier_id === selectedCourierId) || null,
@@ -554,7 +559,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
               !finalDistrictId ? "اختر المنطقة أولاً" :
               weightNum <= 0 ? "أدخل وزن الشحنة أولاً" :
               loadingCouriers ? "جاري جلب الشركات..." :
-              courierOptions.length === 0 ? "لا تغطية لهذه المنطقة" :
+              courierOptions.length === 0 ? (nearestBranches.length === 0 ? "لا يوجد فرع شحن متاح لهذه المنطقة" : "لا تغطية بهذا الوزن") :
               "اختر شركة الشحن"
             } />
           </SelectTrigger>
@@ -610,7 +615,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         {finalDistrictId && weightNum > 0 && !loadingCouriers && courierOptions.length === 0 && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
-            <p>لا توجد شركة شحن تغطي هذه المنطقة بهذا الوزن.</p>
+            <p>{nearestBranches.length === 0 ? "لا يوجد فرع شحن متاح لهذه المنطقة" : "لا تغطية بهذا الوزن"}</p>
           </div>
         )}
 
