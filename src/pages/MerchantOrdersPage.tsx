@@ -192,6 +192,8 @@ export default function MerchantOrdersPage() {
   const [districtGeo, setDistrictGeo] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
   const [smartCouriers, setSmartCouriers] = useState<SmartCourierRow[]>([]);
   const [smartLoading, setSmartLoading] = useState(false);
+  // Map: districts.id (province-level row) -> provinces.id (FK target used by RPC & branches)
+  const [provinceIdMap, setProvinceIdMap] = useState<Record<string, string>>({});
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
@@ -199,7 +201,9 @@ export default function MerchantOrdersPage() {
       supabase.from("courier_district_rates" as any).select("courier_id, district_id, custom_delivery_fee"),
       supabase.from("courier_branches" as any).select("id, courier_id, name, lat, lng, district_id, province_id").eq("is_active", true),
       supabase.from("districts").select("id, lat, lng"),
-    ]).then(([dRes, cRes, rRes, bRes, gRes]) => {
+      supabase.from("districts").select("id, province_ar, parent_id"),
+      supabase.from("provinces").select("id, name_ar"),
+    ]).then(([dRes, cRes, rRes, bRes, gRes, dpRes, pRes]) => {
       setAllDistricts((dRes.data || []) as DistrictRow[]);
       setCouriers((cRes.data || []) as CourierOption[]);
       setCourierRates((rRes.data || []) as unknown as CourierRate[]);
@@ -209,6 +213,17 @@ export default function MerchantOrdersPage() {
         geo[d.id] = { lat: d.lat, lng: d.lng };
       });
       setDistrictGeo(geo);
+      // Build name->provinces.id index
+      const provByName: Record<string, string> = {};
+      ((pRes.data || []) as any[]).forEach((p) => { provByName[p.name_ar] = p.id; });
+      // Map every province-level district row to its real provinces.id by Arabic name
+      const map: Record<string, string> = {};
+      ((dpRes.data || []) as any[]).forEach((d) => {
+        if (!d.parent_id && d.province_ar && provByName[d.province_ar]) {
+          map[d.id] = provByName[d.province_ar];
+        }
+      });
+      setProvinceIdMap(map);
     });
   }, []);
 
