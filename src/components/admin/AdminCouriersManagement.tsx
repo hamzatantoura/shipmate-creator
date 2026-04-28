@@ -359,10 +359,11 @@ const INTEGRATION_OPTIONS = [
 ];
 
 // ============ Unified Pricing Matrix (district-based) ============
-function PricingMatrix({ courierId, provinces, areasOf }: {
+function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
   courierId: string;
   provinces: DistrictRow[];
   areasOf: (id: string) => DistrictRow[];
+  courierName?: string;
 }) {
   const [rates, setRates] = useState<DistrictRate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -373,6 +374,9 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
   const [bulkMaxW, setBulkMaxW] = useState<string>("999");
   const [bulkDays, setBulkDays] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  // Filter: show only provinces where courier has at least one active branch
+  const [onlyCovered, setOnlyCovered] = useState(true);
+  const { coveredProvinceIds, branchCountByProvince, reload: reloadCoverage } = useCourierCoveredProvinces(courierId);
 
   const load = async () => {
     setLoading(true);
