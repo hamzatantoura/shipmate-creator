@@ -768,6 +768,17 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
   const [isActive, setIsActive] = useState(courier.is_active);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  // Persisted active tab per courier — prevents reset on re-renders
+  const profileTabKey = `admin-courier-profile-tab:${courier.id}`;
+  const [profileTab, setProfileTab] = useState<string>(() => {
+    if (typeof window === "undefined") return "info";
+    const s = sessionStorage.getItem(profileTabKey);
+    return s && ["info", "account", "coverage", "wallet", "orders"].includes(s) ? s : "info";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") sessionStorage.setItem(profileTabKey, profileTab);
+  }, [profileTab, profileTabKey]);
+
   // Tab 2: Auth
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -929,7 +940,7 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
           <SheetDescription>إدارة شاملة للشركة: البيانات، الحساب، التغطية والتسعير، المحفظة، الطلبات</SheetDescription>
         </SheetHeader>
 
-        <Tabs defaultValue="info" dir="rtl" className="mt-4">
+        <Tabs value={profileTab} onValueChange={setProfileTab} dir="rtl" className="mt-4">
           <TabsList className="w-full grid grid-cols-5 h-auto">
             <TabsTrigger value="info" className="gap-1 text-[11px] px-1 py-2"><Info className="h-3.5 w-3.5" /> الأساسية</TabsTrigger>
             <TabsTrigger value="account" className="gap-1 text-[11px] px-1 py-2"><KeyRound className="h-3.5 w-3.5" /> الدخول</TabsTrigger>
