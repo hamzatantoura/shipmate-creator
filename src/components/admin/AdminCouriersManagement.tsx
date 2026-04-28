@@ -669,6 +669,16 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
           إضافة الشريحة لكل مناطق المحافظة
         </Button>
         <Button
+          onClick={applyBulkAllCovered}
+          disabled={saving || coveredProvinceIds.size === 0}
+          size="sm"
+          variant="secondary"
+          className="gap-1.5 mr-2"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+          تطبيق على كل المحافظات المغطاة بفروع ({coveredProvinceIds.size})
+        </Button>
+        <Button
           onClick={deleteBulk}
           disabled={saving}
           size="sm"
@@ -679,7 +689,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
           حذف نفس الشريحة من كل مناطق المحافظة
         </Button>
         <p className="text-[11px] text-muted-foreground">
-          💡 الحذف يطابق نطاق الوزن (من/إلى) في المحافظة المختارة فقط.
+          💡 «تطبيق على كل المحافظات المغطاة» يستخدم نفس السعر والوزن والمدة في الأعلى — لا حاجة لاختيار محافظة.
         </p>
       </Card>
 
