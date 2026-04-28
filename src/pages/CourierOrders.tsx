@@ -138,7 +138,7 @@ export default function CourierOrders() {
     const [ordersRes, courierRes] = await Promise.all([
       supabase
         .from("orders")
-        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), courier_branches:assigned_branch_id(name), shipments:shipment_id(collection_fee)")
+        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       supabase
@@ -149,7 +149,23 @@ export default function CourierOrders() {
         .maybeSingle(),
     ]);
     if (ordersRes.error) toast.error("تعذر تحميل الطلبات");
-    else setOrders((ordersRes.data || []) as CourierOrderRow[]);
+    else {
+      const rawOrders = (ordersRes.data || []) as unknown as CourierOrderRow[];
+      // Resolve branch names via separate query (no FK on assigned_branch_id)
+      const branchIds = Array.from(new Set(rawOrders.map(o => o.assigned_branch_id).filter(Boolean) as string[]));
+      let branchMap = new Map<string, string>();
+      if (branchIds.length) {
+        const { data: branches } = await supabase
+          .from("courier_branches").select("id, name").in("id", branchIds);
+        branchMap = new Map((branches || []).map(b => [b.id as string, b.name as string]));
+      }
+      const enriched = rawOrders.map(o => ({
+        ...o,
+        branch_name: o.assigned_branch_id ? (branchMap.get(o.assigned_branch_id) ?? null) : null,
+        collection_fee: Number(o.shipments?.collection_fee ?? 0),
+      }));
+      setOrders(enriched);
+    }
     if (courierRes.error) {
       console.error("Courier fetch error:", courierRes.error);
     }
