@@ -866,13 +866,28 @@ export default function CourierOrders() {
                           aria-label="تحديد الكل"
                         />
                       </TableHead>
+                      <TableHead className="text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}
+                          className="inline-flex items-center gap-1 hover:text-primary transition"
+                        >
+                          تاريخ الطلبية
+                          {sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                        </button>
+                      </TableHead>
+                      <TableHead className="text-xs">مكان التسليم</TableHead>
                       <TableHead className="text-xs">الكود</TableHead>
-                      <TableHead className="text-xs">المستلم</TableHead>
-                      <TableHead className="text-xs">الهاتف</TableHead>
-                      <TableHead className="text-xs">العنوان</TableHead>
-                      <TableHead className="text-xs">قيمة COD</TableHead>
+                      <TableHead className="text-xs">اسم المستلم</TableHead>
+                      <TableHead className="text-xs">رقم الهاتف</TableHead>
+                      <TableHead className="text-xs">المدينة</TableHead>
+                      <TableHead className="text-xs">الفرع</TableHead>
+                      <TableHead className="text-xs">قيمة</TableHead>
+                      <TableHead className="text-xs">المبلغ المطلوب تحصيله</TableHead>
+                      <TableHead className="text-xs">قيمة أجور الحوالة</TableHead>
+                      <TableHead className="text-xs">رسوم التوصيل</TableHead>
                       <TableHead className="text-xs">الحالة</TableHead>
-                      <TableHead className="w-[200px] text-xs">تحديث الحالة</TableHead>
+                      <TableHead className="w-[180px] text-xs">تحديث الحالة</TableHead>
                       <TableHead className="w-[50px] text-xs"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -882,7 +897,7 @@ export default function CourierOrders() {
                       const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
                       const checked = selectedIds.includes(o.id);
                       return (
-                        <TableRow key={o.id} className={`hover:bg-muted/30 ${checked ? "bg-primary/5" : ""}`}>
+                        <TableRow key={o.id} className={`${rowToneClass(o.status)} ${checked ? "ring-1 ring-primary/40" : ""}`}>
                           <TableCell>
                             <Checkbox
                               checked={checked}
@@ -890,14 +905,23 @@ export default function CourierOrders() {
                               aria-label={`تحديد ${silaCodeOf(o.id)}`}
                             />
                           </TableCell>
+                          <TableCell className="text-xs whitespace-nowrap tabular-nums">
+                            {new Date(o.created_at).toLocaleDateString("en-GB")}
+                          </TableCell>
+                          <TableCell className="max-w-[220px]">
+                            <div className="text-xs text-muted-foreground truncate" title={o.detailed_address}>
+                              {o.detailed_address || "—"}
+                            </div>
+                          </TableCell>
                           <TableCell className="font-mono text-[11px] text-muted-foreground">{silaCodeOf(o.id)}</TableCell>
                           <TableCell className="font-medium text-sm">{o.receiver_name}</TableCell>
                           <TableCell dir="ltr" className="text-xs text-muted-foreground">{o.phone_number}</TableCell>
-                          <TableCell className="max-w-[260px]">
-                            <div className="text-sm">{o.districts?.name || o.city}</div>
-                            <div className="text-xs text-muted-foreground truncate">{o.detailed_address}</div>
-                          </TableCell>
-                          <TableCell className="font-semibold text-sm tabular-nums">{fmtSYP(Number(cod))}</TableCell>
+                          <TableCell className="text-sm">{o.districts?.name || o.city}</TableCell>
+                          <TableCell className="text-xs">{o.branch_name || "—"}</TableCell>
+                          <TableCell className="text-xs tabular-nums whitespace-nowrap">{fmtSYP(Number(o.total_amount ?? 0))}</TableCell>
+                          <TableCell className="font-semibold text-sm tabular-nums whitespace-nowrap">{fmtSYP(Number(cod))}</TableCell>
+                          <TableCell className="text-xs tabular-nums whitespace-nowrap">{fmtSYP(Number(o.collection_fee ?? 0))}</TableCell>
+                          <TableCell className="text-xs tabular-nums whitespace-nowrap">{fmtSYP(Number(o.delivery_fee ?? 0))}</TableCell>
                           <TableCell>
                             {(() => {
                               const meta = getOrderStatusMeta(o.status);
