@@ -89,6 +89,15 @@ export default function CourierWalletPanel() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const WALLET_TAB_KEY = "courier-wallet-tab";
+  const [walletTab, setWalletTab] = useState<string>(() => {
+    if (typeof window === "undefined") return "ledger";
+    const s = sessionStorage.getItem(WALLET_TAB_KEY);
+    return s === "settlements" || s === "ledger" ? s : "ledger";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") sessionStorage.setItem(WALLET_TAB_KEY, walletTab);
+  }, [walletTab]);
   const [dateRange, setDateRange] = useState<DateRangeState>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -425,7 +434,7 @@ export default function CourierWalletPanel() {
             </Card>
           </div>
 
-          <Tabs defaultValue="ledger" className="space-y-4">
+          <Tabs value={walletTab} onValueChange={setWalletTab} className="space-y-4">
             <TabsList>
               <TabsTrigger value="ledger">السجل المالي</TabsTrigger>
               <TabsTrigger value="settlements">التسويات والدفعات</TabsTrigger>
