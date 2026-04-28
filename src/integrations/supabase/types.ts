@@ -1243,6 +1243,23 @@ export type Database = {
         Returns: boolean
       }
       is_vendor_courier: { Args: { _courier_id: string }; Returns: boolean }
+      list_courier_branches_for_order: {
+        Args: {
+          p_courier_id: string
+          p_customer_lat?: number
+          p_customer_lng?: number
+          p_customer_province_id: string
+        }
+        Returns: {
+          address_details: string
+          branch_id: string
+          branch_name: string
+          distance_km: number
+          lat: number
+          lng: number
+          phone: string
+        }[]
+      }
       set_district_coords: {
         Args: { p_district_id: string; p_lat: number; p_lng: number }
         Returns: undefined
