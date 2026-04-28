@@ -106,12 +106,52 @@ export default function AdminBranchesManagement() {
   const [provinces, setProvinces] = useState<ProvinceLite[]>([]);
   const [districts, setDistricts] = useState<DistrictLite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterCourier, setFilterCourier] = useState<string>("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
+  // ===== Persisted UI state =====
+  // Survives tab switches inside /admin and page refreshes within the same session,
+  // so an in-progress branch edit is not lost when the admin briefly visits another tab.
+  const SS_KEY = "admin-branches-ui";
+  type Persisted = {
+    search: string;
+    filterCourier: string;
+    dialogOpen: boolean;
+    form: typeof emptyForm;
+  };
+  const readPersisted = (): Persisted => {
+    if (typeof window === "undefined") {
+      return { search: "", filterCourier: "all", dialogOpen: false, form: { ...emptyForm } };
+    }
+    try {
+      const raw = sessionStorage.getItem(SS_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as Partial<Persisted>;
+        return {
+          search: p.search ?? "",
+          filterCourier: p.filterCourier ?? "all",
+          dialogOpen: !!p.dialogOpen,
+          form: { ...emptyForm, ...(p.form || {}) },
+        };
+      }
+    } catch { /* ignore */ }
+    return { search: "", filterCourier: "all", dialogOpen: false, form: { ...emptyForm } };
+  };
+  const initial = readPersisted();
+  const [search, setSearch] = useState(initial.search);
+  const [filterCourier, setFilterCourier] = useState<string>(initial.filterCourier);
+  const [dialogOpen, setDialogOpen] = useState(initial.dialogOpen);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState({ ...initial.form });
   const isEdit = !!form.id;
+
+  // Persist UI state on every relevant change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload: Persisted = { search, filterCourier, dialogOpen, form };
+    try { sessionStorage.setItem(SS_KEY, JSON.stringify(payload)); } catch { /* ignore */ }
+  }, [search, filterCourier, dialogOpen, form]);
+  const clearDraft = () => {
+    setDialogOpen(false);
+    setForm({ ...emptyForm });
+  };
 
   // ===== Bulk Import State =====
   const [importOpen, setImportOpen] = useState(false);
@@ -200,7 +240,7 @@ export default function AdminBranchesManagement() {
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success(isEdit ? "تم تحديث الفرع" : "تم إنشاء الفرع");
-    setDialogOpen(false);
+    clearDraft();
     fetchAll();
   };
 
@@ -559,7 +599,7 @@ export default function AdminBranchesManagement() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) clearDraft(); else setDialogOpen(true); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
           <DialogHeader>
             <DialogTitle>{isEdit ? "تعديل فرع" : "إضافة فرع جديد"}</DialogTitle>
@@ -653,7 +693,7 @@ export default function AdminBranchesManagement() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={clearDraft}>إلغاء</Button>
             <Button onClick={save} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin ml-1" />}
               {isEdit ? "حفظ التعديلات" : "إضافة الفرع"}
