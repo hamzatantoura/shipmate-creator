@@ -25,17 +25,20 @@ export default function MerchantShippingSettings() {
   const [phone, setPhone] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [city, setCity] = useState("");
+  const [provinceId, setProvinceId] = useState<string>("");
   const [detailedAddress, setDetailedAddress] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [districts, setDistricts] = useState<{ id: string; province_ar: string }[]>([]);
+  const [provinces, setProvinces] = useState<{ id: string; name_ar: string }[]>([]);
 
   useEffect(() => {
     if (!user) return;
     Promise.all([
       supabase.from("merchants").select("*").eq("user_id", user.id).single(),
-      supabase.from("districts").select("id, province_ar").eq("is_active", true).order("province_ar"),
-    ]).then(([{ data: m }, { data: d }]) => {
+      supabase.from("provinces").select("id, name_ar").order("name_ar"),
+    ]).then(([{ data: m }, { data: p }]) => {
+      const provs = ((p as any[]) || []) as { id: string; name_ar: string }[];
+      setProvinces(provs);
       if (m) {
         const merchant = m as any;
         setPolicy(merchant.shipping_policy || "customer_pays");
@@ -45,15 +48,13 @@ export default function MerchantShippingSettings() {
         setPhone(merchant.phone || "");
         setWhatsappNumber(merchant.whatsapp_number || merchant.phone || "");
         setCity(merchant.city || "");
-      }
-      if (d) {
-        // Deduplicate by province_ar
-        const seen = new Set<string>();
-        setDistricts((d as any[]).filter(x => {
-          if (seen.has(x.province_ar)) return false;
-          seen.add(x.province_ar);
-          return true;
-        }));
+        // Resolve province_id: prefer stored, fallback to name match against city
+        let resolvedId: string = merchant.province_id || "";
+        if (!resolvedId && merchant.city) {
+          const match = provs.find(x => x.name_ar === merchant.city);
+          if (match) resolvedId = match.id;
+        }
+        setProvinceId(resolvedId);
       }
       setLoading(false);
     });
@@ -65,7 +66,9 @@ export default function MerchantShippingSettings() {
     if (!contactPerson.trim()) { toast.error("اسم التاجر مطلوب"); return; }
     if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم سوري غير صحيح — مثال: 0933123456"); return; }
     if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح — مثال: 0933123456"); return; }
-    if (!city.trim()) { toast.error("يرجى اختيار المحافظة"); return; }
+    if (!provinceId) { toast.error("يرجى اختيار المحافظة"); return; }
+    const selectedProvince = provinces.find(p => p.id === provinceId);
+    const cityName = selectedProvince?.name_ar || city;
 
     setSaving(true);
     // Update merchants table
@@ -76,7 +79,8 @@ export default function MerchantShippingSettings() {
         contact_person: contactPerson.trim(),
         phone: phone.trim(),
         whatsapp_number: whatsappNumber.trim(),
-        city: city.trim(),
+        city: cityName,
+        province_id: provinceId,
         shipping_policy: policy,
         free_shipping_threshold: policy === "free_above" ? parseFloat(threshold) || 0 : 0,
       } as any)
@@ -87,11 +91,12 @@ export default function MerchantShippingSettings() {
       store_name: storeName.trim(),
       contact_person: contactPerson.trim(),
       phone: phone.trim(),
-      city: city.trim(),
+      city: cityName,
     }).eq("user_id", user.id);
 
     setSaving(false);
     if (e1) { toast.error("فشل حفظ الإعدادات"); return; }
+    setCity(cityName);
     toast.success("تم حفظ الإعدادات بنجاح ✓");
   };
 
@@ -131,11 +136,11 @@ export default function MerchantShippingSettings() {
           </div>
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
-            <Select value={city} onValueChange={setCity}>
+            <Select value={provinceId} onValueChange={setProvinceId}>
               <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
               <SelectContent>
-                {districts.map(d => (
-                  <SelectItem key={d.id} value={d.province_ar}>{d.province_ar}</SelectItem>
+                {provinces.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
