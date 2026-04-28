@@ -595,7 +595,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
   };
 
   const visibleProvinces = onlyCovered && coveredProvinceIds.size > 0
-    ? provinces.filter(p => coveredProvinceIds.has(p.id))
+    ? provinces.filter(p => coveredProvinceIds.has(p.province_ar))
     : provinces;
   const hiddenCount = provinces.length - visibleProvinces.length;
 
@@ -643,7 +643,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
         <h4 className="text-sm font-semibold flex items-center gap-1.5">
           <DollarSign className="h-4 w-4 text-primary" /> تسعير سريع — إضافة شريحة واحدة لكل المحافظة
         </h4>
-        {bulkProvId && coveredProvinceIds.size > 0 && !coveredProvinceIds.has(bulkProvId) && (
+        {bulkProvId && coveredProvinceIds.size > 0 && !coveredProvinceIds.has(provinces.find(p => p.id === bulkProvId)?.province_ar || "") && (
           <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md p-2 text-xs text-amber-700 dark:text-amber-300">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
             <span>هذه المحافظة لا يوجد فيها فرع لـ{courierName || "هذه الشركة"}. أضف فرعاً أولاً من تبويب «الفروع» لتظهر تلقائياً، أو تابع التسعير إذا كانت الشركة تخدمها بالتعاون.</span>
@@ -654,7 +654,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
             <SelectTrigger><SelectValue placeholder="المحافظة" /></SelectTrigger>
             <SelectContent>
               {provinces.map(p => {
-                const c = branchCountByProvince[p.id] || 0;
+                const c = branchCountByProvince[p.province_ar] || 0;
                 return (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}{c > 0 ? ` · ${c} فرع` : ""}
@@ -703,7 +703,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
           const isExp = expanded[p.id];
           const subs = areasOf(p.id);
           const provTiers = tiersFor(p.id);
-          const branchCount = branchCountByProvince[p.id] || 0;
+          const branchCount = branchCountByProvince[p.province_ar] || 0;
           const isCovered = branchCount > 0;
           return (
             <div key={p.id}>
