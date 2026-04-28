@@ -402,8 +402,10 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
     maxW: number,
     ignoreId?: string,
   ) => {
+    // Half-open ranges [min, max): touching edges (e.g. 0-5 and 5-10) are NOT overlap
     return tiersFor(districtId).some(r =>
-      r.id !== ignoreId && minW < r.max_weight_kg && maxW > r.min_weight_kg
+      r.id !== ignoreId &&
+      Math.max(minW, Number(r.min_weight_kg)) < Math.min(maxW, Number(r.max_weight_kg))
     );
   };
 
