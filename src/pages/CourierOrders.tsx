@@ -366,6 +366,55 @@ export default function CourierOrders() {
   };
   const clearSelection = () => setSelectedIds([]);
 
+  // Row background tint based on status (semantic tokens, low opacity)
+  const rowToneClass = (status: string): string => {
+    switch (status) {
+      case "delivered":        return "bg-success/10 hover:bg-success/15";
+      case "out_for_delivery": return "bg-info/10 hover:bg-info/15";
+      case "shipped":          return "bg-info/5 hover:bg-info/10";
+      case "processing":       return "bg-primary/5 hover:bg-primary/10";
+      case "pending":
+      case "new":              return "bg-warning/10 hover:bg-warning/15";
+      case "returned":
+      case "cancelled":        return "bg-destructive/10 hover:bg-destructive/15";
+      default:                 return "hover:bg-muted/30";
+    }
+  };
+
+  // Excel export — respects current filters (exports rows visible in `filtered`)
+  const exportExcel = () => {
+    if (filtered.length === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
+    const data = filtered.map(o => {
+      const cod = Number(o.final_sale_price ?? o.total_amount ?? 0);
+      return {
+        "تاريخ الطلبية": new Date(o.created_at).toLocaleDateString("en-GB"),
+        "مكان التسليم": o.detailed_address || "",
+        "الكود": silaCodeOf(o.id),
+        "اسم المستلم": o.receiver_name,
+        "رقم الهاتف": o.phone_number,
+        "المدينة": o.districts?.name || o.city,
+        "الفرع": o.branch_name || "—",
+        "قيمة": Number(o.total_amount ?? 0),
+        "المبلغ المطلوب تحصيله (COD)": cod,
+        "قيمة أجور الحوالة": Number(o.collection_fee ?? 0),
+        "رسوم التوصيل": Number(o.delivery_fee ?? 0),
+        "الحالة": getOrderStatusMeta(o.status).label,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
+      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 18 },
+      { wch: 14 }, { wch: 14 },
+    ];
+    if (!ws["!views"]) ws["!views"] = [{ RTL: true }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
+    toast.success(`تم تصدير ${filtered.length} طلب إلى Excel`);
+  };
+
   const exportCsv = () => {
     const rows = orders.filter(o => selectedIds.includes(o.id));
     if (rows.length === 0) { toast.error("لا توجد طلبات محددة"); return; }
