@@ -496,6 +496,43 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
     setBulkFee(""); setBulkDays("");
   };
 
+  // Apply the same tier (price + weight + days) to ALL provinces that have at least one active branch.
+  // Includes both the province row itself and its sub-districts. Skips overlaps silently.
+  const applyBulkAllCovered = async () => {
+    const fee = Number(bulkFee);
+    const mn = Number(bulkMinW);
+    const mx = Number(bulkMaxW);
+    if (isNaN(fee) || fee < 0) { toast.error("أدخل سعراً صحيحاً"); return; }
+    if (isNaN(mn) || isNaN(mx) || mx <= mn) { toast.error("أدخل نطاق وزن صحيحاً (الأقصى > الأدنى)"); return; }
+    const provIds = Array.from(coveredProvinceIds);
+    if (provIds.length === 0) {
+      toast.error("لا توجد محافظات مغطاة بفروع — أضف الفروع أولاً");
+      return;
+    }
+    if (!confirm(`سيتم تطبيق الشريحة (${mn}–${mx}كغ بسعر ${fee} ل.س) على ${provIds.length} محافظة + مناطقها الفرعية. متابعة؟`)) return;
+
+    setSaving(true);
+    const targets: string[] = [];
+    for (const pid of provIds) {
+      targets.push(pid, ...areasOf(pid).map(a => a.id));
+    }
+    let ok = 0, skipped = 0;
+    for (const did of targets) {
+      if (overlaps(did, mn, mx)) { skipped++; continue; }
+      const { error } = await supabase.from("courier_district_rates").insert({
+        courier_id: courierId, district_id: did,
+        custom_delivery_fee: fee, min_weight_kg: mn, max_weight_kg: mx,
+        estimated_days: bulkDays.trim() || null,
+      } as any);
+      if (!error) ok++; else skipped++;
+    }
+    await load();
+    setSaving(false);
+    if (ok > 0) toast.success(`تم إنشاء ${ok} شريحة في ${provIds.length} محافظة` + (skipped ? ` (تخطي ${skipped} للتداخل)` : ""));
+    else toast.error("لم تُنشأ أي شريحة — كلها متداخلة مع شرائح موجودة");
+    setBulkFee(""); setBulkDays("");
+  };
+
   // Bulk delete: removes tiers matching the bulk weight range across the chosen province + its sub-districts.
   // If min/max are left as defaults (0–999) it effectively wipes all tiers for the province.
   const deleteBulk = async () => {
@@ -632,6 +669,16 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
           إضافة الشريحة لكل مناطق المحافظة
         </Button>
         <Button
+          onClick={applyBulkAllCovered}
+          disabled={saving || coveredProvinceIds.size === 0}
+          size="sm"
+          variant="secondary"
+          className="gap-1.5 mr-2"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+          تطبيق على كل المحافظات المغطاة بفروع ({coveredProvinceIds.size})
+        </Button>
+        <Button
           onClick={deleteBulk}
           disabled={saving}
           size="sm"
@@ -642,7 +689,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
           حذف نفس الشريحة من كل مناطق المحافظة
         </Button>
         <p className="text-[11px] text-muted-foreground">
-          💡 الحذف يطابق نطاق الوزن (من/إلى) في المحافظة المختارة فقط.
+          💡 «تطبيق على كل المحافظات المغطاة» يستخدم نفس السعر والوزن والمدة في الأعلى — لا حاجة لاختيار محافظة.
         </p>
       </Card>
 
