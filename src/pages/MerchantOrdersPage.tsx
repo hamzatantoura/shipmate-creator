@@ -406,13 +406,14 @@ export default function MerchantOrdersPage() {
       setSmartCouriers([]);
       return;
     }
+    const customerProvinceUuid = provinceIdMap[form.provinceId] || form.provinceId;
     const dest = form.districtId
       ? districtGeo[form.districtId]
       : districtGeo[form.provinceId];
     setSmartLoading(true);
     (supabase.rpc as any)("find_couriers_for_order", {
       merchant_province_id: merchantProvinceId,
-      customer_province_id: form.provinceId,
+      customer_province_id: customerProvinceUuid,
       customer_lat: dest?.lat ?? null,
       customer_lng: dest?.lng ?? null,
     }).then(({ data, error }: any) => {
@@ -424,7 +425,7 @@ export default function MerchantOrdersPage() {
       }
       setSmartLoading(false);
     });
-  }, [merchantProvinceId, form.provinceId, form.districtId, districtGeo]);
+  }, [merchantProvinceId, form.provinceId, form.districtId, districtGeo, provinceIdMap]);
 
   const availableCouriers = smartCouriers;
 
