@@ -56,8 +56,9 @@ interface CourierOrderRow {
   assigned_branch_id?: string | null;
   couriers?: { name: string } | null;
   districts?: { name: string } | null;
-  courier_branches?: { name: string } | null;
   shipments?: { collection_fee: number | null } | null;
+  branch_name?: string | null;
+  collection_fee?: number;
 }
 
 /**
