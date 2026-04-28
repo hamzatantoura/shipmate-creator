@@ -753,14 +753,37 @@ export default function CourierOrders() {
                   ابحث، صنّف وحدّث حالات الطلبات بسرعة.
                 </CardDescription>
               </div>
-              <div className="relative w-full md:w-72">
-                <Search className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="بحث برمز Sila، الاسم، أو الهاتف..."
-                  className="pr-9 h-9 text-sm"
-                />
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div className="relative w-full sm:w-72">
+                  <Search className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="بحث برمز، اسم، هاتف، أو عنوان..."
+                    className="pr-9 h-9 text-sm"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 text-sm w-full sm:w-44">
+                    <SelectValue placeholder="تصفية الحالة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الحالات</SelectItem>
+                    {availableStatuses.map(s => (
+                      <SelectItem key={s} value={s}>{getOrderStatusMeta(s).label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-1.5"
+                  onClick={exportExcel}
+                  disabled={filtered.length === 0}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  تصدير إلى إكسل
+                </Button>
               </div>
             </div>
 
