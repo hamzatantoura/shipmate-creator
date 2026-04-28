@@ -942,9 +942,10 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
         </SheetHeader>
 
         <Tabs value={profileTab} onValueChange={setProfileTab} dir="rtl" className="mt-4">
-          <TabsList className="w-full grid grid-cols-5 h-auto">
+          <TabsList className="w-full grid grid-cols-6 h-auto">
             <TabsTrigger value="info" className="gap-1 text-[11px] px-1 py-2"><Info className="h-3.5 w-3.5" /> الأساسية</TabsTrigger>
             <TabsTrigger value="account" className="gap-1 text-[11px] px-1 py-2"><KeyRound className="h-3.5 w-3.5" /> الدخول</TabsTrigger>
+            <TabsTrigger value="branches" className="gap-1 text-[11px] px-1 py-2"><Building2 className="h-3.5 w-3.5" /> الفروع</TabsTrigger>
             <TabsTrigger value="coverage" className="gap-1 text-[11px] px-1 py-2"><MapIcon className="h-3.5 w-3.5" /> التغطية والتسعير</TabsTrigger>
             <TabsTrigger value="wallet" className="gap-1 text-[11px] px-1 py-2"><WalletIcon className="h-3.5 w-3.5" /> المحفظة</TabsTrigger>
             <TabsTrigger value="orders" className="gap-1 text-[11px] px-1 py-2"><Package className="h-3.5 w-3.5" /> الطلبات</TabsTrigger>
