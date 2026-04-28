@@ -506,17 +506,18 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
     const mx = Number(bulkMaxW);
     if (isNaN(fee) || fee < 0) { toast.error("أدخل سعراً صحيحاً"); return; }
     if (isNaN(mn) || isNaN(mx) || mx <= mn) { toast.error("أدخل نطاق وزن صحيحاً (الأقصى > الأدنى)"); return; }
-    const provIds = Array.from(coveredProvinceIds);
-    if (provIds.length === 0) {
+    // coveredProvinceIds holds province NAMES (provinces.name_ar). Map to district top-level ids.
+    const coveredProvObjs = provinces.filter(p => coveredProvinceIds.has(p.province_ar));
+    if (coveredProvObjs.length === 0) {
       toast.error("لا توجد محافظات مغطاة بفروع — أضف الفروع أولاً");
       return;
     }
-    if (!confirm(`سيتم تطبيق الشريحة (${mn}–${mx}كغ بسعر ${fee} ل.س) على ${provIds.length} محافظة + مناطقها الفرعية. متابعة؟`)) return;
+    if (!confirm(`سيتم تطبيق الشريحة (${mn}–${mx}كغ بسعر ${fee} ل.س) على ${coveredProvObjs.length} محافظة + مناطقها الفرعية. متابعة؟`)) return;
 
     setSaving(true);
     const targets: string[] = [];
-    for (const pid of provIds) {
-      targets.push(pid, ...areasOf(pid).map(a => a.id));
+    for (const prov of coveredProvObjs) {
+      targets.push(prov.id, ...areasOf(prov.id).map(a => a.id));
     }
     let ok = 0, skipped = 0;
     let firstError = "";
@@ -532,7 +533,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
     }
     await load();
     setSaving(false);
-    if (ok > 0) toast.success(`تم إنشاء ${ok} شريحة في ${provIds.length} محافظة` + (skipped ? ` (تخطي ${skipped} للتداخل)` : ""));
+    if (ok > 0) toast.success(`تم إنشاء ${ok} شريحة في ${coveredProvObjs.length} محافظة` + (skipped ? ` (تخطي ${skipped} للتداخل)` : ""));
     else toast.error(firstError ? `فشل الإدراج: ${firstError}` : "لم تُنشأ أي شريحة — تحقق من النطاق");
     setBulkFee(""); setBulkDays("");
   };
@@ -573,7 +574,11 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
 
   // Auto-seed: create a default 0-priced tier for every covered province that doesn't have one yet.
   const autoSeedFromBranches = async () => {
-    const targets = Array.from(coveredProvinceIds).filter(pid => tiersFor(pid).length === 0);
+    // Map covered province NAMES to district top-level ids, keep only those with no existing tier.
+    const targets = provinces
+      .filter(p => coveredProvinceIds.has(p.province_ar))
+      .map(p => p.id)
+      .filter(did => tiersFor(did).length === 0);
     if (targets.length === 0) {
       toast.info("كل المحافظات المغطاة بفروع لها بالفعل صف تسعير");
       return;
