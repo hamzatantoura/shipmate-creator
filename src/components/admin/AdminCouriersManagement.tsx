@@ -16,12 +16,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft, Search, AlertTriangle, ChevronRight } from "lucide-react";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft, Search, AlertTriangle, ChevronRight, Building2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
 import CourierPricingTiers from "@/components/admin/CourierPricingTiers";
+import CourierBranchesPanel, { useCourierCoveredProvinces } from "@/components/admin/CourierBranchesPanel";
 
 interface Courier {
   id: string;
@@ -358,10 +359,11 @@ const INTEGRATION_OPTIONS = [
 ];
 
 // ============ Unified Pricing Matrix (district-based) ============
-function PricingMatrix({ courierId, provinces, areasOf }: {
+function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
   courierId: string;
   provinces: DistrictRow[];
   areasOf: (id: string) => DistrictRow[];
+  courierName?: string;
 }) {
   const [rates, setRates] = useState<DistrictRate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -372,6 +374,9 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
   const [bulkMaxW, setBulkMaxW] = useState<string>("999");
   const [bulkDays, setBulkDays] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  // Filter: show only provinces where courier has at least one active branch
+  const [onlyCovered, setOnlyCovered] = useState(true);
+  const { coveredProvinceIds, branchCountByProvince, reload: reloadCoverage } = useCourierCoveredProvinces(courierId);
 
   const load = async () => {
     setLoading(true);
@@ -525,22 +530,96 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
 
   if (loading) return <p className="text-sm text-muted-foreground text-center py-4">جاري التحميل...</p>;
 
+  // Auto-seed: create a default 0-priced tier for every covered province that doesn't have one yet.
+  const autoSeedFromBranches = async () => {
+    const targets = Array.from(coveredProvinceIds).filter(pid => tiersFor(pid).length === 0);
+    if (targets.length === 0) {
+      toast.info("كل المحافظات المغطاة بفروع لها بالفعل صف تسعير");
+      return;
+    }
+    setSaving(true);
+    let ok = 0;
+    for (const did of targets) {
+      const { error } = await supabase.from("courier_district_rates").insert({
+        courier_id: courierId, district_id: did,
+        custom_delivery_fee: 0, min_weight_kg: 0, max_weight_kg: 999,
+        estimated_days: null,
+      } as any);
+      if (!error) ok++;
+    }
+    await load();
+    setSaving(false);
+    if (ok > 0) toast.success(`تم تهيئة التغطية لـ${ok} محافظة — حدّد الأسعار الآن`);
+    else toast.error("لم تُنشأ صفوف — جرّب لاحقاً");
+  };
+
+  const visibleProvinces = onlyCovered && coveredProvinceIds.size > 0
+    ? provinces.filter(p => coveredProvinceIds.has(p.id))
+    : provinces;
+  const hiddenCount = provinces.length - visibleProvinces.length;
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
         حدّد شرائح الوزن وأسعار التوصيل لكل منطقة. لكل منطقة يمكن إضافة عدة شرائح بدون تداخل (مثل: 0–5كغ، 5–10كغ).
       </p>
 
+      {/* Coverage controls */}
+      <Card className="p-3 bg-primary/5 border-primary/20 space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">
+              التغطية الفعلية: {coveredProvinceIds.size} محافظة فيها فروع نشطة
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="only-covered" className="text-xs cursor-pointer">إظهار المحافظات المغطاة فقط</Label>
+            <Switch id="only-covered" checked={onlyCovered} onCheckedChange={setOnlyCovered} />
+          </div>
+        </div>
+        {coveredProvinceIds.size > 0 && (
+          <Button
+            onClick={autoSeedFromBranches}
+            disabled={saving}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 w-full sm:w-auto"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+            تهيئة التغطية تلقائياً من الفروع
+          </Button>
+        )}
+        {coveredProvinceIds.size === 0 && (
+          <p className="text-[11px] text-muted-foreground">
+            ⚠️ لا توجد فروع نشطة لـ{courierName || "هذه الشركة"} — أضف الفروع من تبويب «الفروع» أولاً.
+          </p>
+        )}
+      </Card>
+
       {/* Bulk apply */}
       <Card className="p-3 bg-muted/30 space-y-2">
         <h4 className="text-sm font-semibold flex items-center gap-1.5">
           <DollarSign className="h-4 w-4 text-primary" /> تسعير سريع — إضافة شريحة واحدة لكل المحافظة
         </h4>
+        {bulkProvId && coveredProvinceIds.size > 0 && !coveredProvinceIds.has(bulkProvId) && (
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md p-2 text-xs text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>هذه المحافظة لا يوجد فيها فرع لـ{courierName || "هذه الشركة"}. أضف فرعاً أولاً من تبويب «الفروع» لتظهر تلقائياً، أو تابع التسعير إذا كانت الشركة تخدمها بالتعاون.</span>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Select value={bulkProvId} onValueChange={setBulkProvId}>
             <SelectTrigger><SelectValue placeholder="المحافظة" /></SelectTrigger>
             <SelectContent>
-              {provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {provinces.map(p => {
+                const c = branchCountByProvince[p.id] || 0;
+                return (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}{c > 0 ? ` · ${c} فرع` : ""}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <Input type="number" min="0" placeholder="من وزن" value={bulkMinW} onChange={e => setBulkMinW(e.target.value)} dir="ltr" />
@@ -569,10 +648,12 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
 
       {/* Per-district matrix */}
       <div className="border border-border rounded-md divide-y divide-border max-h-[28rem] overflow-y-auto">
-        {provinces.map(p => {
+        {visibleProvinces.map(p => {
           const isExp = expanded[p.id];
           const subs = areasOf(p.id);
           const provTiers = tiersFor(p.id);
+          const branchCount = branchCountByProvince[p.id] || 0;
+          const isCovered = branchCount > 0;
           return (
             <div key={p.id}>
               <button
@@ -582,6 +663,15 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
               >
                 {isExp ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />}
                 <span className="flex-1 text-sm font-medium">{p.name}</span>
+                {isCovered ? (
+                  <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-0.5">
+                    <Building2 className="h-2.5 w-2.5" /> {branchCount} فرع
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                    لا فرع
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-[10px]">
                   {provTiers.length} شريحة (المحافظة)
                 </Badge>
@@ -614,10 +704,30 @@ function PricingMatrix({ courierId, provinces, areasOf }: {
             </div>
           );
         })}
+        {visibleProvinces.length === 0 && (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            لا توجد محافظات مغطاة بفروع لـ{courierName || "هذه الشركة"} بعد.
+            <br />
+            <button
+              type="button"
+              className="text-primary underline mt-1 text-xs"
+              onClick={() => setOnlyCovered(false)}
+            >
+              عرض كل المحافظات بأي حال
+            </button>
+          </div>
+        )}
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        إجمالي شرائح الوزن المُسعّرة: {rates.length}
-      </p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-[11px] text-muted-foreground">
+          إجمالي شرائح الوزن المُسعّرة: {rates.length}
+        </p>
+        {hiddenCount > 0 && onlyCovered && (
+          <p className="text-[11px] text-muted-foreground">
+            مخفية: {hiddenCount} محافظة بدون فروع
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -941,9 +1051,10 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
         </SheetHeader>
 
         <Tabs value={profileTab} onValueChange={setProfileTab} dir="rtl" className="mt-4">
-          <TabsList className="w-full grid grid-cols-5 h-auto">
+          <TabsList className="w-full grid grid-cols-6 h-auto">
             <TabsTrigger value="info" className="gap-1 text-[11px] px-1 py-2"><Info className="h-3.5 w-3.5" /> الأساسية</TabsTrigger>
             <TabsTrigger value="account" className="gap-1 text-[11px] px-1 py-2"><KeyRound className="h-3.5 w-3.5" /> الدخول</TabsTrigger>
+            <TabsTrigger value="branches" className="gap-1 text-[11px] px-1 py-2"><Building2 className="h-3.5 w-3.5" /> الفروع</TabsTrigger>
             <TabsTrigger value="coverage" className="gap-1 text-[11px] px-1 py-2"><MapIcon className="h-3.5 w-3.5" /> التغطية والتسعير</TabsTrigger>
             <TabsTrigger value="wallet" className="gap-1 text-[11px] px-1 py-2"><WalletIcon className="h-3.5 w-3.5" /> المحفظة</TabsTrigger>
             <TabsTrigger value="orders" className="gap-1 text-[11px] px-1 py-2"><Package className="h-3.5 w-3.5" /> الطلبات</TabsTrigger>
@@ -1122,6 +1233,19 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
             )}
           </TabsContent>
 
+          {/* TAB — Branches */}
+          <TabsContent value="branches" className="mt-4 space-y-4">
+            <Card className="p-4 space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" /> فروع الشركة
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                كل فرع تُضيفه هنا يظهر تلقائياً في تبويب «التغطية والتسعير» كمحافظة مغطّاة، ويصبح متاحاً للتجار عند إنشاء الطلبات في تلك المحافظة.
+              </p>
+            </Card>
+            <CourierBranchesPanel courierId={courier.id} />
+          </TabsContent>
+
           {/* TAB 3 — Coverage & Custom Pricing */}
           <TabsContent value="coverage" className="mt-4 space-y-4">
             <Card className="p-4 space-y-3">
@@ -1129,9 +1253,9 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
                 <MapIcon className="h-4 w-4 text-primary" /> مصفوفة التغطية والأسعار
               </h4>
               <p className="text-xs text-muted-foreground">
-                المصدر الموحَّد للتغطية والتسعير حسب المنطقة وشريحة الوزن.
+                المصدر الموحَّد للتغطية والتسعير حسب المنطقة وشريحة الوزن. المحافظات المغطاة بفروع تظهر تلقائياً مع شارة 🟢 عدد الفروع.
               </p>
-              <PricingMatrix courierId={courier.id} provinces={provinces} areasOf={areasOf} />
+              <PricingMatrix courierId={courier.id} provinces={provinces} areasOf={areasOf} courierName={courier.name} />
             </Card>
 
             <CourierPricingTiers courierId={courier.id} />
