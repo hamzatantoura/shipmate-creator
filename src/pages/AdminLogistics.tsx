@@ -90,6 +90,18 @@ export default function AdminLogistics() {
   const [historyMap, setHistoryMap] = useState<Record<string, StatusLog[]>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Persisted active tab — stays put across re-renders and page refreshes
+  const TAB_STORAGE_KEY = "admin-active-tab";
+  const VALID_TABS = ["shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions"];
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window === "undefined") return "shipments";
+    const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
+    return saved && VALID_TABS.includes(saved) ? saved : "shipments";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
   const pendingTopups = topups.filter(t => t.status === "pending").length;
   const pendingPayouts = payouts.filter(p => p.status === "pending").length;
   const totalPending = pendingTopups + pendingPayouts;
@@ -259,7 +271,7 @@ export default function AdminLogistics() {
           </Card>
         </div>
 
-        <Tabs defaultValue="shipments" dir="rtl">
+        <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
           <TabsList>
             <TabsTrigger value="shipments" className="gap-1.5">
               <Package className="h-3.5 w-3.5" /> إدارة الشحنات

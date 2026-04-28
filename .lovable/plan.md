@@ -1,38 +1,45 @@
-# لماذا لا ترى أي تغيير؟
+# إصلاح مشكلة إعادة ضبط التبويبات
 
-التعديلات السابقة طُبّقت على `src/components/ShipmentForm.tsx`، **لكن صفحة "إضافة طلب جديد" في `/merchant/orders` لا تستخدم هذا المكوّن إطلاقاً**. هي نموذج مستقل داخل `src/pages/MerchantOrdersPage.tsx` يجلب كل الشركات النشطة مباشرة من جدول `couriers` بدون أي فلترة على الفروع (`courier_branches`) أو التسعيرة (`courier_district_rates`).
+## المشكلة
+في لوحة الأدمن (`/admin`)، كل مرة تنتقل فيها بين التبويبات (شركات الشحن، الفروع، المناطق، التجار...) يعيدك النظام تلقائياً إلى تبويب **"إدارة الشحنات"**.
 
-ولهذا تظهر لديك 4 شركات (`عغفغب`, `الوصول`, `masarat`, `خالد`) في القائمة مع أن `masarat` فقط لها فرع فعلي.
+## السبب التقني
+المكون يستخدم `<Tabs defaultValue="shipments">` بدون التحكم في الحالة (uncontrolled). 
 
-# الحل
+عند كل إعادة رندر للصفحة — وهو ما يحدث باستمرار بسبب:
+- تحديث البيانات (`fetchData`)
+- تحديثات الحالة الداخلية (`statusMap`, `historyMap`, `expandedId`)
+- المكونات الفرعية (إدارة الفروع، التجار...) التي تنفذ عملياتها الخاصة
 
-تطبيق نفس قواعد التقاطع الصارمة على `MerchantOrdersPage.tsx` بدل الاعتماد على قائمة `couriers` العامة.
+— يُعاد ضبط التبويب إلى القيمة الافتراضية "shipments".
 
-## التغييرات في `src/pages/MerchantOrdersPage.tsx`
+نفس المشكلة موجودة (بدرجة أخف) في:
+- `src/components/courier/CourierWalletPanel.tsx` (`defaultValue="ledger"`)
+- `src/components/admin/AdminCouriersManagement.tsx` (`defaultValue="info"` داخل Dialog)
 
-1. **جلب الفروع النشطة**: إضافة استعلام جديد إلى `courier_branches` ضمن `Promise.all` الموجود (السطر 161) يجلب `id, courier_id, name, latitude, longitude` حيث `is_active = true`، ويُحفظ في state جديد `branches`.
+أما `CourierOrders.tsx` و `AdminSettlements.tsx` فمستخدمان بشكل صحيح (controlled).
 
-2. **تصفية مرتبطة بالمحافظة المختارة (`form.provinceId`)**: إنشاء `useMemo` يبني قائمة `availableCouriers` تطبّق التقاطع التالي:
-   - الشركة `is_active` في `couriers` ✓
-   - الشركة لديها فرع `is_active` واحد على الأقل في `courier_branches` ✓
-   - يوجد سجل تسعيرة في `courier_district_rates` يطابق `courier_id` و (`district_id = form.districtId` أو `district_id = form.provinceId` كـ fallback) ✓
+## الحل
 
-3. **الترتيب حسب القرب الجغرافي**: إذا كان للمحافظة/المنطقة المختارة إحداثيات (`latitude/longitude` في جدول `districts`)، حساب مسافة Haversine بين كل فرع وإحداثيات المنطقة، وترتيب `availableCouriers` تصاعدياً حسب أقرب فرع لكل شركة. عند غياب الإحداثيات، يُستخدم الترتيب الأبجدي كاحتياط.
+### 1. `src/pages/AdminLogistics.tsx` (الأهم)
+- إضافة `const [activeTab, setActiveTab] = useState<string>(...)` 
+- تحويل `<Tabs defaultValue="shipments">` إلى `<Tabs value={activeTab} onValueChange={setActiveTab}>`
+- **حفظ التبويب النشط في `sessionStorage`** بمفتاح `admin-active-tab` ليبقى محفوظاً حتى عند إعادة تحميل الصفحة (F5) أو فتح/إغلاق Dialog.
+- القيمة الابتدائية تُقرأ من `sessionStorage` أو "shipments" كاحتياطي.
 
-4. **استبدال قائمة العرض**: في الجزء الذي يعرض بطاقات الشركات (حوالي السطر 477 `{couriers.map((c) => ...)}` ) → استخدام `availableCouriers` بدل `couriers`.
+### 2. `src/components/courier/CourierWalletPanel.tsx`
+- نفس النمط: تحويل من uncontrolled إلى controlled مع حفظ في `sessionStorage` بمفتاح `courier-wallet-tab`.
 
-5. **رسائل حالة دقيقة بالعربية** بدل "لا توجد شركات شحن مفعلة لهذه الوجهة" العامة:
-   - عند عدم اختيار محافظة: "اختر المحافظة أولاً لعرض شركات الشحن وأسعارها" (موجودة).
-   - عند اختيار محافظة وعدم وجود فروع نشطة في المنطقة: **"لا يوجد فرع شحن متاح لهذه المنطقة"**.
-   - عند وجود فروع لكن بدون تسعيرة مطابقة: **"لا توجد تسعيرة لهذه الوجهة"**.
+### 3. `src/components/admin/AdminCouriersManagement.tsx`
+- التبويب موجود داخل Dialog لتفاصيل شركة شحن. التحويل إلى controlled مع إعادة الضبط إلى "info" عند فتح dialog جديد لشركة مختلفة.
 
-6. **تنظيف رسوم التوصيل**: إبقاء `resolveDeliveryFee` كما هو لكن لن يتم احتساب fallback إلى `district.delivery_fee` العام إلا إذا وُجدت تسعيرة شركة (لأن الشركات بدون تسعيرة لن تظهر أصلاً).
+### 4. (وقاية) `MerchantSettingsPage` وأي صفحات تبويبات أخرى
+- مراجعة سريعة لباقي الصفحات وإضافة نفس النمط لو وُجدت `Tabs` بدون تحكم.
 
-## ملاحظة حول تحذير console
+## ملاحظة جانبية مهمة
+المكون `AdminBranchesManagement` (تبويب "فروع الشحن") يستدعي `fetchData` على الأرجح بعد كل عملية إضافة/تعديل، مما يُسبب re-render للأب `AdminLogistics`. حتى بعد تحويل `Tabs` إلى controlled، يجب التأكد أن `fetchData` في `AdminLogistics` لا يُستدعى دون داعٍ بعد عمليات في تبويبات لا علاقة لها بالشحنات. لكن هذا تحسين أداء — الإصلاح الأساسي (controlled tabs) سيحل المشكلة الظاهرة للمستخدم بشكل كامل.
 
-تحذير `Function components cannot be given refs ... DialogFooter` يأتي من تمرير ref إلى `DialogFooter` داخل `MerchantOrdersPage`. ليس له علاقة بمشكلة الفلترة لكنه ملاحظ في السجلات. سأصلحه ضمن نفس التعديل بإزالة الـ ref الزائد إن وُجد.
-
-## الملفات المعدّلة
-- `src/pages/MerchantOrdersPage.tsx` (التغيير الرئيسي)
-
-بعد موافقتك سأنفّذ التعديلات مباشرة.
+## النتيجة المتوقعة
+- ستبقى في تبويب "فروع الشحن" أثناء إضافة الفروع دون أن تُرحَّل إلى "إدارة الشحنات".
+- التبويب المختار سيُحفظ حتى لو حدّثت الصفحة.
+- نفس السلوك المحسَّن سيُطبَّق على محفظة المندوب وحوار تفاصيل شركة الشحن.
