@@ -519,6 +519,7 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
       targets.push(pid, ...areasOf(pid).map(a => a.id));
     }
     let ok = 0, skipped = 0;
+    let firstError = "";
     for (const did of targets) {
       if (overlaps(did, mn, mx)) { skipped++; continue; }
       const { error } = await supabase.from("courier_district_rates").insert({
@@ -526,12 +527,13 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
         custom_delivery_fee: fee, min_weight_kg: mn, max_weight_kg: mx,
         estimated_days: bulkDays.trim() || null,
       } as any);
-      if (!error) ok++; else skipped++;
+      if (!error) ok++;
+      else { skipped++; if (!firstError) firstError = error.message; }
     }
     await load();
     setSaving(false);
     if (ok > 0) toast.success(`تم إنشاء ${ok} شريحة في ${provIds.length} محافظة` + (skipped ? ` (تخطي ${skipped} للتداخل)` : ""));
-    else toast.error("لم تُنشأ أي شريحة — كلها متداخلة مع شرائح موجودة");
+    else toast.error(firstError ? `فشل الإدراج: ${firstError}` : "لم تُنشأ أي شريحة — تحقق من النطاق");
     setBulkFee(""); setBulkDays("");
   };
 
