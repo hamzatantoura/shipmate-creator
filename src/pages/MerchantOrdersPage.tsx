@@ -44,7 +44,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2 } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
@@ -125,6 +126,16 @@ interface SmartCourierRow {
   total_branches_in_destination: number;
 }
 
+interface CourierBranchOption {
+  branch_id: string;
+  branch_name: string;
+  address_details: string | null;
+  phone: string | null;
+  lat: number | null;
+  lng: number | null;
+  distance_km: number | null;
+}
+
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
   no_answer: "لا يرد",
@@ -192,6 +203,9 @@ export default function MerchantOrdersPage() {
   const [districtGeo, setDistrictGeo] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
   const [smartCouriers, setSmartCouriers] = useState<SmartCourierRow[]>([]);
   const [smartLoading, setSmartLoading] = useState(false);
+  // All branches per courier in destination province (for the expanded picker)
+  const [branchesByCourier, setBranchesByCourier] = useState<Record<string, CourierBranchOption[]>>({});
+  const [expandedCourierId, setExpandedCourierId] = useState<string | null>(null);
   // Map: districts.id (province-level row) -> provinces.id (FK target used by RPC & branches)
   const [provinceIdMap, setProvinceIdMap] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -288,14 +302,17 @@ export default function MerchantOrdersPage() {
     districtId: "",
     cod: "",
     courierId: "",
+    branchId: "",
   });
   const [boxes, setBoxes] = useState<BoxItem[]>([
     { id: crypto.randomUUID(), weight: "" },
   ]);
 
   const resetForm = () => {
-    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "", courierId: "" });
+    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "", courierId: "", branchId: "" });
     setBoxes([{ id: crypto.randomUUID(), weight: "" }]);
+    setExpandedCourierId(null);
+    setBranchesByCourier({});
   };
 
   const addBox = () => setBoxes((b) => [...b, { id: crypto.randomUUID(), weight: "" }]);
@@ -321,7 +338,8 @@ export default function MerchantOrdersPage() {
     const cod = Number(form.cod) || 0;
     const deliveryFee = resolveDeliveryFee(area?.id || null, prov?.id || null, form.courierId || null);
     const picked = smartCouriers.find((s) => s.courier_id === form.courierId);
-    const assignedBranchId = picked?.nearest_branch_id || null;
+    // Prefer the branch the merchant explicitly selected; otherwise default to nearest.
+    const assignedBranchId = form.branchId || picked?.nearest_branch_id || null;
 
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
@@ -426,6 +444,28 @@ export default function MerchantOrdersPage() {
       setSmartLoading(false);
     });
   }, [merchantProvinceId, form.provinceId, form.districtId, districtGeo, provinceIdMap]);
+
+  // Reset branches cache + expansion + selected branch when destination changes
+  useEffect(() => {
+    setBranchesByCourier({});
+    setExpandedCourierId(null);
+    setForm((f) => ({ ...f, branchId: "" }));
+  }, [form.provinceId, form.districtId]);
+
+  // Lazy-load all branches of a courier in the destination province
+  const loadBranchesForCourier = async (courierId: string) => {
+    if (branchesByCourier[courierId] || !form.provinceId) return;
+    const customerProvinceUuid = provinceIdMap[form.provinceId] || form.provinceId;
+    const dest = form.districtId ? districtGeo[form.districtId] : districtGeo[form.provinceId];
+    const { data, error } = await (supabase.rpc as any)("list_courier_branches_for_order", {
+      p_courier_id: courierId,
+      p_customer_province_id: customerProvinceUuid,
+      p_customer_lat: dest?.lat ?? null,
+      p_customer_lng: dest?.lng ?? null,
+    });
+    if (error) { toast.error("تعذر تحميل الفروع"); return; }
+    setBranchesByCourier((m) => ({ ...m, [courierId]: (data || []) as CourierBranchOption[] }));
+  };
 
   const availableCouriers = smartCouriers;
 
