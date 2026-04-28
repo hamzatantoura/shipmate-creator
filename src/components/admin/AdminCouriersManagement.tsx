@@ -1131,9 +1131,9 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
                 <MapIcon className="h-4 w-4 text-primary" /> مصفوفة التغطية والأسعار
               </h4>
               <p className="text-xs text-muted-foreground">
-                المصدر الموحَّد للتغطية والتسعير حسب المنطقة وشريحة الوزن.
+                المصدر الموحَّد للتغطية والتسعير حسب المنطقة وشريحة الوزن. المحافظات المغطاة بفروع تظهر تلقائياً مع شارة 🟢 عدد الفروع.
               </p>
-              <PricingMatrix courierId={courier.id} provinces={provinces} areasOf={areasOf} />
+              <PricingMatrix courierId={courier.id} provinces={provinces} areasOf={areasOf} courierName={courier.name} />
             </Card>
 
             <CourierPricingTiers courierId={courier.id} />
