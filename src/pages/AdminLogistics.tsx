@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,14 +94,33 @@ export default function AdminLogistics() {
   // Persisted active tab — stays put across re-renders and page refreshes
   const TAB_STORAGE_KEY = "admin-active-tab";
   const VALID_TABS = ["shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions"];
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === "undefined") return "shipments";
+    const fromUrl = (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null);
+    if (fromUrl && VALID_TABS.includes(fromUrl)) return fromUrl;
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
     return saved && VALID_TABS.includes(saved) ? saved : "shipments";
   });
   useEffect(() => {
     if (typeof window !== "undefined") sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
+  // Keep the URL in sync with the selected tab (without polluting history)
+  useEffect(() => {
+    const current = searchParams.get("tab");
+    if (current !== activeTab) {
+      const next = new URLSearchParams(searchParams);
+      next.set("tab", activeTab);
+      setSearchParams(next, { replace: true });
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  // React to external URL changes (e.g. user clicks a link that changes ?tab=)
+  useEffect(() => {
+    const fromUrl = searchParams.get("tab");
+    if (fromUrl && VALID_TABS.includes(fromUrl) && fromUrl !== activeTab) {
+      setActiveTab(fromUrl);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pendingTopups = topups.filter(t => t.status === "pending").length;
   const pendingPayouts = payouts.filter(p => p.status === "pending").length;
