@@ -26,8 +26,9 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
-  Camera, Zap,
+  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
 } from "recharts";
@@ -52,8 +53,12 @@ interface CourierOrderRow {
   notes: string | null;
   return_reason?: string | null;
   shipment_id?: string | null;
+  assigned_branch_id?: string | null;
   couriers?: { name: string } | null;
   districts?: { name: string } | null;
+  shipments?: { collection_fee: number | null } | null;
+  branch_name?: string | null;
+  collection_fee?: number;
 }
 
 /**
@@ -110,6 +115,8 @@ export default function CourierOrders() {
   const [returnReason, setReturnReason] = useState<string>("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabKey>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [editDialog, setEditDialog] = useState<CourierOrderRow | null>(null);
@@ -131,7 +138,7 @@ export default function CourierOrders() {
     const [ordersRes, courierRes] = await Promise.all([
       supabase
         .from("orders")
-        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, couriers(name), districts(name)")
+        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       supabase
@@ -142,7 +149,23 @@ export default function CourierOrders() {
         .maybeSingle(),
     ]);
     if (ordersRes.error) toast.error("تعذر تحميل الطلبات");
-    else setOrders((ordersRes.data || []) as CourierOrderRow[]);
+    else {
+      const rawOrders = (ordersRes.data || []) as unknown as CourierOrderRow[];
+      // Resolve branch names via separate query (no FK on assigned_branch_id)
+      const branchIds = Array.from(new Set(rawOrders.map(o => o.assigned_branch_id).filter(Boolean) as string[]));
+      let branchMap = new Map<string, string>();
+      if (branchIds.length) {
+        const { data: branches } = await supabase
+          .from("courier_branches").select("id, name").in("id", branchIds);
+        branchMap = new Map((branches || []).map(b => [b.id as string, b.name as string]));
+      }
+      const enriched = rawOrders.map(o => ({
+        ...o,
+        branch_name: o.assigned_branch_id ? (branchMap.get(o.assigned_branch_id) ?? null) : null,
+        collection_fee: Number(o.shipments?.collection_fee ?? 0),
+      }));
+      setOrders(enriched);
+    }
     if (courierRes.error) {
       console.error("Courier fetch error:", courierRes.error);
     }
@@ -230,17 +253,32 @@ export default function CourierOrders() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return orders.filter(o => {
+    const list = orders.filter(o => {
       if (!TAB_FILTERS[tab](o.status)) return false;
+      if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (!q) return true;
       const sila = silaCodeOf(o.id).toLowerCase();
       return (
         sila.includes(q) ||
         o.receiver_name.toLowerCase().includes(q) ||
-        o.phone_number.toLowerCase().includes(q)
+        o.phone_number.toLowerCase().includes(q) ||
+        (o.detailed_address || "").toLowerCase().includes(q)
       );
     });
-  }, [orders, search, tab]);
+    const sorted = [...list].sort((a, b) => {
+      const da = new Date(a.created_at).getTime();
+      const db = new Date(b.created_at).getTime();
+      return sortDir === "desc" ? db - da : da - db;
+    });
+    return sorted;
+  }, [orders, search, tab, statusFilter, sortDir]);
+
+  // Distinct statuses present in current data, for the status filter dropdown
+  const availableStatuses = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(o => set.add(o.status));
+    return Array.from(set);
+  }, [orders]);
 
   // Per-tab counters (respect search to make counts useful)
   const tabCounts = useMemo(() => {
@@ -327,6 +365,55 @@ export default function CourierOrders() {
     setSelectedIds(prev => checked ? Array.from(new Set([...prev, id])) : prev.filter(x => x !== id));
   };
   const clearSelection = () => setSelectedIds([]);
+
+  // Row background tint based on status (semantic tokens, low opacity)
+  const rowToneClass = (status: string): string => {
+    switch (status) {
+      case "delivered":        return "bg-success/10 hover:bg-success/15";
+      case "out_for_delivery": return "bg-info/10 hover:bg-info/15";
+      case "shipped":          return "bg-info/5 hover:bg-info/10";
+      case "processing":       return "bg-primary/5 hover:bg-primary/10";
+      case "pending":
+      case "new":              return "bg-warning/10 hover:bg-warning/15";
+      case "returned":
+      case "cancelled":        return "bg-destructive/10 hover:bg-destructive/15";
+      default:                 return "hover:bg-muted/30";
+    }
+  };
+
+  // Excel export — respects current filters (exports rows visible in `filtered`)
+  const exportExcel = () => {
+    if (filtered.length === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
+    const data = filtered.map(o => {
+      const cod = Number(o.final_sale_price ?? o.total_amount ?? 0);
+      return {
+        "تاريخ الطلبية": new Date(o.created_at).toLocaleDateString("en-GB"),
+        "مكان التسليم": o.detailed_address || "",
+        "الكود": silaCodeOf(o.id),
+        "اسم المستلم": o.receiver_name,
+        "رقم الهاتف": o.phone_number,
+        "المدينة": o.districts?.name || o.city,
+        "الفرع": o.branch_name || "—",
+        "قيمة": Number(o.total_amount ?? 0),
+        "المبلغ المطلوب تحصيله (COD)": cod,
+        "قيمة أجور الحوالة": Number(o.collection_fee ?? 0),
+        "رسوم التوصيل": Number(o.delivery_fee ?? 0),
+        "الحالة": getOrderStatusMeta(o.status).label,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
+      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 18 },
+      { wch: 14 }, { wch: 14 },
+    ];
+    if (!ws["!views"]) ws["!views"] = [{ RTL: true }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
+    toast.success(`تم تصدير ${filtered.length} طلب إلى Excel`);
+  };
 
   const exportCsv = () => {
     const rows = orders.filter(o => selectedIds.includes(o.id));
@@ -666,14 +753,37 @@ export default function CourierOrders() {
                   ابحث، صنّف وحدّث حالات الطلبات بسرعة.
                 </CardDescription>
               </div>
-              <div className="relative w-full md:w-72">
-                <Search className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="بحث برمز Sila، الاسم، أو الهاتف..."
-                  className="pr-9 h-9 text-sm"
-                />
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div className="relative w-full sm:w-72">
+                  <Search className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="بحث برمز، اسم، هاتف، أو عنوان..."
+                    className="pr-9 h-9 text-sm"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 text-sm w-full sm:w-44">
+                    <SelectValue placeholder="تصفية الحالة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل الحالات</SelectItem>
+                    {availableStatuses.map(s => (
+                      <SelectItem key={s} value={s}>{getOrderStatusMeta(s).label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-1.5"
+                  onClick={exportExcel}
+                  disabled={filtered.length === 0}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  تصدير إلى إكسل
+                </Button>
               </div>
             </div>
 
@@ -756,13 +866,28 @@ export default function CourierOrders() {
                           aria-label="تحديد الكل"
                         />
                       </TableHead>
+                      <TableHead className="text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}
+                          className="inline-flex items-center gap-1 hover:text-primary transition"
+                        >
+                          تاريخ الطلبية
+                          {sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                        </button>
+                      </TableHead>
+                      <TableHead className="text-xs">مكان التسليم</TableHead>
                       <TableHead className="text-xs">الكود</TableHead>
-                      <TableHead className="text-xs">المستلم</TableHead>
-                      <TableHead className="text-xs">الهاتف</TableHead>
-                      <TableHead className="text-xs">العنوان</TableHead>
-                      <TableHead className="text-xs">قيمة COD</TableHead>
+                      <TableHead className="text-xs">اسم المستلم</TableHead>
+                      <TableHead className="text-xs">رقم الهاتف</TableHead>
+                      <TableHead className="text-xs">المدينة</TableHead>
+                      <TableHead className="text-xs">الفرع</TableHead>
+                      <TableHead className="text-xs">قيمة</TableHead>
+                      <TableHead className="text-xs">المبلغ المطلوب تحصيله</TableHead>
+                      <TableHead className="text-xs">قيمة أجور الحوالة</TableHead>
+                      <TableHead className="text-xs">رسوم التوصيل</TableHead>
                       <TableHead className="text-xs">الحالة</TableHead>
-                      <TableHead className="w-[200px] text-xs">تحديث الحالة</TableHead>
+                      <TableHead className="w-[180px] text-xs">تحديث الحالة</TableHead>
                       <TableHead className="w-[50px] text-xs"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -772,7 +897,7 @@ export default function CourierOrders() {
                       const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
                       const checked = selectedIds.includes(o.id);
                       return (
-                        <TableRow key={o.id} className={`hover:bg-muted/30 ${checked ? "bg-primary/5" : ""}`}>
+                        <TableRow key={o.id} className={`${rowToneClass(o.status)} ${checked ? "ring-1 ring-primary/40" : ""}`}>
                           <TableCell>
                             <Checkbox
                               checked={checked}
@@ -780,14 +905,23 @@ export default function CourierOrders() {
                               aria-label={`تحديد ${silaCodeOf(o.id)}`}
                             />
                           </TableCell>
+                          <TableCell className="text-xs whitespace-nowrap tabular-nums">
+                            {new Date(o.created_at).toLocaleDateString("en-GB")}
+                          </TableCell>
+                          <TableCell className="max-w-[220px]">
+                            <div className="text-xs text-muted-foreground truncate" title={o.detailed_address}>
+                              {o.detailed_address || "—"}
+                            </div>
+                          </TableCell>
                           <TableCell className="font-mono text-[11px] text-muted-foreground">{silaCodeOf(o.id)}</TableCell>
                           <TableCell className="font-medium text-sm">{o.receiver_name}</TableCell>
                           <TableCell dir="ltr" className="text-xs text-muted-foreground">{o.phone_number}</TableCell>
-                          <TableCell className="max-w-[260px]">
-                            <div className="text-sm">{o.districts?.name || o.city}</div>
-                            <div className="text-xs text-muted-foreground truncate">{o.detailed_address}</div>
-                          </TableCell>
-                          <TableCell className="font-semibold text-sm tabular-nums">{fmtSYP(Number(cod))}</TableCell>
+                          <TableCell className="text-sm">{o.districts?.name || o.city}</TableCell>
+                          <TableCell className="text-xs">{o.branch_name || "—"}</TableCell>
+                          <TableCell className="text-xs tabular-nums whitespace-nowrap">{fmtSYP(Number(o.total_amount ?? 0))}</TableCell>
+                          <TableCell className="font-semibold text-sm tabular-nums whitespace-nowrap">{fmtSYP(Number(cod))}</TableCell>
+                          <TableCell className="text-xs tabular-nums whitespace-nowrap">{fmtSYP(Number(o.collection_fee ?? 0))}</TableCell>
+                          <TableCell className="text-xs tabular-nums whitespace-nowrap">{fmtSYP(Number(o.delivery_fee ?? 0))}</TableCell>
                           <TableCell>
                             {(() => {
                               const meta = getOrderStatusMeta(o.status);
