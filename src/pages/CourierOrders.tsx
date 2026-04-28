@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,14 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
-  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet,
+  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon,
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { DateRange } from "react-day-picker";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
 } from "recharts";
@@ -105,6 +110,7 @@ const TAB_LABELS: Record<TabKey, string> = {
 
 export default function CourierOrders() {
   const { user, signOut } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<CourierOrderRow[]>([]);
   const [companyName, setCompanyName] = useState<string>("");
   const [companyLoaded, setCompanyLoaded] = useState(false);
@@ -113,9 +119,21 @@ export default function CourierOrders() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
   const [returnReason, setReturnReason] = useState<string>("");
-  const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<TabKey>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
+  const [tab, setTab] = useState<TabKey>(() => {
+    const t = searchParams.get("tab") as TabKey | null;
+    return t && ["all","pending","active","delivered","returned"].includes(t) ? t : "all";
+  });
+  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (!from && !to) return undefined;
+    return {
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+    };
+  });
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -175,6 +193,19 @@ export default function CourierOrders() {
   }, [user]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Persist filters to URL
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    const setOrDel = (k: string, v: string) => { if (v) next.set(k, v); else next.delete(k); };
+    setOrDel("q", search.trim());
+    setOrDel("tab", tab === "all" ? "" : tab);
+    setOrDel("status", statusFilter === "all" ? "" : statusFilter);
+    setOrDel("from", dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "");
+    setOrDel("to", dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : "");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, tab, statusFilter, dateRange]);
 
   useEffect(() => {
     if (!user) return;
@@ -253,9 +284,16 @@ export default function CourierOrders() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const fromTs = dateRange?.from ? new Date(dateRange.from).setHours(0,0,0,0) : null;
+    const toTs = dateRange?.to ? new Date(dateRange.to).setHours(23,59,59,999) : null;
     const list = orders.filter(o => {
       if (!TAB_FILTERS[tab](o.status)) return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
+      if (fromTs !== null || toTs !== null) {
+        const t = new Date(o.created_at).getTime();
+        if (fromTs !== null && t < fromTs) return false;
+        if (toTs !== null && t > toTs) return false;
+      }
       if (!q) return true;
       const sila = silaCodeOf(o.id).toLowerCase();
       return (
@@ -271,7 +309,7 @@ export default function CourierOrders() {
       return sortDir === "desc" ? db - da : da - db;
     });
     return sorted;
-  }, [orders, search, tab, statusFilter, sortDir]);
+  }, [orders, search, tab, statusFilter, sortDir, dateRange]);
 
   // Distinct statuses present in current data, for the status filter dropdown
   const availableStatuses = useMemo(() => {
@@ -402,13 +440,22 @@ export default function CourierOrders() {
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
-    ws["!cols"] = [
-      { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
-      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 18 },
-      { wch: 14 }, { wch: 14 },
-    ];
-    if (!ws["!views"]) ws["!views"] = [{ RTL: true }];
+    // Auto-size columns based on header + content max length (with comfortable padding)
+    const headers = Object.keys(data[0] || {});
+    ws["!cols"] = headers.map((h) => {
+      const maxContent = data.reduce((m, row) => {
+        const v = (row as Record<string, unknown>)[h];
+        const len = String(v ?? "").length;
+        return len > m ? len : m;
+      }, h.length);
+      // Arabic chars render wider — add generous padding
+      return { wch: Math.min(60, Math.max(14, maxContent + 6)) };
+    });
+    // Force RTL view on sheet
+    ws["!views"] = [{ RTL: true }];
     const wb = XLSX.utils.book_new();
+    // Force RTL at workbook level too
+    wb.Workbook = { ...(wb.Workbook || {}), Views: [{ RTL: true }] };
     XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
     const stamp = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
@@ -774,6 +821,47 @@ export default function CourierOrders() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-9 gap-1.5 justify-start text-sm w-full sm:w-56 font-normal",
+                        !dateRange?.from && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "dd/MM/yyyy")} — {format(dateRange.to, "dd/MM/yyyy")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "dd/MM/yyyy")
+                        )
+                      ) : (
+                        <span>تصفية حسب التاريخ</span>
+                      )}
+                      {dateRange?.from && (
+                        <X
+                          className="h-3.5 w-3.5 mr-auto opacity-60 hover:opacity-100"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDateRange(undefined); }}
+                        />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
                 <Button
                   size="sm"
                   variant="outline"
@@ -969,6 +1057,23 @@ export default function CourierOrders() {
                               <DropdownMenuContent align="end" className="w-52">
                                 <DropdownMenuLabel className="text-xs">إجراءات</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                {!isFinal && (NEXT_STATUS_MAP[o.status] || []).length > 0 && (
+                                  <>
+                                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">
+                                      تحديث سريع للحالة
+                                    </DropdownMenuLabel>
+                                    {(NEXT_STATUS_MAP[o.status] || []).map(s => (
+                                      <DropdownMenuItem
+                                        key={s.value}
+                                        onClick={() => updateStatus(o.id, s.value)}
+                                        disabled={updatingId === o.id}
+                                      >
+                                        <CheckCircle2 className="h-4 w-4" /> {s.label}
+                                      </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                  </>
+                                )}
                                 <DropdownMenuItem onClick={() => openEditDialog(o)} disabled={isFinal}>
                                   <Scale className="h-4 w-4" /> تعديل الوزن/القيمة
                                 </DropdownMenuItem>
