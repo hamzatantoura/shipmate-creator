@@ -16,7 +16,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft, Search, AlertTriangle, ChevronRight } from "lucide-react";
+import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft, Search, AlertTriangle, ChevronRight, Building2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
