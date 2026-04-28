@@ -194,6 +194,19 @@ export default function CourierOrders() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // Persist filters to URL
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    const setOrDel = (k: string, v: string) => { if (v) next.set(k, v); else next.delete(k); };
+    setOrDel("q", search.trim());
+    setOrDel("tab", tab === "all" ? "" : tab);
+    setOrDel("status", statusFilter === "all" ? "" : statusFilter);
+    setOrDel("from", dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : "");
+    setOrDel("to", dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : "");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, tab, statusFilter, dateRange]);
+
   useEffect(() => {
     if (!user) return;
     const ch = supabase
