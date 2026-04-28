@@ -341,29 +341,58 @@ export default function CourierBranchesPanel({ courierId }: { courierId: string 
  * actually serves (= has at least one active branch in).
  * Returns a Set of province UUIDs.
  */
+// Branches store province_id pointing to public.provinces (UUIDs).
+// PricingMatrix iterates districts (top-level rows) which use a DIFFERENT id-space,
+// but both share province name (provinces.name_ar === districts.province_ar).
+// So we expose coverage keyed by NAME to bridge the two id-spaces.
 export function useCourierCoveredProvinces(courierId: string) {
-  const [coveredProvinceIds, setCoveredProvinceIds] = useState<Set<string>>(new Set());
-  const [branchCountByProvince, setBranchCountByProvince] = useState<Record<string, number>>({});
+  const [coveredProvinceNames, setCoveredProvinceNames] = useState<Set<string>>(new Set());
+  const [branchCountByName, setBranchCountByName] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const reload = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data: branches } = await supabase
       .from("courier_branches")
       .select("province_id, is_active")
       .eq("courier_id", courierId)
       .eq("is_active", true);
+
+    const provIds = Array.from(
+      new Set((branches || []).map((b: any) => b.province_id).filter(Boolean))
+    );
+
+    let nameById: Record<string, string> = {};
+    if (provIds.length) {
+      const { data: provs } = await supabase
+        .from("provinces")
+        .select("id, name_ar")
+        .in("id", provIds);
+      (provs || []).forEach((p: any) => { nameById[p.id] = p.name_ar; });
+    }
+
     const counts: Record<string, number> = {};
-    (data || []).forEach((b: any) => {
-      if (!b.province_id) return;
-      counts[b.province_id] = (counts[b.province_id] || 0) + 1;
+    (branches || []).forEach((b: any) => {
+      const name = nameById[b.province_id];
+      if (!name) return;
+      counts[name] = (counts[name] || 0) + 1;
     });
-    setBranchCountByProvince(counts);
-    setCoveredProvinceIds(new Set(Object.keys(counts)));
+
+    setBranchCountByName(counts);
+    setCoveredProvinceNames(new Set(Object.keys(counts)));
     setLoading(false);
   };
 
   useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [courierId]);
 
-  return { coveredProvinceIds, branchCountByProvince, loading, reload };
+  // Backwards-compatible aliases (callers used coveredProvinceIds / branchCountByProvince
+  // but semantically they are now keyed by province NAME, matching districts.province_ar).
+  return {
+    coveredProvinceNames,
+    branchCountByName,
+    coveredProvinceIds: coveredProvinceNames,
+    branchCountByProvince: branchCountByName,
+    loading,
+    reload,
+  };
 }
