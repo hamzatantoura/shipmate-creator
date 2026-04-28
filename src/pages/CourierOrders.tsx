@@ -440,13 +440,22 @@ export default function CourierOrders() {
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
-    ws["!cols"] = [
-      { wch: 14 }, { wch: 28 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
-      { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 18 },
-      { wch: 14 }, { wch: 14 },
-    ];
-    if (!ws["!views"]) ws["!views"] = [{ RTL: true }];
+    // Auto-size columns based on header + content max length (with comfortable padding)
+    const headers = Object.keys(data[0] || {});
+    ws["!cols"] = headers.map((h) => {
+      const maxContent = data.reduce((m, row) => {
+        const v = (row as Record<string, unknown>)[h];
+        const len = String(v ?? "").length;
+        return len > m ? len : m;
+      }, h.length);
+      // Arabic chars render wider — add generous padding
+      return { wch: Math.min(60, Math.max(14, maxContent + 6)) };
+    });
+    // Force RTL view on sheet
+    ws["!views"] = [{ RTL: true }];
     const wb = XLSX.utils.book_new();
+    // Force RTL at workbook level too
+    wb.Workbook = { ...(wb.Workbook || {}), Views: [{ RTL: true }] };
     XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
     const stamp = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
