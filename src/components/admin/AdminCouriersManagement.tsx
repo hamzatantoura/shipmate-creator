@@ -530,22 +530,96 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
 
   if (loading) return <p className="text-sm text-muted-foreground text-center py-4">جاري التحميل...</p>;
 
+  // Auto-seed: create a default 0-priced tier for every covered province that doesn't have one yet.
+  const autoSeedFromBranches = async () => {
+    const targets = Array.from(coveredProvinceIds).filter(pid => tiersFor(pid).length === 0);
+    if (targets.length === 0) {
+      toast.info("كل المحافظات المغطاة بفروع لها بالفعل صف تسعير");
+      return;
+    }
+    setSaving(true);
+    let ok = 0;
+    for (const did of targets) {
+      const { error } = await supabase.from("courier_district_rates").insert({
+        courier_id: courierId, district_id: did,
+        custom_delivery_fee: 0, min_weight_kg: 0, max_weight_kg: 999,
+        estimated_days: null,
+      } as any);
+      if (!error) ok++;
+    }
+    await load();
+    setSaving(false);
+    if (ok > 0) toast.success(`تم تهيئة التغطية لـ${ok} محافظة — حدّد الأسعار الآن`);
+    else toast.error("لم تُنشأ صفوف — جرّب لاحقاً");
+  };
+
+  const visibleProvinces = onlyCovered && coveredProvinceIds.size > 0
+    ? provinces.filter(p => coveredProvinceIds.has(p.id))
+    : provinces;
+  const hiddenCount = provinces.length - visibleProvinces.length;
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
         حدّد شرائح الوزن وأسعار التوصيل لكل منطقة. لكل منطقة يمكن إضافة عدة شرائح بدون تداخل (مثل: 0–5كغ، 5–10كغ).
       </p>
 
+      {/* Coverage controls */}
+      <Card className="p-3 bg-primary/5 border-primary/20 space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">
+              التغطية الفعلية: {coveredProvinceIds.size} محافظة فيها فروع نشطة
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="only-covered" className="text-xs cursor-pointer">إظهار المحافظات المغطاة فقط</Label>
+            <Switch id="only-covered" checked={onlyCovered} onCheckedChange={setOnlyCovered} />
+          </div>
+        </div>
+        {coveredProvinceIds.size > 0 && (
+          <Button
+            onClick={autoSeedFromBranches}
+            disabled={saving}
+            size="sm"
+            variant="outline"
+            className="gap-1.5 w-full sm:w-auto"
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+            تهيئة التغطية تلقائياً من الفروع
+          </Button>
+        )}
+        {coveredProvinceIds.size === 0 && (
+          <p className="text-[11px] text-muted-foreground">
+            ⚠️ لا توجد فروع نشطة لـ{courierName || "هذه الشركة"} — أضف الفروع من تبويب «الفروع» أولاً.
+          </p>
+        )}
+      </Card>
+
       {/* Bulk apply */}
       <Card className="p-3 bg-muted/30 space-y-2">
         <h4 className="text-sm font-semibold flex items-center gap-1.5">
           <DollarSign className="h-4 w-4 text-primary" /> تسعير سريع — إضافة شريحة واحدة لكل المحافظة
         </h4>
+        {bulkProvId && coveredProvinceIds.size > 0 && !coveredProvinceIds.has(bulkProvId) && (
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md p-2 text-xs text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <span>هذه المحافظة لا يوجد فيها فرع لـ{courierName || "هذه الشركة"}. أضف فرعاً أولاً من تبويب «الفروع» لتظهر تلقائياً، أو تابع التسعير إذا كانت الشركة تخدمها بالتعاون.</span>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Select value={bulkProvId} onValueChange={setBulkProvId}>
             <SelectTrigger><SelectValue placeholder="المحافظة" /></SelectTrigger>
             <SelectContent>
-              {provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {provinces.map(p => {
+                const c = branchCountByProvince[p.id] || 0;
+                return (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}{c > 0 ? ` · ${c} فرع` : ""}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           <Input type="number" min="0" placeholder="من وزن" value={bulkMinW} onChange={e => setBulkMinW(e.target.value)} dir="ltr" />
@@ -574,10 +648,12 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
 
       {/* Per-district matrix */}
       <div className="border border-border rounded-md divide-y divide-border max-h-[28rem] overflow-y-auto">
-        {provinces.map(p => {
+        {visibleProvinces.map(p => {
           const isExp = expanded[p.id];
           const subs = areasOf(p.id);
           const provTiers = tiersFor(p.id);
+          const branchCount = branchCountByProvince[p.id] || 0;
+          const isCovered = branchCount > 0;
           return (
             <div key={p.id}>
               <button
@@ -587,6 +663,15 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
               >
                 {isExp ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />}
                 <span className="flex-1 text-sm font-medium">{p.name}</span>
+                {isCovered ? (
+                  <Badge className="text-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-0.5">
+                    <Building2 className="h-2.5 w-2.5" /> {branchCount} فرع
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                    لا فرع
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-[10px]">
                   {provTiers.length} شريحة (المحافظة)
                 </Badge>
@@ -619,10 +704,30 @@ function PricingMatrix({ courierId, provinces, areasOf, courierName }: {
             </div>
           );
         })}
+        {visibleProvinces.length === 0 && (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            لا توجد محافظات مغطاة بفروع لـ{courierName || "هذه الشركة"} بعد.
+            <br />
+            <button
+              type="button"
+              className="text-primary underline mt-1 text-xs"
+              onClick={() => setOnlyCovered(false)}
+            >
+              عرض كل المحافظات بأي حال
+            </button>
+          </div>
+        )}
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        إجمالي شرائح الوزن المُسعّرة: {rates.length}
-      </p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-[11px] text-muted-foreground">
+          إجمالي شرائح الوزن المُسعّرة: {rates.length}
+        </p>
+        {hiddenCount > 0 && onlyCovered && (
+          <p className="text-[11px] text-muted-foreground">
+            مخفية: {hiddenCount} محافظة بدون فروع
+          </p>
+        )}
+      </div>
     </div>
   );
 }
