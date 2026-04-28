@@ -43,14 +43,71 @@ const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س
 export default function AdminDistrictsManagement() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // ===== Persisted UI state (survives tab switches and refresh in same session) =====
+  const SS_KEY = "admin-districts-ui";
+  type FormState = { name: string; parent_id: string; delivery_fee: string; lat: string; lng: string };
+  type Persisted = {
+    search: string;
+    expanded: string[];
+    dialogOpen: boolean;
+    editingId: string | null;
+    parentForNew: string | null;
+    form: FormState;
+  };
+  const emptyFormState: FormState = { name: "", parent_id: "", delivery_fee: "", lat: "", lng: "" };
+  const readPersisted = (): Persisted => {
+    if (typeof window === "undefined") {
+      return { search: "", expanded: [], dialogOpen: false, editingId: null, parentForNew: null, form: emptyFormState };
+    }
+    try {
+      const raw = sessionStorage.getItem(SS_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as Partial<Persisted>;
+        return {
+          search: p.search ?? "",
+          expanded: Array.isArray(p.expanded) ? p.expanded : [],
+          dialogOpen: !!p.dialogOpen,
+          editingId: p.editingId ?? null,
+          parentForNew: p.parentForNew ?? null,
+          form: { ...emptyFormState, ...(p.form || {}) },
+        };
+      }
+    } catch { /* ignore */ }
+    return { search: "", expanded: [], dialogOpen: false, editingId: null, parentForNew: null, form: emptyFormState };
+  };
+  const initial = readPersisted();
+
+  const [search, setSearch] = useState(initial.search);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(initial.expanded));
 
   // Dialogs
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<District | null>(null);
-  const [parentForNew, setParentForNew] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", parent_id: "", delivery_fee: "", lat: "", lng: "" });
+  const [dialogOpen, setDialogOpen] = useState(initial.dialogOpen);
+  const [editing, setEditing] = useState<District | null>(null); // hydrated after fetch
+  const [editingId, setEditingId] = useState<string | null>(initial.editingId);
+  const [parentForNew, setParentForNew] = useState<string | null>(initial.parentForNew);
+  const [form, setForm] = useState<FormState>(initial.form);
+
+  // Persist on every relevant change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload: Persisted = {
+      search,
+      expanded: Array.from(expanded),
+      dialogOpen,
+      editingId,
+      parentForNew,
+      form,
+    };
+    try { sessionStorage.setItem(SS_KEY, JSON.stringify(payload)); } catch { /* ignore */ }
+  }, [search, expanded, dialogOpen, editingId, parentForNew, form]);
+  const clearDraft = () => {
+    setDialogOpen(false);
+    setEditing(null);
+    setEditingId(null);
+    setParentForNew(null);
+    setForm(emptyFormState);
+  };
 
   const [confirmDelete, setConfirmDelete] = useState<District | null>(null);
   const [confirmDeleteAllChildren, setConfirmDeleteAllChildren] = useState<District | null>(null);
@@ -70,6 +127,14 @@ export default function AdminDistrictsManagement() {
   };
 
   useEffect(() => { fetchDistricts(); }, []);
+
+  // Re-hydrate `editing` reference after districts load (so a persisted edit dialog
+  // keeps pointing at the correct row even after a refresh).
+  useEffect(() => {
+    if (!editingId) { setEditing(null); return; }
+    const found = districts.find(d => d.id === editingId) || null;
+    setEditing(found);
+  }, [districts, editingId]);
 
   const provinces = useMemo(
     () => districts.filter(d => !d.parent_id).sort((a, b) => a.name.localeCompare(b.name, "ar")),
@@ -96,6 +161,7 @@ export default function AdminDistrictsManagement() {
 
   const openCreate = (parentId: string | null) => {
     setEditing(null);
+    setEditingId(null);
     setParentForNew(parentId);
     setForm({ name: "", parent_id: parentId || "", delivery_fee: "", lat: "", lng: "" });
     setDialogOpen(true);
@@ -103,6 +169,7 @@ export default function AdminDistrictsManagement() {
 
   const openEdit = (d: District) => {
     setEditing(d);
+    setEditingId(d.id);
     setParentForNew(null);
     setForm({
       name: d.name,
@@ -148,7 +215,7 @@ export default function AdminDistrictsManagement() {
       if (error) { toast.error("فشل الإضافة: " + error.message); return; }
       toast.success(form.parent_id ? "تمت إضافة المنطقة" : "تمت إضافة المحافظة");
     }
-    setDialogOpen(false);
+    clearDraft();
     fetchDistricts();
   };
 
@@ -386,7 +453,7 @@ export default function AdminDistrictsManagement() {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(o) => { if (!o) clearDraft(); else setDialogOpen(true); }}>
         <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -484,7 +551,7 @@ export default function AdminDistrictsManagement() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={clearDraft}>إلغاء</Button>
             <Button onClick={handleSave}>{editing ? "حفظ التعديل" : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
