@@ -88,12 +88,13 @@ export default function CourierPricingTiers({ courierId }: Props) {
       if (r.min < 0 || r.base < 0 || r.extra < 0) return `لا يُسمح بقيم سالبة في الصف ${r.i + 1}`;
       if (r.max <= r.min) return `الحد الأقصى يجب أن يكون أكبر من الحد الأدنى في الصف ${r.i + 1}`;
     }
-    // Overlap check (a.min < b.max && a.max > b.min)
+    // Overlap check — treat ranges as half-open [min, max) so touching edges (e.g. 0-5 and 5-10) are allowed
     for (let i = 0; i < norm.length; i++) {
       for (let j = i + 1; j < norm.length; j++) {
         const a = norm[i], b = norm[j];
-        if (a.min < b.max && a.max > b.min) {
-          return `تتداخل الشرائح: الصف ${a.i + 1} مع الصف ${b.i + 1}`;
+        const overlap = Math.max(a.min, b.min) < Math.min(a.max, b.max);
+        if (overlap) {
+          return `تتداخل الشريحة [${a.min}–${a.max}] (الصف ${a.i + 1}) مع الشريحة [${b.min}–${b.max}] (الصف ${b.i + 1})`;
         }
       }
     }
