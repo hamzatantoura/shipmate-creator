@@ -44,7 +44,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2 } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
@@ -125,6 +126,16 @@ interface SmartCourierRow {
   total_branches_in_destination: number;
 }
 
+interface CourierBranchOption {
+  branch_id: string;
+  branch_name: string;
+  address_details: string | null;
+  phone: string | null;
+  lat: number | null;
+  lng: number | null;
+  distance_km: number | null;
+}
+
 const RETURN_REASON_AR: Record<string, string> = {
   customer_refused: "رفض المستلم",
   no_answer: "لا يرد",
@@ -192,6 +203,9 @@ export default function MerchantOrdersPage() {
   const [districtGeo, setDistrictGeo] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
   const [smartCouriers, setSmartCouriers] = useState<SmartCourierRow[]>([]);
   const [smartLoading, setSmartLoading] = useState(false);
+  // All branches per courier in destination province (for the expanded picker)
+  const [branchesByCourier, setBranchesByCourier] = useState<Record<string, CourierBranchOption[]>>({});
+  const [expandedCourierId, setExpandedCourierId] = useState<string | null>(null);
   // Map: districts.id (province-level row) -> provinces.id (FK target used by RPC & branches)
   const [provinceIdMap, setProvinceIdMap] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -288,14 +302,17 @@ export default function MerchantOrdersPage() {
     districtId: "",
     cod: "",
     courierId: "",
+    branchId: "",
   });
   const [boxes, setBoxes] = useState<BoxItem[]>([
     { id: crypto.randomUUID(), weight: "" },
   ]);
 
   const resetForm = () => {
-    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "", courierId: "" });
+    setForm({ name: "", phone: "", address: "", provinceId: "", districtId: "", cod: "", courierId: "", branchId: "" });
     setBoxes([{ id: crypto.randomUUID(), weight: "" }]);
+    setExpandedCourierId(null);
+    setBranchesByCourier({});
   };
 
   const addBox = () => setBoxes((b) => [...b, { id: crypto.randomUUID(), weight: "" }]);
@@ -321,7 +338,8 @@ export default function MerchantOrdersPage() {
     const cod = Number(form.cod) || 0;
     const deliveryFee = resolveDeliveryFee(area?.id || null, prov?.id || null, form.courierId || null);
     const picked = smartCouriers.find((s) => s.courier_id === form.courierId);
-    const assignedBranchId = picked?.nearest_branch_id || null;
+    // Prefer the branch the merchant explicitly selected; otherwise default to nearest.
+    const assignedBranchId = form.branchId || picked?.nearest_branch_id || null;
 
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
@@ -426,6 +444,28 @@ export default function MerchantOrdersPage() {
       setSmartLoading(false);
     });
   }, [merchantProvinceId, form.provinceId, form.districtId, districtGeo, provinceIdMap]);
+
+  // Reset branches cache + expansion + selected branch when destination changes
+  useEffect(() => {
+    setBranchesByCourier({});
+    setExpandedCourierId(null);
+    setForm((f) => ({ ...f, branchId: "" }));
+  }, [form.provinceId, form.districtId]);
+
+  // Lazy-load all branches of a courier in the destination province
+  const loadBranchesForCourier = async (courierId: string) => {
+    if (branchesByCourier[courierId] || !form.provinceId) return;
+    const customerProvinceUuid = provinceIdMap[form.provinceId] || form.provinceId;
+    const dest = form.districtId ? districtGeo[form.districtId] : districtGeo[form.provinceId];
+    const { data, error } = await (supabase.rpc as any)("list_courier_branches_for_order", {
+      p_courier_id: courierId,
+      p_customer_province_id: customerProvinceUuid,
+      p_customer_lat: dest?.lat ?? null,
+      p_customer_lng: dest?.lng ?? null,
+    });
+    if (error) { toast.error("تعذر تحميل الفروع"); return; }
+    setBranchesByCourier((m) => ({ ...m, [courierId]: (data || []) as CourierBranchOption[] }));
+  };
 
   const availableCouriers = smartCouriers;
 
@@ -612,17 +652,25 @@ export default function MerchantOrdersPage() {
                                   const fee = resolveDeliveryFee(form.districtId || null, form.provinceId, c.courier_id);
                                   const selected = form.courierId === c.courier_id;
                                   const isClosest = idx === 0 && c.distance_km != null;
+                                  const isExpanded = expandedCourierId === c.courier_id;
+                                  const branchesList = branchesByCourier[c.courier_id];
+                                  const selectedBranchInfo = branchesList?.find((b) => b.branch_id === form.branchId);
+                                  const displayBranchName = selected && selectedBranchInfo ? selectedBranchInfo.branch_name : c.nearest_branch_name;
+                                  const displayDistance = selected && selectedBranchInfo ? selectedBranchInfo.distance_km : c.distance_km;
                                   return (
-                                    <button
+                                    <div
                                       key={c.courier_id}
-                                      type="button"
-                                      onClick={() => setForm({ ...form, courierId: c.courier_id })}
-                                      className={`text-right p-3 rounded-md border transition-all ${
+                                      className={`rounded-md border transition-all ${
                                         selected
                                           ? "border-primary bg-primary/5 ring-1 ring-primary"
                                           : "border-border hover:border-primary/40 bg-card"
                                       }`}
                                     >
+                                      <button
+                                        type="button"
+                                        onClick={() => setForm({ ...form, courierId: c.courier_id, branchId: selected ? form.branchId : "" })}
+                                        className="w-full text-right p-3"
+                                      >
                                       <div className="flex items-start justify-between gap-3">
                                         <div className="flex items-start gap-2 flex-1 min-w-0">
                                           {c.logo_url ? (
@@ -643,23 +691,77 @@ export default function MerchantOrdersPage() {
                                             </div>
                                             <div className="flex items-center gap-1 text-[11px] text-muted-foreground mt-0.5">
                                               <MapPin className="h-3 w-3 shrink-0" />
-                                              <span className="truncate">{c.nearest_branch_name}</span>
-                                              {c.distance_km != null && (
+                                              <span className="truncate">{displayBranchName}</span>
+                                              {displayDistance != null && (
                                                 <span className="text-primary font-medium shrink-0">
-                                                  · {c.distance_km.toFixed(1)} كم
+                                                  · {displayDistance.toFixed(1)} كم
                                                 </span>
                                               )}
                                             </div>
-                                            {c.total_branches_in_destination > 1 && (
-                                              <div className="text-[10px] text-muted-foreground mt-0.5">
-                                                ({c.total_branches_in_destination} فروع متاحة في المحافظة)
-                                              </div>
-                                            )}
                                           </div>
                                         </div>
                                         <span className="text-sm font-bold text-primary shrink-0">{fmtSYP(fee)}</span>
                                       </div>
-                                    </button>
+                                      </button>
+
+                                      {c.total_branches_in_destination > 1 && (
+                                        <Collapsible
+                                          open={isExpanded}
+                                          onOpenChange={(open) => {
+                                            setExpandedCourierId(open ? c.courier_id : null);
+                                            if (open) loadBranchesForCourier(c.courier_id);
+                                          }}
+                                        >
+                                          <CollapsibleTrigger
+                                            type="button"
+                                            className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-muted-foreground hover:text-foreground border-t border-border/60 transition-colors"
+                                          >
+                                            <span>اختيار فرع آخر ({c.total_branches_in_destination} فروع متاحة)</span>
+                                            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                                          </CollapsibleTrigger>
+                                          <CollapsibleContent className="border-t border-border/60 bg-muted/20">
+                                            {!branchesList ? (
+                                              <div className="p-3 text-[11px] text-muted-foreground text-center">جاري تحميل الفروع...</div>
+                                            ) : branchesList.length === 0 ? (
+                                              <div className="p-3 text-[11px] text-muted-foreground text-center">لا توجد فروع</div>
+                                            ) : (
+                                              <div className="divide-y divide-border/40">
+                                                {branchesList.map((b) => {
+                                                  const branchSelected = selected && form.branchId === b.branch_id;
+                                                  return (
+                                                    <button
+                                                      key={b.branch_id}
+                                                      type="button"
+                                                      onClick={() => setForm({ ...form, courierId: c.courier_id, branchId: b.branch_id })}
+                                                      className={`w-full text-right px-3 py-2 flex items-start justify-between gap-2 hover:bg-primary/5 transition-colors ${
+                                                        branchSelected ? "bg-primary/10" : ""
+                                                      }`}
+                                                    >
+                                                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                                                        <div className={`mt-1 h-3 w-3 rounded-full border-2 shrink-0 ${
+                                                          branchSelected ? "border-primary bg-primary" : "border-muted-foreground/40"
+                                                        }`} />
+                                                        <div className="flex-1 min-w-0">
+                                                          <div className="text-xs font-medium text-foreground truncate">{b.branch_name}</div>
+                                                          {b.address_details && (
+                                                            <div className="text-[10px] text-muted-foreground truncate">{b.address_details}</div>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                      {b.distance_km != null && (
+                                                        <span className="text-[11px] text-primary font-medium shrink-0">
+                                                          {b.distance_km.toFixed(1)} كم
+                                                        </span>
+                                                      )}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      )}
+                                    </div>
                                   );
                                 })}
                               </div>
