@@ -284,9 +284,16 @@ export default function CourierOrders() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const fromTs = dateRange?.from ? new Date(dateRange.from).setHours(0,0,0,0) : null;
+    const toTs = dateRange?.to ? new Date(dateRange.to).setHours(23,59,59,999) : null;
     const list = orders.filter(o => {
       if (!TAB_FILTERS[tab](o.status)) return false;
       if (statusFilter !== "all" && o.status !== statusFilter) return false;
+      if (fromTs !== null || toTs !== null) {
+        const t = new Date(o.created_at).getTime();
+        if (fromTs !== null && t < fromTs) return false;
+        if (toTs !== null && t > toTs) return false;
+      }
       if (!q) return true;
       const sila = silaCodeOf(o.id).toLowerCase();
       return (
@@ -302,7 +309,7 @@ export default function CourierOrders() {
       return sortDir === "desc" ? db - da : da - db;
     });
     return sorted;
-  }, [orders, search, tab, statusFilter, sortDir]);
+  }, [orders, search, tab, statusFilter, sortDir, dateRange]);
 
   // Distinct statuses present in current data, for the status filter dropdown
   const availableStatuses = useMemo(() => {
