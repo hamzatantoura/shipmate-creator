@@ -19,7 +19,6 @@ import CourierOrders from "./pages/CourierOrders";
 import CourierWallet from "./pages/CourierWallet";
 import TopUp from "./pages/TopUp";
 import AdminLogistics from "./pages/AdminLogistics";
-import AdminDistricts from "./pages/AdminDistricts";
 import AdminSettlements from "./pages/AdminSettlements";
 import AdminSettings from "./pages/AdminSettings";
 import TrackShipment from "./pages/TrackShipment";
@@ -27,6 +26,7 @@ import TrackOrderPage from "./pages/TrackOrderPage";
 import Storefront from "./pages/Storefront";
 import ProductPage from "./pages/ProductPage";
 import NotFound from "./pages/NotFound";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -106,11 +106,10 @@ const App = () => (
               <AdminLogistics />
             </AuthGuard>
           } />
-          <Route path="/admin/districts" element={
-            <AuthGuard allowedRoles={["admin"]}>
-              <AdminDistricts />
-            </AuthGuard>
-          } />
+          <Route path="/admin/districts" element={<Navigate to="/admin?tab=districts" replace />} />
+          <Route path="/admin/branches" element={<Navigate to="/admin?tab=branches" replace />} />
+          <Route path="/admin/couriers" element={<Navigate to="/admin?tab=couriers" replace />} />
+          <Route path="/admin/merchants" element={<Navigate to="/admin?tab=merchants" replace />} />
           <Route path="/admin/settlements" element={
             <AuthGuard allowedRoles={["admin"]}>
               <AdminSettlements />
