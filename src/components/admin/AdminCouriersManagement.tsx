@@ -1124,6 +1124,19 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
             )}
           </TabsContent>
 
+          {/* TAB — Branches */}
+          <TabsContent value="branches" className="mt-4 space-y-4">
+            <Card className="p-4 space-y-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" /> فروع الشركة
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                كل فرع تُضيفه هنا يظهر تلقائياً في تبويب «التغطية والتسعير» كمحافظة مغطّاة، ويصبح متاحاً للتجار عند إنشاء الطلبات في تلك المحافظة.
+              </p>
+            </Card>
+            <CourierBranchesPanel courierId={courier.id} />
+          </TabsContent>
+
           {/* TAB 3 — Coverage & Custom Pricing */}
           <TabsContent value="coverage" className="mt-4 space-y-4">
             <Card className="p-4 space-y-3">
