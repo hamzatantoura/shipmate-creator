@@ -446,19 +446,21 @@ export default function AdminLogistics() {
               </div>
             )}
           </TabsContent>
-          <TabsContent value="districts" className="mt-4">
+          {/* Heavy tabs: keep mounted across tab switches so open dialogs and unsaved
+              form state are preserved when the admin briefly visits another tab. */}
+          <TabsContent value="districts" forceMount className="mt-4 data-[state=inactive]:hidden">
             <AdminDistrictsManagement />
           </TabsContent>
-          <TabsContent value="merchants" className="mt-4">
+          <TabsContent value="merchants" forceMount className="mt-4 data-[state=inactive]:hidden">
             <AdminMerchantApproval />
           </TabsContent>
-          <TabsContent value="couriers" className="mt-4">
+          <TabsContent value="couriers" forceMount className="mt-4 data-[state=inactive]:hidden">
             <AdminCouriersManagement />
           </TabsContent>
-          <TabsContent value="branches" className="mt-4">
+          <TabsContent value="branches" forceMount className="mt-4 data-[state=inactive]:hidden">
             <AdminBranchesManagement />
           </TabsContent>
-          <TabsContent value="transactions" className="mt-4">
+          <TabsContent value="transactions" forceMount className="mt-4 data-[state=inactive]:hidden">
             <WalletTransactionsLog showAll />
           </TabsContent>
         </Tabs>
