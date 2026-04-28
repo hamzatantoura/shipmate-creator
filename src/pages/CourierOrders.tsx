@@ -110,6 +110,7 @@ const TAB_LABELS: Record<TabKey, string> = {
 
 export default function CourierOrders() {
   const { user, signOut } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<CourierOrderRow[]>([]);
   const [companyName, setCompanyName] = useState<string>("");
   const [companyLoaded, setCompanyLoaded] = useState(false);
@@ -118,9 +119,21 @@ export default function CourierOrders() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
   const [returnReason, setReturnReason] = useState<string>("");
-  const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<TabKey>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [search, setSearch] = useState(() => searchParams.get("q") || "");
+  const [tab, setTab] = useState<TabKey>(() => {
+    const t = searchParams.get("tab") as TabKey | null;
+    return t && ["all","pending","active","delivered","returned"].includes(t) ? t : "all";
+  });
+  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get("status") || "all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+    if (!from && !to) return undefined;
+    return {
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+    };
+  });
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
