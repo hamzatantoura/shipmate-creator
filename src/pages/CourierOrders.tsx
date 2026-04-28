@@ -1057,6 +1057,23 @@ export default function CourierOrders() {
                               <DropdownMenuContent align="end" className="w-52">
                                 <DropdownMenuLabel className="text-xs">إجراءات</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                {!isFinal && (NEXT_STATUS_MAP[o.status] || []).length > 0 && (
+                                  <>
+                                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-normal">
+                                      تحديث سريع للحالة
+                                    </DropdownMenuLabel>
+                                    {(NEXT_STATUS_MAP[o.status] || []).map(s => (
+                                      <DropdownMenuItem
+                                        key={s.value}
+                                        onClick={() => updateStatus(o.id, s.value)}
+                                        disabled={updatingId === o.id}
+                                      >
+                                        <CheckCircle2 className="h-4 w-4" /> {s.label}
+                                      </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                  </>
+                                )}
                                 <DropdownMenuItem onClick={() => openEditDialog(o)} disabled={isFinal}>
                                   <Scale className="h-4 w-4" /> تعديل الوزن/القيمة
                                 </DropdownMenuItem>
