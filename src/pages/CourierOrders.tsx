@@ -26,8 +26,9 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
-  Camera, Zap,
+  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
 } from "recharts";
@@ -52,8 +53,11 @@ interface CourierOrderRow {
   notes: string | null;
   return_reason?: string | null;
   shipment_id?: string | null;
+  assigned_branch_id?: string | null;
   couriers?: { name: string } | null;
   districts?: { name: string } | null;
+  courier_branches?: { name: string } | null;
+  shipments?: { collection_fee: number | null } | null;
 }
 
 /**
@@ -110,6 +114,8 @@ export default function CourierOrders() {
   const [returnReason, setReturnReason] = useState<string>("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<TabKey>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [editDialog, setEditDialog] = useState<CourierOrderRow | null>(null);
@@ -131,7 +137,7 @@ export default function CourierOrders() {
     const [ordersRes, courierRes] = await Promise.all([
       supabase
         .from("orders")
-        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, couriers(name), districts(name)")
+        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), courier_branches:assigned_branch_id(name), shipments:shipment_id(collection_fee)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false }),
       supabase
