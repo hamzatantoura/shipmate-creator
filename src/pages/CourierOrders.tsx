@@ -253,17 +253,32 @@ export default function CourierOrders() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return orders.filter(o => {
+    const list = orders.filter(o => {
       if (!TAB_FILTERS[tab](o.status)) return false;
+      if (statusFilter !== "all" && o.status !== statusFilter) return false;
       if (!q) return true;
       const sila = silaCodeOf(o.id).toLowerCase();
       return (
         sila.includes(q) ||
         o.receiver_name.toLowerCase().includes(q) ||
-        o.phone_number.toLowerCase().includes(q)
+        o.phone_number.toLowerCase().includes(q) ||
+        (o.detailed_address || "").toLowerCase().includes(q)
       );
     });
-  }, [orders, search, tab]);
+    const sorted = [...list].sort((a, b) => {
+      const da = new Date(a.created_at).getTime();
+      const db = new Date(b.created_at).getTime();
+      return sortDir === "desc" ? db - da : da - db;
+    });
+    return sorted;
+  }, [orders, search, tab, statusFilter, sortDir]);
+
+  // Distinct statuses present in current data, for the status filter dropdown
+  const availableStatuses = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(o => set.add(o.status));
+    return Array.from(set);
+  }, [orders]);
 
   // Per-tab counters (respect search to make counts useful)
   const tabCounts = useMemo(() => {
