@@ -10,13 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2 } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
 import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
 import AdminCouriersManagement from "@/components/admin/AdminCouriersManagement";
 import AdminBranchesManagement from "@/components/admin/AdminBranchesManagement";
+import AdminAnalyticsDashboard from "@/components/admin/AdminAnalyticsDashboard";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import SecureReceiptImage from "@/components/SecureReceiptImage";
 import type { Database } from "@/integrations/supabase/types";
@@ -94,14 +95,14 @@ export default function AdminLogistics() {
 
   // Persisted active tab — stays put across re-renders and page refreshes
   const TAB_STORAGE_KEY = "admin-active-tab";
-  const VALID_TABS = ["shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions"];
+  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions"];
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window === "undefined") return "shipments";
+    if (typeof window === "undefined") return "analytics";
     const fromUrl = (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null);
     if (fromUrl && VALID_TABS.includes(fromUrl)) return fromUrl;
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
-    return saved && VALID_TABS.includes(saved) ? saved : "shipments";
+    return saved && VALID_TABS.includes(saved) ? saved : "analytics";
   });
   useEffect(() => {
     if (typeof window !== "undefined") sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
@@ -255,7 +256,7 @@ export default function AdminLogistics() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       <AppHeader />
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-display font-bold text-foreground">لوحة الإدارة</h1>
           {totalPending > 0 && (
@@ -295,6 +296,9 @@ export default function AdminLogistics() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
           <TabsList>
+            <TabsTrigger value="analytics" className="gap-1.5">
+              <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
+            </TabsTrigger>
             <TabsTrigger value="shipments" className="gap-1.5">
               <Package className="h-3.5 w-3.5" /> إدارة الشحنات
               {shipments.length > 0 && <Badge className="bg-primary/20 text-primary text-[10px] px-1.5 py-0 mr-1">{shipments.length}</Badge>}
@@ -323,6 +327,11 @@ export default function AdminLogistics() {
               <Wallet className="h-3.5 w-3.5" /> سجل الحركات
             </TabsTrigger>
           </TabsList>
+
+          {/* Analytics dashboard tab */}
+          <TabsContent value="analytics" className="mt-4">
+            <AdminAnalyticsDashboard />
+          </TabsContent>
 
           {/* Shipments management tab */}
           <TabsContent value="shipments" className="mt-4">
