@@ -1,6 +1,7 @@
-import { Sparkles, Clock, Loader2, Truck, PackageCheck, RotateCcw, XCircle, Bike, type LucideIcon } from "lucide-react";
+import { Sparkles, Clock, Loader2, Truck, PackageCheck, RotateCcw, XCircle, Bike, FileEdit, type LucideIcon } from "lucide-react";
 
 export type OrderStatusKey =
+  | "draft"
   | "new"
   | "pending"
   | "processing"
@@ -23,6 +24,11 @@ export interface OrderStatusMeta {
  * defined in index.css (no raw colors).
  */
 export const ORDER_STATUS_META: Record<string, OrderStatusMeta> = {
+  draft: {
+    label: "مسودة",
+    icon: FileEdit,
+    className: "bg-muted/40 text-muted-foreground border-dashed border-border",
+  },
   new: {
     label: "طلب جديد",
     icon: Sparkles,
