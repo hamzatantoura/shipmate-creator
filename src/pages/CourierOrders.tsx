@@ -143,6 +143,7 @@ export default function CourierOrders() {
   const [editSaving, setEditSaving] = useState(false);
   const [revertDialog, setRevertDialog] = useState<CourierOrderRow | null>(null);
   const [reverting, setReverting] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // ===== Smart Scanner state =====
   const [scanInput, setScanInput] = useState("");
