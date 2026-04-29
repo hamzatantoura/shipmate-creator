@@ -21,6 +21,7 @@ import {
 import { CreditCard, Upload, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
+import SecureReceiptImage from "@/components/SecureReceiptImage";
 
 interface PayoutRequest {
   id: string;
@@ -104,20 +105,21 @@ export default function AdminPayouts() {
   const uploadReceipt = async (file: File) => {
     if (!selectedPayout) return;
     setUploading(true);
-    const path = `receipts/${selectedPayout.id}_${Date.now()}.${file.name.split(".").pop()}`;
+    // Admin-managed payout receipt — admin RLS policy allows any path inside `uploads`.
+    // Keep them under a dedicated `payouts/` prefix for clarity.
+    const path = `payouts/${selectedPayout.id}_${Date.now()}.${file.name.split(".").pop()}`;
     const { error } = await supabase.storage.from("uploads").upload(path, file);
     if (error) { toast.error("فشل رفع الإيصال"); setUploading(false); return; }
 
-    const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(path);
     await supabase
       .from("payout_requests")
-      .update({ receipt_url: urlData.publicUrl } as any)
+      .update({ receipt_url: path } as any)
       .eq("id", selectedPayout.id);
 
     toast.success("تم رفع إيصال التحويل");
     setUploading(false);
     fetchPayouts();
-    setSelectedPayout({ ...selectedPayout, receipt_url: urlData.publicUrl });
+    setSelectedPayout({ ...selectedPayout, receipt_url: path });
   };
 
   return (
@@ -208,7 +210,7 @@ export default function AdminPayouts() {
                 <div className="space-y-2">
                   <Label>إيصال التحويل</Label>
                   {selectedPayout.receipt_url ? (
-                    <img src={selectedPayout.receipt_url} alt="receipt" className="rounded-lg border border-border max-h-48 object-contain" />
+                    <SecureReceiptImage source={selectedPayout.receipt_url} />
                   ) : (
                     <p className="text-xs text-muted-foreground">لم يتم رفع إيصال بعد</p>
                   )}
