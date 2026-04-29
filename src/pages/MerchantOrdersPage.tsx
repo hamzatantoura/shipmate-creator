@@ -951,9 +951,18 @@ export default function MerchantOrdersPage() {
                     </section>
                   </div>
 
-                  <DialogFooter className="gap-2">
+                  <DialogFooter className="gap-2 flex-wrap sm:flex-nowrap">
                     <Button variant="outline" onClick={() => setCreateOpen(false)}>إلغاء</Button>
-                    <Button onClick={handleCreate} disabled={submitting}>{submitting ? "جاري الحفظ..." : "إنشاء الطلب"}</Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleCreate(true)}
+                      disabled={submitting}
+                    >
+                      {submitting ? "جاري الحفظ..." : "حفظ كمسودة"}
+                    </Button>
+                    <Button onClick={() => handleCreate(false)} disabled={submitting}>
+                      {submitting ? "جاري الحفظ..." : "تأكيد الطلب"}
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
