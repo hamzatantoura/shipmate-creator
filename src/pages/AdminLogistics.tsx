@@ -95,14 +95,14 @@ export default function AdminLogistics() {
 
   // Persisted active tab — stays put across re-renders and page refreshes
   const TAB_STORAGE_KEY = "admin-active-tab";
-  const VALID_TABS = ["shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions"];
+  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions"];
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window === "undefined") return "shipments";
+    if (typeof window === "undefined") return "analytics";
     const fromUrl = (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null);
     if (fromUrl && VALID_TABS.includes(fromUrl)) return fromUrl;
     const saved = sessionStorage.getItem(TAB_STORAGE_KEY);
-    return saved && VALID_TABS.includes(saved) ? saved : "shipments";
+    return saved && VALID_TABS.includes(saved) ? saved : "analytics";
   });
   useEffect(() => {
     if (typeof window !== "undefined") sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
