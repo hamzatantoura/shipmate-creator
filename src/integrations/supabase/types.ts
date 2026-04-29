@@ -1285,6 +1285,7 @@ export type Database = {
           total_branches_in_destination: number
         }[]
       }
+      get_admin_analytics: { Args: never; Returns: Json }
       get_nearest_branches: {
         Args: { max_radius_km?: number; target_lat: number; target_lng: number }
         Returns: {
