@@ -235,7 +235,19 @@ export default function MerchantOrders() {
         </div>
       </div>
 
-      {loading ? <p className="text-center py-12 text-muted-foreground">جاري التحميل...</p> :
+      {loading ? (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="divide-y divide-border">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-10 w-24 hidden md:block" />
+                <Skeleton className="h-10 w-20 hidden lg:block" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) :
        filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground"><ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-40" /><p>لا توجد طلبات بعد.</p></div>
       ) : (
