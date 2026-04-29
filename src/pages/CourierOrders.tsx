@@ -333,20 +333,20 @@ export default function CourierOrders() {
     }
     setUpdatingId(null);
     toast.success("تم تحديث الحالة");
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus, return_reason: reason ?? o.return_reason } : o));
+    fetchAll();
     setReturnDialog(null);
   };
 
-  // ===== Derived KPIs & chart data =====
+  // ===== Derived KPIs & chart data (driven by lightweight AGGREGATE query — ALL rows) =====
   const kpis = useMemo(() => {
-    const total = orders.length;
-    const deliveredToday = orders.filter(o => o.status === "delivered" && isToday(o.updated_at)).length;
-    const finishedToday = orders.filter(o => isToday(o.updated_at) && ["delivered", "returned"].includes(o.status)).length;
+    const total = aggOrders.length;
+    const deliveredToday = aggOrders.filter(o => o.status === "delivered" && isToday(o.updated_at)).length;
+    const finishedToday = aggOrders.filter(o => isToday(o.updated_at) && ["delivered", "returned"].includes(o.status)).length;
     const successRate = finishedToday ? Math.round((deliveredToday / finishedToday) * 100) : 0;
-    const outForDelivery = orders.filter(o => o.status === "out_for_delivery").length;
-    const returned = orders.filter(o => o.status === "returned").length;
+    const outForDelivery = aggOrders.filter(o => o.status === "out_for_delivery").length;
+    const returned = aggOrders.filter(o => o.status === "returned").length;
     return { total, deliveredToday, successRate, outForDelivery, returned };
-  }, [orders]);
+  }, [aggOrders]);
 
   const chartData = useMemo(() => {
     const days: { key: string; label: string; delivered: number; returned: number }[] = [];
@@ -358,7 +358,7 @@ export default function CourierOrders() {
       days.push({ key, label, delivered: 0, returned: 0 });
     }
     const idx = new Map(days.map((d, i) => [d.key, i]));
-    for (const o of orders) {
+    for (const o of aggOrders) {
       if (!["delivered", "returned"].includes(o.status)) continue;
       const k = new Date(o.updated_at).toISOString().slice(0, 10);
       const i = idx.get(k);
@@ -367,53 +367,28 @@ export default function CourierOrders() {
       else days[i].returned++;
     }
     return days;
-  }, [orders]);
+  }, [aggOrders]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const fromTs = dateRange?.from ? new Date(dateRange.from).setHours(0,0,0,0) : null;
-    const toTs = dateRange?.to ? new Date(dateRange.to).setHours(23,59,59,999) : null;
-    const list = orders.filter(o => {
-      if (!TAB_FILTERS[tab](o.status)) return false;
-      if (statusFilter !== "all" && o.status !== statusFilter) return false;
-      if (fromTs !== null || toTs !== null) {
-        const t = new Date(o.created_at).getTime();
-        if (fromTs !== null && t < fromTs) return false;
-        if (toTs !== null && t > toTs) return false;
-      }
-      if (!q) return true;
-      const sila = silaCodeOf(o.id).toLowerCase();
-      return (
-        sila.includes(q) ||
-        o.receiver_name.toLowerCase().includes(q) ||
-        o.phone_number.toLowerCase().includes(q) ||
-        (o.detailed_address || "").toLowerCase().includes(q)
-      );
-    });
-    const sorted = [...list].sort((a, b) => {
-      const da = new Date(a.created_at).getTime();
-      const db = new Date(b.created_at).getTime();
-      return sortDir === "desc" ? db - da : da - db;
-    });
-    return sorted;
-  }, [orders, search, tab, statusFilter, sortDir, dateRange]);
+  // The page query is already filtered + sorted server-side. `filtered` is the
+  // current page's rows as displayed.
+  const filtered = orders;
 
   // Distinct statuses present in current data, for the status filter dropdown
   const availableStatuses = useMemo(() => {
     const set = new Set<string>();
-    orders.forEach(o => set.add(o.status));
+    aggOrders.forEach(o => set.add(o.status));
     return Array.from(set);
-  }, [orders]);
+  }, [aggOrders]);
 
-  // Per-tab counters (respect search to make counts useful)
+  // Per-tab counters — driven by the aggregate query so counts reflect ALL data.
   const tabCounts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const matchSearch = (o: CourierOrderRow) => {
+    const matchSearch = (o: AggOrder) => {
       if (!q) return true;
       const sila = silaCodeOf(o.id).toLowerCase();
       return sila.includes(q) || o.receiver_name.toLowerCase().includes(q) || o.phone_number.toLowerCase().includes(q);
     };
-    const base = orders.filter(matchSearch);
+    const base = aggOrders.filter(matchSearch);
     return {
       all: base.length,
       pending: base.filter(o => TAB_FILTERS.pending(o.status)).length,
@@ -421,9 +396,9 @@ export default function CourierOrders() {
       delivered: base.filter(o => TAB_FILTERS.delivered(o.status)).length,
       returned: base.filter(o => TAB_FILTERS.returned(o.status)).length,
     } as Record<TabKey, number>;
-  }, [orders, search]);
+  }, [aggOrders, search]);
 
-  // ===== Smart Scanner: lookup + propose next status =====
+  // ===== Smart Scanner: lookup across ALL orders (aggregate query) =====
   const handleScan = useCallback((rawCode: string) => {
     const code = (rawCode || "").trim();
     if (!code) return;
@@ -431,7 +406,7 @@ export default function CourierOrders() {
     const compact = upper.replace(/[^A-Z0-9]/g, "");
     const noPrefix = upper.replace(/^SL[-_]?/i, "").replace(/[^A-Z0-9]/g, "");
 
-    const found = orders.find((o) => {
+    const found = aggOrders.find((o) => {
       const idCompact = o.id.replace(/-/g, "").toUpperCase();
       const sila = silaCodeOf(o.id).toUpperCase();
       return (
@@ -453,8 +428,9 @@ export default function CourierOrders() {
       return;
     }
     setQuickReason("");
-    setQuickAction({ order: found, nextStatus: next });
-  }, [orders]);
+    // Cast to CourierOrderRow shape; quick-action dialog only needs id/status/receiver_name
+    setQuickAction({ order: found as unknown as CourierOrderRow, nextStatus: next });
+  }, [aggOrders]);
 
   const confirmQuickAction = async () => {
     if (!quickAction) return;
