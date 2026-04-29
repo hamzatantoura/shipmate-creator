@@ -28,19 +28,22 @@ export default function TopUp() {
     e.preventDefault();
     if (!method) { toast.error("اختر طريقة الدفع"); return; }
     if (!receiptFile) { toast.error("يرجى رفع صورة وصل التحويل"); return; }
+    if (!user?.id) { toast.error("يجب تسجيل الدخول"); return; }
     setLoading(true);
 
     const ext = receiptFile.name.split(".").pop();
-    const path = `receipts/${Date.now()}.${ext}`;
+    // SECURITY: store inside the merchant's own private folder so RLS allows the upload
+    // and signed URLs are required to read it back.
+    const path = `merchants/${user.id}/receipts/${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("uploads").upload(path, receiptFile);
     if (upErr) { toast.error("فشل رفع الإيصال"); setLoading(false); return; }
-    const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
 
     const { error } = await supabase.from("top_up_requests").insert({
-      merchant_id: user?.id || "",
+      merchant_id: user.id,
       amount: parseFloat(amount) || 0,
       method,
-      receipt_url: pub.publicUrl,
+      // Store the raw object path; readers will generate a signed URL on demand.
+      receipt_url: path,
       reference_number: referenceNumber.trim() || null,
     } as any);
 
