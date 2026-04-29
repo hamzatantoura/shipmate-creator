@@ -27,8 +27,6 @@ const AuthContext = createContext<AuthState>({
   signOut: async () => {},
 });
 
-const ADMIN_EMAILS = new Set(["hamza.tantoura@gmail.com"]);
-
 // Detect natural session expiration errors so we can silently sign the user out
 // instead of surfacing a scary toast / red error overlay.
 function isRefreshTokenMissingError(error: unknown): boolean {
@@ -71,7 +69,10 @@ async function loadAuthState(user: User): Promise<Omit<AuthState, "signOut">> {
   ]);
 
   const resolvedRole = roleRows?.[0]?.role as UserRole | undefined;
-  const role = resolvedRole ?? (ADMIN_EMAILS.has(user.email ?? "") ? "admin" : null);
+  // Role is derived ONLY from the user_roles DB table. Never trust any
+  // hardcoded email allowlist — that would be a client-side privilege check
+  // an attacker could bypass simply by registering the listed address.
+  const role = resolvedRole ?? null;
 
   return {
     user,
