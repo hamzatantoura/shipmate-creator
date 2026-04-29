@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,7 +27,7 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
-  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon,
+  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon, ChevronRight, ChevronLeft,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Calendar } from "@/components/ui/calendar";
