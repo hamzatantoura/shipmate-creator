@@ -1190,6 +1190,21 @@ export type Database = {
         Args: { p_new_status: string; p_payout_id: string }
         Returns: undefined
       }
+      create_storefront_order: {
+        Args: {
+          p_customer_lat?: number
+          p_customer_lng?: number
+          p_detailed_address: string
+          p_district_id: string
+          p_merchant_id: string
+          p_notes?: string
+          p_phone_number: string
+          p_product_id: string
+          p_quantity: number
+          p_receiver_name: string
+        }
+        Returns: Json
+      }
       find_couriers_for_order: {
         Args: {
           customer_lat?: number
