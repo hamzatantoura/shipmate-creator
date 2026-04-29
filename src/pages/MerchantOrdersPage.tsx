@@ -218,7 +218,7 @@ export default function MerchantOrdersPage() {
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
-      supabase.from("couriers").select("id, name").eq("is_active", true).order("name"),
+      supabase.from("couriers_public" as any).select("id, name").eq("is_active", true).order("name"),
       supabase.from("courier_district_rates" as any).select("courier_id, district_id, custom_delivery_fee"),
       supabase.from("courier_branches" as any).select("id, courier_id, name, lat, lng, district_id, province_id").eq("is_active", true),
       supabase.from("districts").select("id, lat, lng"),
