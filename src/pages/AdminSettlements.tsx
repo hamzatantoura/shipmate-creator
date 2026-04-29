@@ -150,16 +150,11 @@ export function CourierSettlementsPanel() {
 
     setSubmitting(true);
     const reviewedAt = new Date().toISOString();
-    const { error } = await supabase
-      .from("courier_settlements")
-      .update({
-        status: newStatus,
-        admin_note: trimmed || null,
-        reviewed_by: user.id,
-        reviewed_at: reviewedAt,
-      })
-      .eq("id", target.id)
-      .eq("status", "pending"); // strict: only pending can be transitioned
+    const { error } = await supabase.rpc("review_courier_settlement", {
+      p_settlement_id: target.id,
+      p_action: isReject ? "reject" : "approve",
+      p_admin_note: trimmed || null,
+    } as any);
 
     setSubmitting(false);
     if (error) {
