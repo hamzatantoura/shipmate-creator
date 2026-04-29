@@ -982,6 +982,50 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          comment: string | null
+          courier_id: string | null
+          created_at: string
+          id: string
+          merchant_id: string
+          order_id: string
+          product_id: string | null
+          rating: number
+          reviewer_role: string
+        }
+        Insert: {
+          comment?: string | null
+          courier_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_id: string
+          order_id: string
+          product_id?: string | null
+          rating: number
+          reviewer_role?: string
+        }
+        Update: {
+          comment?: string | null
+          courier_id?: string | null
+          created_at?: string
+          id?: string
+          merchant_id?: string
+          order_id?: string
+          product_id?: string | null
+          rating?: number
+          reviewer_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipment_status_history: {
         Row: {
           changed_by: string | null
@@ -1380,6 +1424,7 @@ export type Database = {
         Args: { p_merchant_user_id: string }
         Returns: Json
       }
+      get_review_context: { Args: { p_order_id: string }; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1412,6 +1457,10 @@ export type Database = {
       set_district_coords: {
         Args: { p_district_id: string; p_lat: number; p_lng: number }
         Returns: undefined
+      }
+      submit_order_review: {
+        Args: { p_comment?: string; p_order_id: string; p_rating: number }
+        Returns: Json
       }
       track_order_by_sila_code: { Args: { p_code: string }; Returns: Json }
       track_shipment_public: {
