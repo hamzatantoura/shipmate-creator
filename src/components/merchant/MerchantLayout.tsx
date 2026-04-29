@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
+import NotificationBell from "@/components/NotificationBell";
 
 interface Props {
   children: ReactNode;
@@ -27,6 +28,7 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
               </Link>
             </div>
             <div className="flex items-center gap-3">
+              <NotificationBell />
               {profile?.store_name && (
                 <span className="text-xs text-muted-foreground hidden md:inline">
                   {profile.store_name}
