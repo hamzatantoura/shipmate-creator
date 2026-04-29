@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle, Printer, History } from "lucide-react";
@@ -235,7 +236,19 @@ export default function MerchantOrders() {
         </div>
       </div>
 
-      {loading ? <p className="text-center py-12 text-muted-foreground">جاري التحميل...</p> :
+      {loading ? (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="divide-y divide-border">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 p-3">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-10 w-24 hidden md:block" />
+                <Skeleton className="h-10 w-20 hidden lg:block" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) :
        filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground"><ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-40" /><p>لا توجد طلبات بعد.</p></div>
       ) : (
@@ -388,7 +401,11 @@ export default function MerchantOrders() {
             </DialogTitle>
           </DialogHeader>
           {loadingAudit ? (
-            <p className="text-center py-8 text-sm text-muted-foreground">جاري التحميل...</p>
+            <div className="space-y-2 py-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
           ) : auditLogs.length === 0 ? (
             <p className="text-center py-8 text-sm text-muted-foreground">لا توجد تعديلات على هذا الطلب</p>
           ) : (

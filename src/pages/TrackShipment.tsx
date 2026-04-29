@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Search, Package, MapPin, Clock, Truck, ArrowRight } from "lucide-react";
+import {
+  Search, Package, MapPin, Truck, ArrowRight,
+  PackagePlus, PackageCheck, Warehouse, Bike, CheckCircle2, RotateCcw, type LucideIcon,
+} from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { useEffect } from "react";
 
@@ -37,8 +41,6 @@ const CITY_AR: Record<string, string> = {
   Lattakia: "اللاذقية", Hama: "حماة", Tartous: "طرطوس",
 };
 
-const STATUS_ORDER = ["pending", "picked_up", "at_warehouse", "in_transit_intercity", "with_distributor", "out_for_delivery", "delivered"];
-
 const statusColor = (s: string) => {
   switch (s) {
     case "delivered": return "bg-primary/20 text-primary border-primary/30";
@@ -51,6 +53,81 @@ const statusColor = (s: string) => {
 
 interface StatusLog { id: string; new_status: string; old_status: string | null; created_at: string; changed_by_role: string | null; }
 interface CarrierInfo { name_ar: string; }
+
+/** Canonical journey milestones (Sila Standard). */
+interface Milestone {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  /** Status values that satisfy this milestone. */
+  matches: string[];
+}
+
+const JOURNEY: Milestone[] = [
+  { key: "created", label: "تم إنشاء الطلب", icon: PackagePlus, matches: ["pending", "new"] },
+  { key: "picked_up", label: "تم الاستلام من التاجر", icon: PackageCheck, matches: ["picked_up", "processing"] },
+  { key: "in_transit", label: "قيد الشحن", icon: Warehouse, matches: ["at_warehouse", "in_transit_intercity", "shipped"] },
+  { key: "out_for_delivery", label: "خرج للتوصيل", icon: Bike, matches: ["with_distributor", "out_for_delivery", "in_transit"] },
+  { key: "completed", label: "تم التسليم", icon: CheckCircle2, matches: ["delivered"] },
+];
+
+const RETURNED_MILESTONE: Milestone = {
+  key: "returned", label: "مرتجع", icon: RotateCcw, matches: ["returned", "failed", "cancelled"],
+};
+
+interface TimelineStep extends Milestone {
+  reachedAt: string | null;
+  state: "complete" | "current" | "pending" | "failed";
+}
+
+/**
+ * Build the vertical timeline by walking the canonical journey and finding the
+ * first matching status entry in `history` for each milestone. Pure presentation —
+ * no inferred dates, no fabricated milestones.
+ */
+function buildTimeline(currentStatus: string, history: StatusLog[], createdAt: string | null): TimelineStep[] {
+  const sorted = [...history].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+  const findMatch = (m: Milestone) =>
+    sorted.find((h) => m.matches.includes(h.new_status))?.created_at ?? null;
+
+  const isReturned = RETURNED_MILESTONE.matches.includes(currentStatus);
+
+  const steps: TimelineStep[] = JOURNEY.map((m, i) => {
+    // First milestone reuses createdAt when no audit row exists yet.
+    const reachedAt = findMatch(m) ?? (i === 0 ? createdAt : null);
+    return {
+      ...m,
+      reachedAt,
+      state: reachedAt ? "complete" : "pending",
+    };
+  });
+
+  // Mark "current" — the last completed step OR the first pending one
+  // depending on whether the order is mid-journey.
+  const lastCompleteIdx = steps.reduce((acc, s, i) => (s.state === "complete" ? i : acc), -1);
+  if (lastCompleteIdx >= 0 && lastCompleteIdx < steps.length - 1 && !isReturned) {
+    const next = lastCompleteIdx + 1;
+    if (steps[next] && steps[next].state === "pending") steps[next].state = "current";
+  }
+
+  if (isReturned) {
+    const failedAt =
+      sorted.find((h) => RETURNED_MILESTONE.matches.includes(h.new_status))?.created_at ?? null;
+    steps.push({
+      ...RETURNED_MILESTONE,
+      reachedAt: failedAt,
+      state: failedAt ? "failed" : "pending",
+    });
+  }
+
+  return steps;
+}
+
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("ar-SY")} • ${d.toLocaleTimeString("ar-SY", { hour: "2-digit", minute: "2-digit" })}`;
+}
 
 export default function TrackShipment() {
   const navigate = useNavigate();
@@ -99,14 +176,10 @@ export default function TrackShipment() {
     doSearch(query);
   };
 
-  const openWhatsApp = (phone: string) => {
-    const cleaned = phone.replace(/[\s-]/g, "").replace(/^0/, "963");
-    window.open(`https://wa.me/${cleaned}`, "_blank");
-  };
-
-  const callPhone = (phone: string) => {
-    window.open(`tel:${phone}`, "_self");
-  };
+  const timeline = useMemo<TimelineStep[]>(
+    () => (shipment ? buildTimeline(shipment.status, history, shipment.created_at) : []),
+    [shipment, history],
+  );
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -141,11 +214,33 @@ export default function TrackShipment() {
           <Button type="submit" disabled={loading} className="gap-2"><Search className="h-4 w-4" /> تتبع</Button>
         </form>
 
+        {loading && (
+          <Card className="bg-card border-border">
+            <CardContent className="p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </div>
+              <div className="space-y-5 pt-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                    <div className="flex-1 space-y-2 pt-1">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {searched && !loading && !shipment && (
           <p className="text-center text-muted-foreground py-8">لم يتم العثور على شحنة بهذا الرقم</p>
         )}
 
-        {shipment && (
+        {shipment && !loading && (
           <Card className="bg-card border-border">
             <CardContent className="p-6 space-y-5">
               <div className="flex items-center justify-between">
@@ -156,42 +251,6 @@ export default function TrackShipment() {
                 <Badge variant="outline" className={statusColor(shipment.status)}>
                   {STATUS_AR[shipment.status] || shipment.status}
                 </Badge>
-              </div>
-
-              {/* Progress bar */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1">
-                {STATUS_ORDER.map((status, i) => {
-                  const currentIdx = STATUS_ORDER.indexOf(shipment.status);
-                  const isReturned = shipment.status === "returned";
-                  const isActive = !isReturned && i <= currentIdx;
-                  const isCurrent = shipment.status === status;
-                  return (
-                    <div key={status} className="flex items-center gap-1">
-                      <div className="flex flex-col items-center">
-                        <div className={`h-3 w-3 rounded-full border-2 ${
-                          isCurrent ? 'bg-primary border-primary scale-125' :
-                          isActive ? 'bg-primary/60 border-primary/60' :
-                          'bg-muted border-border'
-                        }`} />
-                        <span className={`text-[9px] mt-1 whitespace-nowrap ${isCurrent ? 'text-primary font-bold' : isActive ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
-                          {STATUS_AR[status]}
-                        </span>
-                      </div>
-                      {i < STATUS_ORDER.length - 1 && (
-                        <div className={`h-0.5 w-6 ${isActive && i < currentIdx ? 'bg-primary/60' : 'bg-border'}`} />
-                      )}
-                    </div>
-                  );
-                })}
-                {shipment.status === "returned" && (
-                  <div className="flex items-center gap-1 mr-2">
-                    <div className="h-0.5 w-4 bg-destructive/40" />
-                    <div className="flex flex-col items-center">
-                      <div className="h-3 w-3 rounded-full bg-destructive border-2 border-destructive scale-125" />
-                      <span className="text-[9px] mt-1 text-destructive font-bold">مرتجع</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="space-y-2">
@@ -211,29 +270,45 @@ export default function TrackShipment() {
                 </div>
               )}
 
-              {/* Timeline */}
-              {history.length > 0 && (
-                <div className="pt-4 border-t border-border">
-                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <Clock className="h-4 w-4" /> سجل الحالات
-                  </h3>
-                  <div className="space-y-3 pr-4 border-r-2 border-primary/20">
-                    {history.map((h, i) => (
-                      <div key={h.id} className="relative pr-4">
-                        <div className={`absolute -right-[9px] top-1 w-4 h-4 rounded-full border-2 ${
-                          i === history.length - 1 ? "bg-primary border-primary" : "bg-background border-primary/40"
-                        }`} />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{STATUS_AR[h.new_status] || h.new_status}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(h.created_at).toLocaleDateString("ar")} — {new Date(h.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
+              {/* Vertical Journey Timeline */}
+              <div className="pt-4 border-t border-border">
+                <h3 className="text-sm font-semibold text-foreground mb-4">رحلة الشحنة</h3>
+                <ol className="relative space-y-5">
+                  {timeline.map((step, idx) => {
+                    const Icon = step.icon;
+                    const isLast = idx === timeline.length - 1;
+                    const tone =
+                      step.state === "failed"
+                        ? { ring: "border-destructive bg-destructive text-destructive-foreground", line: "bg-destructive/40", title: "text-destructive font-semibold" }
+                        : step.state === "complete"
+                          ? { ring: "border-primary bg-primary text-primary-foreground", line: "bg-primary/50", title: "text-foreground font-semibold" }
+                          : step.state === "current"
+                            ? { ring: "border-primary bg-primary/15 text-primary animate-pulse", line: "bg-border", title: "text-primary font-semibold" }
+                            : { ring: "border-border bg-muted text-muted-foreground", line: "bg-border", title: "text-muted-foreground" };
+                    return (
+                      <li key={step.key} className="relative flex items-start gap-4">
+                        {!isLast && (
+                          <span
+                            aria-hidden
+                            className={`absolute right-[17px] top-9 bottom-[-20px] w-px ${tone.line}`}
+                          />
+                        )}
+                        <span
+                          className={`shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-full border-2 ${tone.ring}`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <p className={`text-sm ${tone.title}`}>{step.label}</p>
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            {fmtDateTime(step.reachedAt)}
                           </p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
             </CardContent>
           </Card>
         )}
