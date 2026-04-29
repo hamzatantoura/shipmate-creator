@@ -296,6 +296,9 @@ export default function AdminLogistics() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
           <TabsList>
+            <TabsTrigger value="analytics" className="gap-1.5">
+              <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
+            </TabsTrigger>
             <TabsTrigger value="shipments" className="gap-1.5">
               <Package className="h-3.5 w-3.5" /> إدارة الشحنات
               {shipments.length > 0 && <Badge className="bg-primary/20 text-primary text-[10px] px-1.5 py-0 mr-1">{shipments.length}</Badge>}
