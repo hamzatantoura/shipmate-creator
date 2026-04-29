@@ -111,11 +111,10 @@ const TAB_LABELS: Record<TabKey, string> = {
 
 export default function CourierOrders() {
   const { user, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [orders, setOrders] = useState<CourierOrderRow[]>([]);
   const [companyName, setCompanyName] = useState<string>("");
   const [companyLoaded, setCompanyLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState<"orders" | "scanner" | "wallet">("orders");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
@@ -151,26 +150,109 @@ export default function CourierOrders() {
   const [quickReason, setQuickReason] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  // Pagination
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
+
+  // ===== Courier company name (one-shot) =====
+  useEffect(() => {
     if (!user) return;
-    setLoading(true);
-    const [ordersRes, courierRes] = await Promise.all([
-      supabase
+    let cancelled = false;
+    supabase
+      .from("couriers")
+      .select("name")
+      .eq("vendor_id", user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) console.error("Courier fetch error:", error);
+        setCompanyName(data?.name ?? "");
+        setCompanyLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // ===== AGGREGATE QUERY: lightweight, ALL rows for KPIs / chart / scanner / tab counts =====
+  // No heavy joins. Used purely to compute analytics + power the smart scanner search.
+  type AggOrder = Pick<
+    CourierOrderRow,
+    "id" | "status" | "updated_at" | "created_at" | "receiver_name" | "phone_number" | "shipment_id" | "return_reason"
+  >;
+  const aggregateQuery = useQuery({
+    queryKey: ["courier-orders-aggregate", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("orders")
-        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)")
+        .select("id, status, updated_at, created_at, receiver_name, phone_number, shipment_id, return_reason")
         .is("deleted_at", null)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("couriers")
-        .select("name")
-        .eq("vendor_id", user.id)
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    if (ordersRes.error) toast.error("تعذر تحميل الطلبات");
-    else {
-      const rawOrders = (ordersRes.data || []) as unknown as CourierOrderRow[];
-      // Resolve branch names via separate query (no FK on assigned_branch_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as AggOrder[];
+    },
+  });
+  const aggOrders: AggOrder[] = aggregateQuery.data ?? [];
+
+  // ===== PAGINATED TABLE QUERY: server-side filters + full joins =====
+  // All filters (tab, status, date range, search) applied at the DB level so
+  // pagination reflects the user's view.
+  const pageQuery = useQuery({
+    queryKey: [
+      "courier-orders-page",
+      user?.id, page, tab, statusFilter, sortDir,
+      search.trim().toLowerCase(),
+      dateRange?.from?.toISOString() ?? null,
+      dateRange?.to?.toISOString() ?? null,
+    ],
+    enabled: !!user?.id,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      let q = supabase
+        .from("orders")
+        .select(
+          "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)",
+          { count: "exact" }
+        )
+        .is("deleted_at", null);
+
+      // Tab filter (mutually exclusive buckets — mirror TAB_FILTERS server-side)
+      if (tab === "pending") q = q.in("status", ["new", "pending"]);
+      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "delivered") q = q.eq("status", "delivered");
+      else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
+
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+
+      if (dateRange?.from) {
+        const fromD = new Date(dateRange.from); fromD.setHours(0, 0, 0, 0);
+        q = q.gte("created_at", fromD.toISOString());
+      }
+      if (dateRange?.to) {
+        const toD = new Date(dateRange.to); toD.setHours(23, 59, 59, 999);
+        q = q.lte("created_at", toD.toISOString());
+      }
+
+      const term = search.trim();
+      if (term) {
+        // OR across name / phone / address. Sila code search is handled
+        // client-side via the aggregate query (id-prefix lookup).
+        const safe = term.replace(/[%,]/g, " ");
+        q = q.or(
+          `receiver_name.ilike.%${safe}%,phone_number.ilike.%${safe}%,detailed_address.ilike.%${safe}%`
+        );
+      }
+
+      q = q.order("created_at", { ascending: sortDir === "asc" }).range(from, to);
+
+      const { data, error, count } = await q;
+      if (error) throw error;
+
+      const rawOrders = (data || []) as unknown as CourierOrderRow[];
+
+      // Resolve branch names in a single batched query (no FK on assigned_branch_id)
       const branchIds = Array.from(new Set(rawOrders.map(o => o.assigned_branch_id).filter(Boolean) as string[]));
       let branchMap = new Map<string, string>();
       if (branchIds.length) {
@@ -183,17 +265,21 @@ export default function CourierOrders() {
         branch_name: o.assigned_branch_id ? (branchMap.get(o.assigned_branch_id) ?? null) : null,
         collection_fee: Number(o.shipments?.collection_fee ?? 0),
       }));
-      setOrders(enriched);
-    }
-    if (courierRes.error) {
-      console.error("Courier fetch error:", courierRes.error);
-    }
-    setCompanyName(courierRes.data?.name ?? "");
-    setCompanyLoaded(true);
-    setLoading(false);
-  }, [user]);
+      return { rows: enriched, total: count ?? 0 };
+    },
+  });
+  const orders: CourierOrderRow[] = pageQuery.data?.rows ?? [];
+  const totalCount = pageQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const loading = pageQuery.isLoading;
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // Reset to page 0 whenever filters change
+  useEffect(() => { setPage(0); }, [tab, statusFilter, sortDir, search, dateRange?.from, dateRange?.to]);
+
+  const fetchAll = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["courier-orders-aggregate", user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["courier-orders-page", user?.id] });
+  }, [queryClient, user?.id]);
 
   // Persist filters to URL
   useEffect(() => {
