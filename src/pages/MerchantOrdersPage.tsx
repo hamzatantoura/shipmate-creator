@@ -58,6 +58,7 @@ import { printShippingLabel } from "@/lib/print-label";
 import { printBulkLabels, type BulkLabelData } from "@/lib/print-bulk";
 import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getOrderStatusMeta } from "@/lib/order-status";
 import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/lib/print-validation";
 
@@ -1029,13 +1030,14 @@ export default function MerchantOrdersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loading && (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                          جاري التحميل...
-                        </TableCell>
-                      </TableRow>
-                    )}
+                    {loading &&
+                      Array.from({ length: 6 }).map((_, i) => (
+                        <TableRow key={`sk-${i}`}>
+                          <TableCell colSpan={8} className="py-3">
+                            <Skeleton className="h-9 w-full" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     {!loading && orders.map((order) => {
                       const meta = getOrderStatusMeta(order.status);
                       const StatusIcon = meta.icon;
