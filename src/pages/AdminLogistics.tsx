@@ -328,6 +328,11 @@ export default function AdminLogistics() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Analytics dashboard tab */}
+          <TabsContent value="analytics" className="mt-4">
+            <AdminAnalyticsDashboard />
+          </TabsContent>
+
           {/* Shipments management tab */}
           <TabsContent value="shipments" className="mt-4">
             {shipments.length === 0 ? (
