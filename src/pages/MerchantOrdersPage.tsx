@@ -444,15 +444,23 @@ export default function MerchantOrdersPage() {
   const updateBox = (id: string, weight: string) =>
     setBoxes((b) => b.map((x) => (x.id === id ? { ...x, weight } : x)));
 
-  const handleCreate = async () => {
+  const handleCreate = async (asDraft = false) => {
     if (!user) { toast.error("يجب تسجيل الدخول"); return; }
-    if (!form.name || !form.phone || !form.provinceId) {
-      toast.error("يرجى تعبئة الحقول المطلوبة");
-      return;
-    }
-    if (!isValidSyrianPhone(form.phone)) {
-      toast.error("رقم سوري غير صحيح. مثال: 0933123456");
-      return;
+    if (asDraft) {
+      // Bare-minimum validation for drafts: at least a receiver name OR phone
+      if (!form.name && !form.phone) {
+        toast.error("أدخل اسم المستلم أو رقم الهاتف على الأقل");
+        return;
+      }
+    } else {
+      if (!form.name || !form.phone || !form.provinceId) {
+        toast.error("يرجى تعبئة الحقول المطلوبة");
+        return;
+      }
+      if (!isValidSyrianPhone(form.phone)) {
+        toast.error("رقم سوري غير صحيح. مثال: 0933123456");
+        return;
+      }
     }
     const prov = provinces.find(p => p.id === form.provinceId);
     const area = allDistricts.find(d => d.id === form.districtId);
@@ -467,8 +475,8 @@ export default function MerchantOrdersPage() {
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
       merchant_id: user.id,
-      receiver_name: form.name,
-      phone_number: form.phone,
+      receiver_name: form.name || "—",
+      phone_number: form.phone || "",
       city: cityLabel,
       detailed_address: form.address || "",
       district_id: finalDistrictId,
@@ -476,12 +484,12 @@ export default function MerchantOrdersPage() {
       assigned_branch_id: assignedBranchId,
       total_amount: cod,
       delivery_fee: deliveryFee,
-      status: "new",
+      status: asDraft ? "draft" : "new",
     } as any);
     setSubmitting(false);
 
     if (error) { toast.error(error.message || "تعذر إنشاء الطلب"); return; }
-    toast.success("تم إنشاء الطلب");
+    toast.success(asDraft ? "تم حفظ المسودة" : "تم إنشاء الطلب");
     resetForm();
     setCreateOpen(false);
     fetchOrders();
