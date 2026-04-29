@@ -305,9 +305,9 @@ export default function CourierWalletPanel() {
         notes: "",
       });
       void loadWalletData();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Settlement submit error:", error);
-      toast.error("تعذر تسجيل الدفعة");
+      toast.error(error?.message || "تعذر تسجيل الدفعة");
     } finally {
       setSubmitting(false);
     }
