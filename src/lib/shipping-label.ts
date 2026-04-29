@@ -7,6 +7,21 @@ const CITY_AR: Record<string, string> = {
   Lattakia: "اللاذقية", Hama: "حماة", Tartous: "طرطوس",
 };
 
+/**
+ * Escape HTML to prevent stored XSS when interpolating user-controlled data
+ * (receiver names, addresses, store names, courier logo URLs, etc.) into the
+ * shipping label print template. Mirrors the helper used by print-label.ts.
+ */
+function escapeHtml(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 interface ShipmentData {
   id: string;
   tracking_number: string | null;
@@ -128,11 +143,30 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
   const w = window.open("", "_blank", "width=500,height=700");
   if (!w) return;
 
+  // Pre-escape every user-controlled field. Generated assets (qrDataUrl,
+  // barcodeDataUrl) and our own UI strings are safe to leave as-is.
+  const safe = {
+    trackingNum: escapeHtml(trackingNum),
+    silaCode: escapeHtml(silaCode),
+    courierName: escapeHtml(courierName),
+    courierLogo: escapeHtml(courier?.logo_url ?? ""),
+    storeName: escapeHtml(merchant.store_name),
+    contactPerson: escapeHtml(merchant.contact_person ?? ""),
+    merchantPhone: escapeHtml(merchant.phone ?? ""),
+    merchantCity: escapeHtml(merchant.city ?? ""),
+    receiverName: escapeHtml(shipment.receiver_name),
+    phoneNumber: escapeHtml(shipment.phone_number),
+    cityLabel: escapeHtml(CITY_AR[shipment.city] || shipment.city),
+    districtName: escapeHtml(districtName ?? ""),
+    detailedAddress: escapeHtml(shipment.detailed_address),
+    notes: escapeHtml(shipment.notes ?? ""),
+  };
+
   w.document.write(`<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="utf-8" />
-  <title>بوليصة شحن — ${trackingNum}</title>
+  <title>بوليصة شحن — ${safe.trackingNum}</title>
   <style>
     @page { ${pageSize} margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -245,39 +279,39 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
     <div class="header">
       <div>
         <h1 style="display:flex;align-items:center;gap:${8 * scale}px;">
-          ${courier?.logo_url ? `<img src="${courier.logo_url}" alt="" style="width:${28 * scale}px;height:${28 * scale}px;object-fit:contain;background:#fff;border-radius:4px;padding:2px;" />` : ""}
-          <span>${courierName}</span>
+          ${safe.courierLogo ? `<img src="${safe.courierLogo}" alt="" style="width:${28 * scale}px;height:${28 * scale}px;object-fit:contain;background:#fff;border-radius:4px;padding:2px;" />` : ""}
+          <span>${safe.courierName}</span>
         </h1>
         <span class="sub">شركة الشحن المسؤولة عن التوصيل</span>
       </div>
       <div style="text-align:left;">
-        <div style="font-family:monospace;font-size:${9 * scale}px;opacity:0.85;">${silaCode}</div>
+        <div style="font-family:monospace;font-size:${9 * scale}px;opacity:0.85;">${safe.silaCode}</div>
         <div class="sub" style="font-size:${7 * scale}px;">Powered by Sila</div>
       </div>
     </div>
 
     <div class="tracking">
       <p class="lbl">رقم التتبع — TRACKING NUMBER</p>
-      <p class="num">${trackingNum}</p>
+      <p class="num">${safe.trackingNum}</p>
     </div>
 
     <!-- Merchant Info -->
     <div class="section">
       <p class="section-title">📦 معلومات المرسل</p>
-      <div class="info-row"><span class="lbl">المتجر</span><span class="val">${merchant.store_name}</span></div>
-      ${merchant.contact_person ? `<div class="info-row"><span class="lbl">جهة الاتصال</span><span class="val">${merchant.contact_person}</span></div>` : ""}
-      ${merchant.phone ? `<div class="info-row"><span class="lbl">الهاتف</span><span class="val" style="direction:ltr;text-align:right">${merchant.phone}</span></div>` : ""}
-      ${merchant.city ? `<div class="info-row"><span class="lbl">المدينة</span><span class="val">${merchant.city}</span></div>` : ""}
+      <div class="info-row"><span class="lbl">المتجر</span><span class="val">${safe.storeName}</span></div>
+      ${safe.contactPerson ? `<div class="info-row"><span class="lbl">جهة الاتصال</span><span class="val">${safe.contactPerson}</span></div>` : ""}
+      ${safe.merchantPhone ? `<div class="info-row"><span class="lbl">الهاتف</span><span class="val" style="direction:ltr;text-align:right">${safe.merchantPhone}</span></div>` : ""}
+      ${safe.merchantCity ? `<div class="info-row"><span class="lbl">المدينة</span><span class="val">${safe.merchantCity}</span></div>` : ""}
     </div>
 
     <!-- Customer Info -->
     <div class="section">
       <p class="section-title">🏠 معلومات المستلم</p>
-      <div class="info-row"><span class="lbl">الاسم</span><span class="val">${shipment.receiver_name}</span></div>
-      <div class="info-row"><span class="lbl">الهاتف</span><span class="val" style="direction:ltr;text-align:right">${shipment.phone_number}</span></div>
-      <div class="info-row"><span class="lbl">المدينة</span><span class="val">${CITY_AR[shipment.city] || shipment.city}</span></div>
-      ${districtName ? `<div class="info-row"><span class="lbl">المنطقة / الحي</span><span class="val">${districtName}</span></div>` : ""}
-      <div class="info-row"><span class="lbl">العنوان</span><span class="val">${shipment.detailed_address}</span></div>
+      <div class="info-row"><span class="lbl">الاسم</span><span class="val">${safe.receiverName}</span></div>
+      <div class="info-row"><span class="lbl">الهاتف</span><span class="val" style="direction:ltr;text-align:right">${safe.phoneNumber}</span></div>
+      <div class="info-row"><span class="lbl">المدينة</span><span class="val">${safe.cityLabel}</span></div>
+      ${safe.districtName ? `<div class="info-row"><span class="lbl">المنطقة / الحي</span><span class="val">${safe.districtName}</span></div>` : ""}
+      <div class="info-row"><span class="lbl">العنوان</span><span class="val">${safe.detailedAddress}</span></div>
     </div>
 
     <!-- COD -->
@@ -286,11 +320,11 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       <span class="amount">${Number(shipment.cod_amount).toLocaleString()} ل.س</span>
     </div>
 
-    ${shipment.notes ? `
+    ${safe.notes ? `
     <!-- Notes -->
     <div class="section" style="background: #fffbe6; border-bottom: 1.5px solid #f5c518;">
       <p class="section-title">📝 ملاحظات</p>
-      <p style="font-size: ${11 * scale}px; font-weight: 600; color: #333;">${shipment.notes}</p>
+      <p style="font-size: ${11 * scale}px; font-weight: 600; color: #333;">${safe.notes}</p>
     </div>
     ` : ""}
 
@@ -301,7 +335,7 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
       </div>
       <div class="barcode">
         ${barcodeDataUrl ? `<img src="${barcodeDataUrl}" alt="Barcode" />` : ""}
-        <span class="barcode-text">${trackingNum}</span>
+        <span class="barcode-text">${safe.trackingNum}</span>
       </div>
     </div>
 
