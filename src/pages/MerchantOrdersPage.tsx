@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+import StarRating from "@/components/StarRating";
 import { isValidSyrianPhone } from "@/lib/syrian-phone";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
@@ -315,6 +316,28 @@ export default function MerchantOrdersPage() {
   }, [page, ordersQuery.dataUpdatedAt]);
 
   const visibleIds = orders.map((o) => o.id);
+
+  // Fetch reviews for currently visible delivered/returned orders (lightweight)
+  const reviewableIds = orders
+    .filter((o) => o.status === "delivered" || o.status === "returned")
+    .map((o) => o.id);
+  const reviewsQuery = useQuery({
+    queryKey: ["merchant-orders-reviews", reviewableIds.sort().join(",")],
+    enabled: reviewableIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reviews" as any)
+        .select("order_id, rating")
+        .in("order_id", reviewableIds);
+      if (error) throw error;
+      const map: Record<string, number> = {};
+      for (const r of (data ?? []) as any[]) map[r.order_id] = r.rating;
+      return map;
+    },
+  });
+  const reviewMap = reviewsQuery.data ?? {};
+
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
   const someVisibleSelected = visibleIds.some((id) => selectedIds.includes(id)) && !allVisibleSelected;
   const toggleAllVisible = (checked: boolean) => {
