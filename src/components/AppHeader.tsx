@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBag, Shield, Search, Package, LogOut, Wallet, Receipt } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function AppHeader() {
   const { pathname } = useLocation();
@@ -47,6 +48,7 @@ export default function AppHeader() {
           ))}
           {user && (
             <div className="flex items-center gap-2 mr-2 border-r border-border pr-2">
+              <NotificationBell />
               {profile?.store_name && (
                 <span className="text-xs text-muted-foreground hidden md:inline">{profile.store_name}</span>
               )}
