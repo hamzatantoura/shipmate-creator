@@ -46,7 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft, X } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft, X, FileCheck2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -59,6 +59,7 @@ import { printBulkLabels, type BulkLabelData } from "@/lib/print-bulk";
 import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
 import { getOrderStatusMeta } from "@/lib/order-status";
+import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/lib/print-validation";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
@@ -353,7 +354,20 @@ export default function MerchantOrdersPage() {
   const handleBulkPrint = async () => {
     if (!selectedIds.length) return;
     const selectedOrders = orders.filter((o) => selectedIds.includes(o.id));
-    const labels: BulkLabelData[] = selectedOrders.map((order) => {
+    // Pre-print validation: filter out invalid orders, surface clear toasts.
+    const { printable, blocked } = partitionOrdersForPrinting(selectedOrders);
+    if (blocked.length) {
+      const sample = blocked[0];
+      const name = sample.order.receiver_name || silaCodeOf((sample.order as OrderRow).id);
+      toast.error(
+        blocked.length === 1
+          ? `لا يمكن طباعة "${name}": ${sample.error}`
+          : `تعذّر طباعة ${blocked.length} طلب — الأول (${name}): ${sample.error}`,
+      );
+    }
+    if (!printable.length) return;
+    const printableOrders = printable as OrderRow[];
+    const labels: BulkLabelData[] = printableOrders.map((order) => {
       const matched = allDistricts.find((d) => d.id === order.district_id);
       const districtName = matched?.parent_id ? matched.name : null;
       return {
@@ -385,7 +399,7 @@ export default function MerchantOrdersPage() {
       return;
     }
     // Lock unprinted orders so the merchant can't edit them after waybills exist
-    const toLock = selectedOrders.filter((o) => !o.label_printed_at);
+    const toLock = printableOrders.filter((o) => !o.label_printed_at);
     if (toLock.length) {
       const nowIso = new Date().toISOString();
       const updates = toLock.map((o) =>
@@ -400,10 +414,10 @@ export default function MerchantOrdersPage() {
       const results = await Promise.all(updates);
       const failed = results.filter((r) => r.error).length;
       if (failed) toast.error(`تعذّر قفل ${failed} طلب`);
-      else toast.success(`تم اعتماد وطباعة ${selectedOrders.length} بوليصة`);
+      else toast.success(`تم اعتماد وطباعة ${printableOrders.length} بوليصة`);
       fetchOrders();
     } else {
-      toast.success(`إعادة طباعة ${selectedOrders.length} بوليصة`);
+      toast.success(`إعادة طباعة ${printableOrders.length} بوليصة`);
     }
     clearSelection();
   };
@@ -443,15 +457,23 @@ export default function MerchantOrdersPage() {
   const updateBox = (id: string, weight: string) =>
     setBoxes((b) => b.map((x) => (x.id === id ? { ...x, weight } : x)));
 
-  const handleCreate = async () => {
+  const handleCreate = async (asDraft = false) => {
     if (!user) { toast.error("يجب تسجيل الدخول"); return; }
-    if (!form.name || !form.phone || !form.provinceId) {
-      toast.error("يرجى تعبئة الحقول المطلوبة");
-      return;
-    }
-    if (!isValidSyrianPhone(form.phone)) {
-      toast.error("رقم سوري غير صحيح. مثال: 0933123456");
-      return;
+    if (asDraft) {
+      // Bare-minimum validation for drafts: at least a receiver name OR phone
+      if (!form.name && !form.phone) {
+        toast.error("أدخل اسم المستلم أو رقم الهاتف على الأقل");
+        return;
+      }
+    } else {
+      if (!form.name || !form.phone || !form.provinceId) {
+        toast.error("يرجى تعبئة الحقول المطلوبة");
+        return;
+      }
+      if (!isValidSyrianPhone(form.phone)) {
+        toast.error("رقم سوري غير صحيح. مثال: 0933123456");
+        return;
+      }
     }
     const prov = provinces.find(p => p.id === form.provinceId);
     const area = allDistricts.find(d => d.id === form.districtId);
@@ -466,8 +488,8 @@ export default function MerchantOrdersPage() {
     setSubmitting(true);
     const { error } = await supabase.from("orders").insert({
       merchant_id: user.id,
-      receiver_name: form.name,
-      phone_number: form.phone,
+      receiver_name: form.name || "—",
+      phone_number: form.phone || "",
       city: cityLabel,
       detailed_address: form.address || "",
       district_id: finalDistrictId,
@@ -475,12 +497,12 @@ export default function MerchantOrdersPage() {
       assigned_branch_id: assignedBranchId,
       total_amount: cod,
       delivery_fee: deliveryFee,
-      status: "new",
+      status: asDraft ? "draft" : "new",
     } as any);
     setSubmitting(false);
 
     if (error) { toast.error(error.message || "تعذر إنشاء الطلب"); return; }
-    toast.success("تم إنشاء الطلب");
+    toast.success(asDraft ? "تم حفظ المسودة" : "تم إنشاء الطلب");
     resetForm();
     setCreateOpen(false);
     fetchOrders();
@@ -490,6 +512,14 @@ export default function MerchantOrdersPage() {
     if (!printConfirmId) return;
     const order = orders.find(o => o.id === printConfirmId);
     if (!order) return;
+
+    // Pre-print validation (mirrors the server-side trigger).
+    const validation = validateOrderForPrinting(order);
+    if (!validation.ok) {
+      toast.error(validation.error || "الطلب غير صالح للطباعة");
+      setPrintConfirmId(null);
+      return;
+    }
 
     // Resolve area/neighborhood name from districts table.
     // If district_id points to a child (has parent_id) → it's the area name.
@@ -942,9 +972,18 @@ export default function MerchantOrdersPage() {
                     </section>
                   </div>
 
-                  <DialogFooter className="gap-2">
+                  <DialogFooter className="gap-2 flex-wrap sm:flex-nowrap">
                     <Button variant="outline" onClick={() => setCreateOpen(false)}>إلغاء</Button>
-                    <Button onClick={handleCreate} disabled={submitting}>{submitting ? "جاري الحفظ..." : "إنشاء الطلب"}</Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleCreate(true)}
+                      disabled={submitting}
+                    >
+                      {submitting ? "جاري الحفظ..." : "حفظ كمسودة"}
+                    </Button>
+                    <Button onClick={() => handleCreate(false)} disabled={submitting}>
+                      {submitting ? "جاري الحفظ..." : "تأكيد الطلب"}
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -1019,6 +1058,14 @@ export default function MerchantOrdersPage() {
                           <TableCell>
                             <div className="font-medium text-foreground">{order.receiver_name}</div>
                             <div className="text-xs text-muted-foreground" dir="ltr">{order.phone_number}</div>
+                            {order.label_printed_at && (
+                              <div className="mt-1">
+                                <Badge variant="outline" className="gap-1 text-[10px] bg-success/10 text-success border-success/30">
+                                  <FileCheck2 className="h-3 w-3" />
+                                  بوليصة مطبوعة
+                                </Badge>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm">{display}</TableCell>
                           <TableCell className="text-sm">
