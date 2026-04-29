@@ -216,19 +216,8 @@ export default function AdminLogistics() {
   };
 
   const approveTopUp = async (topup: TopUpRequest) => {
-    await supabase.from("top_up_requests").update({ status: "completed" } as any).eq("id", topup.id);
-    let { data: wallet } = await supabase.from("wallets").select("*").eq("merchant_id", topup.merchant_id).single();
-    if (!wallet) {
-      const { data: newWallet } = await supabase.from("wallets").insert({ merchant_id: topup.merchant_id, balance: 0 } as any).select().single();
-      wallet = newWallet;
-    }
-    if (!wallet) { toast.error("خطأ في المحفظة"); return; }
-    const newBalance = Number(wallet.balance) + topup.amount;
-    await supabase.from("wallets").update({ balance: newBalance } as any).eq("id", wallet.id);
-    await supabase.from("wallet_transactions").insert({
-      wallet_id: wallet.id, type: "topup", amount: topup.amount,
-      description: `شحن رصيد - ${METHOD_AR[topup.method] || topup.method}`, reference_id: topup.id,
-    } as any);
+    const { error } = await supabase.rpc("approve_top_up", { p_topup_id: topup.id } as any);
+    if (error) { toast.error(error.message); return; }
     toast.success(`تم شحن ${topup.amount.toLocaleString()} ل.س للتاجر`);
     fetchData();
   };
