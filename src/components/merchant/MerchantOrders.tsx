@@ -130,7 +130,7 @@ export default function MerchantOrders() {
       }
       // Default carrier: first active courier (vendor) — admin can refine later via courier_district_rates
       const { data: courier } = await supabase
-        .from("couriers").select("id, cod_fee_type, cod_fee_value").eq("is_active", true).limit(1).maybeSingle();
+        .from("couriers_public" as any).select("id, cod_fee_type, cod_fee_value").eq("is_active", true).limit(1).maybeSingle();
       setCarrierFeeForOrder(fee);
       setCarrierIdForOrder(courier?.id || null);
       setCourierCodConfig(
