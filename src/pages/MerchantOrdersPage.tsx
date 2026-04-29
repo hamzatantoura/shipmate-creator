@@ -218,7 +218,7 @@ export default function MerchantOrdersPage() {
   useEffect(() => {
     Promise.all([
       supabase.from("districts").select("id, name, parent_id, delivery_fee").order("name"),
-      supabase.from("couriers").select("id, name").eq("is_active", true).order("name"),
+      supabase.from("couriers_public" as any).select("id, name").eq("is_active", true).order("name"),
       supabase.from("courier_district_rates" as any).select("courier_id, district_id, custom_delivery_fee"),
       supabase.from("courier_branches" as any).select("id, courier_id, name, lat, lng, district_id, province_id").eq("is_active", true),
       supabase.from("districts").select("id, lat, lng"),
@@ -226,7 +226,7 @@ export default function MerchantOrdersPage() {
       supabase.from("provinces").select("id, name_ar"),
     ]).then(([dRes, cRes, rRes, bRes, gRes, dpRes, pRes]) => {
       setAllDistricts((dRes.data || []) as DistrictRow[]);
-      setCouriers((cRes.data || []) as CourierOption[]);
+      setCouriers(((cRes.data || []) as unknown) as CourierOption[]);
       setCourierRates((rRes.data || []) as unknown as CourierRate[]);
       setBranches(((bRes.data || []) as unknown as BranchRow[]));
       const geo: Record<string, { lat: number | null; lng: number | null }> = {};

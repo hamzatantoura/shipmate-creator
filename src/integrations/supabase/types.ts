@@ -107,6 +107,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "courier_branches_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "courier_branches_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
@@ -165,6 +172,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "courier_district_rates_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "courier_district_rates_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
@@ -210,6 +224,13 @@ export type Database = {
             columns: ["courier_id"]
             isOneToOne: false
             referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_pricing_tiers_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers_public"
             referencedColumns: ["id"]
           },
         ]
@@ -682,6 +703,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orders_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_district_id_fkey"
             columns: ["district_id"]
             isOneToOne: false
@@ -1143,6 +1171,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shipments_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shipments_merchant_id_fkey"
             columns: ["merchant_id"]
             isOneToOne: false
@@ -1393,7 +1428,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      couriers_public: {
+        Row: {
+          city: string | null
+          cod_fee_type: string | null
+          cod_fee_value: number | null
+          created_at: string | null
+          id: string | null
+          integration_type: string | null
+          is_active: boolean | null
+          logo_url: string | null
+          name: string | null
+          return_fee_percentage: number | null
+          services: string[] | null
+        }
+        Insert: {
+          city?: string | null
+          cod_fee_type?: string | null
+          cod_fee_value?: number | null
+          created_at?: string | null
+          id?: string | null
+          integration_type?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string | null
+          return_fee_percentage?: number | null
+          services?: string[] | null
+        }
+        Update: {
+          city?: string | null
+          cod_fee_type?: string | null
+          cod_fee_value?: number | null
+          created_at?: string | null
+          id?: string | null
+          integration_type?: string | null
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string | null
+          return_fee_percentage?: number | null
+          services?: string[] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       complete_payout: {
