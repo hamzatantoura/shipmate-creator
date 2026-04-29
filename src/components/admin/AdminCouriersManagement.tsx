@@ -1400,17 +1400,14 @@ function ResetPasswordCard({
     (async () => {
       setLoadingUsername(true);
       try {
-        const { data, error } = await supabase.functions.invoke("reset-courier-password", {
-          body: { vendor_id: vendorId, password: "__lookup_only__" },
+        const { data, error } = await supabase.functions.invoke("update-courier-username", {
+          body: { vendor_id: vendorId, username: "" },
         });
-        // Avoid actually resetting on lookup. Use a dedicated lookup if available;
-        // here we fall back to reading from the profiles table by user_id.
         if (!cancelled && data?.username) {
           setCurrentUsername(data.username);
           setNewUsername(data.username);
         }
         if (error || !data?.username) {
-          // Fallback: read from auth.users via profiles is not allowed; leave blank
           if (!cancelled) {
             setCurrentUsername("");
             setNewUsername("");
