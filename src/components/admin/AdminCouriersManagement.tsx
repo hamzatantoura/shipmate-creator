@@ -998,10 +998,12 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
     setUploadingLogo(true);
     try {
       const ext = file.name.split(".").pop() || "png";
-      const path = `couriers/${courier.id}/logo-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
+      // SECURITY: courier logos are public assets — store in the public `courier-logos`
+      // bucket. Admin RLS policy allows any path; we group by courier id.
+      const path = `${courier.id}/logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("courier-logos").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("uploads").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from("courier-logos").getPublicUrl(path);
       setLogoUrl(pub.publicUrl);
       toast.success("تم رفع الشعار");
     } catch (err: any) {
