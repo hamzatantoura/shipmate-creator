@@ -995,6 +995,40 @@ export default function MerchantOrdersPage() {
                 </Table>
               </div>
             </Card>
+
+            {/* Pagination */}
+            {totalCount > 0 && (
+              <div className="flex items-center justify-between gap-3 mt-3 px-1 flex-wrap">
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  عرض {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} من {totalCount}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0 || ordersQuery.isFetching}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                    السابق
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular-nums px-2">
+                    صفحة {page + 1} من {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages || ordersQuery.isFetching}
+                  >
+                    التالي
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
 
