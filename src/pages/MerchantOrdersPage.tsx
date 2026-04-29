@@ -354,7 +354,20 @@ export default function MerchantOrdersPage() {
   const handleBulkPrint = async () => {
     if (!selectedIds.length) return;
     const selectedOrders = orders.filter((o) => selectedIds.includes(o.id));
-    const labels: BulkLabelData[] = selectedOrders.map((order) => {
+    // Pre-print validation: filter out invalid orders, surface clear toasts.
+    const { printable, blocked } = partitionOrdersForPrinting(selectedOrders);
+    if (blocked.length) {
+      const sample = blocked[0];
+      const name = sample.order.receiver_name || silaCodeOf((sample.order as OrderRow).id);
+      toast.error(
+        blocked.length === 1
+          ? `لا يمكن طباعة "${name}": ${sample.error}`
+          : `تعذّر طباعة ${blocked.length} طلب — الأول (${name}): ${sample.error}`,
+      );
+    }
+    if (!printable.length) return;
+    const printableOrders = printable as OrderRow[];
+    const labels: BulkLabelData[] = printableOrders.map((order) => {
       const matched = allDistricts.find((d) => d.id === order.district_id);
       const districtName = matched?.parent_id ? matched.name : null;
       return {
@@ -386,7 +399,7 @@ export default function MerchantOrdersPage() {
       return;
     }
     // Lock unprinted orders so the merchant can't edit them after waybills exist
-    const toLock = selectedOrders.filter((o) => !o.label_printed_at);
+    const toLock = printableOrders.filter((o) => !o.label_printed_at);
     if (toLock.length) {
       const nowIso = new Date().toISOString();
       const updates = toLock.map((o) =>
@@ -401,10 +414,10 @@ export default function MerchantOrdersPage() {
       const results = await Promise.all(updates);
       const failed = results.filter((r) => r.error).length;
       if (failed) toast.error(`تعذّر قفل ${failed} طلب`);
-      else toast.success(`تم اعتماد وطباعة ${selectedOrders.length} بوليصة`);
+      else toast.success(`تم اعتماد وطباعة ${printableOrders.length} بوليصة`);
       fetchOrders();
     } else {
-      toast.success(`إعادة طباعة ${selectedOrders.length} بوليصة`);
+      toast.success(`إعادة طباعة ${printableOrders.length} بوليصة`);
     }
     clearSelection();
   };
