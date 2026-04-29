@@ -793,9 +793,12 @@ export default function MerchantOrdersPage() {
                                 const hasGeo = dest?.lat != null && dest?.lng != null;
                                 if (!hasGeo) {
                                   return (
-                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2">
-                                      ⚠ ترتيب الفروع تقريبي — لم تُضبط إحداثيات هذه المنطقة بعد.
-                                    </p>
+                                    <div className="mb-2 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+                                      <span aria-hidden className="mt-0.5">⚠️</span>
+                                      <span>
+                                        هذه المنطقة لا تحتوي على إحداثيات دقيقة بعد، لذلك يتم عرض شركات الشحن المتاحة في المحافظة <strong>بدون ميزة ترتيب الأقرب</strong>. يمكن للإدارة ضبط الإحداثيات لاحقاً لتفعيل الترتيب الذكي.
+                                      </span>
+                                    </div>
                                   );
                                 }
                                 return null;

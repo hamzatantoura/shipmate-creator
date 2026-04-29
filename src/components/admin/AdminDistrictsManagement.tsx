@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronLeft, Plus, Edit2, Trash2, Upload, Download, MapPin, Building2, Search } from "lucide-react";
+import { ChevronDown, ChevronLeft, Plus, Edit2, Trash2, Upload, Download, MapPin, Building2, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import LocationPicker from "@/components/LocationPicker";
 
@@ -142,14 +142,35 @@ export default function AdminDistrictsManagement() {
   );
   const childrenOf = (id: string) => districts.filter(d => d.parent_id === id).sort((a, b) => a.name.localeCompare(b.name, "ar"));
 
+  // Districts (children only) with no coordinates yet — admin must set them manually
+  // for the "nearest branch" sorting to work in the merchant order form.
+  const missingCoordsCount = useMemo(
+    () => districts.filter(d => d.parent_id && (d.lat == null || d.lng == null)).length,
+    [districts]
+  );
+  const missingCoordsByProvince = useMemo(() => {
+    const m: Record<string, number> = {};
+    districts.forEach(d => {
+      if (d.parent_id && (d.lat == null || d.lng == null)) {
+        m[d.parent_id] = (m[d.parent_id] || 0) + 1;
+      }
+    });
+    return m;
+  }, [districts]);
+  const [showOnlyMissing, setShowOnlyMissing] = useState(false);
+
   const filteredProvinces = useMemo(() => {
-    if (!search.trim()) return provinces;
+    let list = provinces;
+    if (showOnlyMissing) {
+      list = list.filter(p => (missingCoordsByProvince[p.id] || 0) > 0);
+    }
+    if (!search.trim()) return list;
     const q = search.trim();
-    return provinces.filter(p => {
+    return list.filter(p => {
       if (p.name.includes(q)) return true;
       return childrenOf(p.id).some(c => c.name.includes(q));
     });
-  }, [provinces, search, districts]);
+  }, [provinces, search, districts, showOnlyMissing, missingCoordsByProvince]);
 
   const toggleExpand = (id: string) => {
     setExpanded(prev => {
@@ -380,6 +401,26 @@ export default function AdminDistrictsManagement() {
       <div className="flex gap-2 text-xs text-muted-foreground">
         <Badge variant="outline">{provinces.length} محافظة</Badge>
         <Badge variant="outline">{districts.length - provinces.length} منطقة</Badge>
+        {missingCoordsCount > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowOnlyMissing(v => !v)}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs transition-colors ${
+              showOnlyMissing
+                ? "border-destructive bg-destructive/10 text-destructive"
+                : "border-destructive/40 text-destructive hover:bg-destructive/10"
+            }`}
+            title="عرض المناطق التي تحتاج ضبط إحداثيات يدوياً"
+          >
+            <AlertTriangle className="h-3 w-3" />
+            {missingCoordsCount} منطقة بدون إحداثيات
+            {showOnlyMissing && <span className="mr-1 opacity-70">(تم التصفية)</span>}
+          </button>
+        ) : (
+          <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+            ✓ كل المناطق لها إحداثيات
+          </Badge>
+        )}
       </div>
 
       {/* Tree */}
@@ -402,6 +443,16 @@ export default function AdminDistrictsManagement() {
                   <Building2 className="h-4 w-4 text-primary" />
                   <span className="font-semibold text-foreground flex-1">{p.name}</span>
                   <Badge variant="secondary" className="text-xs">{kids.length} منطقة</Badge>
+                  {missingCoordsByProvince[p.id] > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] border-destructive/50 text-destructive gap-1"
+                      title="عدد المناطق بدون إحداثيات"
+                    >
+                      <AlertTriangle className="h-3 w-3" />
+                      {missingCoordsByProvince[p.id]} بدون إحداثيات
+                    </Badge>
+                  )}
                   <span className="text-xs text-muted-foreground hidden md:inline">{fmtSYP(p.delivery_fee)}</span>
                   <Button size="sm" variant="ghost" onClick={() => openCreate(p.id)} className="gap-1 h-8">
                     <Plus className="h-3.5 w-3.5" /> منطقة
@@ -432,6 +483,16 @@ export default function AdminDistrictsManagement() {
                       <div key={c.id} className="flex items-center gap-2 p-3 pr-10 hover:bg-muted/20">
                         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="text-sm text-foreground flex-1">{c.name}</span>
+                        {(c.lat == null || c.lng == null) && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-destructive/50 text-destructive gap-1 px-1.5 py-0 h-5"
+                            title="هذه المنطقة بدون إحداثيات — اضغط تعديل لضبطها على الخريطة"
+                          >
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            بدون إحداثيات
+                          </Badge>
+                        )}
                         <span className="text-xs text-muted-foreground">{fmtSYP(c.delivery_fee)}</span>
                         <Button size="icon" variant="ghost" onClick={() => openEdit(c)} className="h-7 w-7">
                           <Edit2 className="h-3 w-3" />
