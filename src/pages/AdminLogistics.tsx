@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
@@ -20,6 +20,7 @@ import AdminBranchesManagement from "@/components/admin/AdminBranchesManagement"
 import AdminAnalyticsDashboard from "@/components/admin/AdminAnalyticsDashboard";
 import AdminWhatsappQueue from "@/components/admin/AdminWhatsappQueue";
 import AdminAuditLog from "@/components/admin/AdminAuditLog";
+import { CourierSettlementsPanel } from "@/pages/AdminSettlements";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import SecureReceiptImage from "@/components/SecureReceiptImage";
 import type { Database } from "@/integrations/supabase/types";
@@ -97,7 +98,7 @@ export default function AdminLogistics() {
 
   // Persisted active tab — stays put across re-renders and page refreshes
   const TAB_STORAGE_KEY = "admin-active-tab";
-  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions", "whatsapp", "audit"];
+  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "settlements", "districts", "merchants", "couriers", "branches", "transactions", "whatsapp", "audit"];
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === "undefined") return "analytics";
@@ -128,7 +129,8 @@ export default function AdminLogistics() {
 
   const pendingTopups = topups.filter(t => t.status === "pending").length;
   const pendingPayouts = payouts.filter(p => p.status === "pending").length;
-  const totalPending = pendingTopups + pendingPayouts;
+  const [pendingSettlements, setPendingSettlements] = useState(0);
+  const totalPending = pendingTopups + pendingPayouts + pendingSettlements;
 
   const fetchData = async () => {
     const [pRes, tRes, sAllRes, sActiveRes, platformWalletRes] = await Promise.all([
@@ -177,7 +179,15 @@ export default function AdminLogistics() {
     if (sActiveRes.data) setShipments(sActiveRes.data);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  const fetchPendingSettlements = async () => {
+    const { count } = await supabase
+      .from("courier_settlements")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    setPendingSettlements(count ?? 0);
+  };
+
+  useEffect(() => { fetchData(); fetchPendingSettlements(); }, []);
 
   // Payout handlers
   const updatePayoutStatus = async () => {
@@ -312,6 +322,10 @@ export default function AdminLogistics() {
             <TabsTrigger value="payouts" className="gap-1.5">
               <CreditCard className="h-3.5 w-3.5" /> طلبات التسوية
               {pendingPayouts > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingPayouts}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="settlements" className="gap-1.5">
+              <Receipt className="h-3.5 w-3.5" /> تسويات المناديب
+              {pendingSettlements > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0 mr-1">{pendingSettlements}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="districts" className="gap-1.5">
               <MapPin className="h-3.5 w-3.5" /> إدارة المناطق
@@ -509,6 +523,9 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="audit" forceMount className="mt-4 data-[state=inactive]:hidden">
             <AdminAuditLog />
+          </TabsContent>
+          <TabsContent value="settlements" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <CourierSettlementsPanel />
           </TabsContent>
         </Tabs>
 
