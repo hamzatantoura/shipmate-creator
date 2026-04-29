@@ -45,7 +45,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft, Printer as PrinterIcon, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,6 +54,7 @@ import silaLogo from "@/assets/sila-logo.png";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { printShippingLabel } from "@/lib/print-label";
+import { printBulkLabels, type BulkLabelData } from "@/lib/print-bulk";
 import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
 import { getOrderStatusMeta } from "@/lib/order-status";
@@ -196,6 +198,8 @@ export default function MerchantOrdersPage() {
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<OrderRow | null>(null);
+  // Bulk selection (for "Bulk Print Waybills")
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Districts (real data)
   const [allDistricts, setAllDistricts] = useState<DistrictRow[]>([]);
@@ -303,6 +307,83 @@ export default function MerchantOrdersPage() {
   const loading = ordersQuery.isLoading;
   const fetchOrders = () =>
     queryClient.invalidateQueries({ queryKey: ["merchant-orders", user?.id] });
+
+  // Reset selection when the visible page/orders change
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => orders.some((o) => o.id === id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, ordersQuery.dataUpdatedAt]);
+
+  const visibleIds = orders.map((o) => o.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.includes(id)) && !allVisibleSelected;
+  const toggleAllVisible = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, ...visibleIds]));
+      return prev.filter((id) => !visibleIds.includes(id));
+    });
+  };
+  const toggleOne = (id: string, checked: boolean) =>
+    setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+  const clearSelection = () => setSelectedIds([]);
+
+  const handleBulkPrint = async () => {
+    if (!selectedIds.length) return;
+    const selectedOrders = orders.filter((o) => selectedIds.includes(o.id));
+    const labels: BulkLabelData[] = selectedOrders.map((order) => {
+      const matched = allDistricts.find((d) => d.id === order.district_id);
+      const districtName = matched?.parent_id ? matched.name : null;
+      return {
+        silaCode: silaCodeOf(order.id),
+        createdAt: order.created_at,
+        sender: {
+          storeName: profile?.store_name || "متجر التاجر",
+          phone: profile?.phone || null,
+          city: profile?.city || null,
+        },
+        receiver: {
+          name: order.receiver_name,
+          phone: order.phone_number,
+          city: order.city,
+          district: districtName,
+          address: order.detailed_address,
+        },
+        cod: Number(order.final_sale_price ?? order.total_amount),
+        notes: order.notes,
+        courierName: courierNameOf(order),
+        courierLogoUrl: order.couriers?.logo_url ?? null,
+        trackingNumber: order.shipments?.tracking_number ?? null,
+      };
+    });
+    try {
+      printBulkLabels(labels);
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر فتح نافذة الطباعة");
+      return;
+    }
+    // Lock unprinted orders so the merchant can't edit them after waybills exist
+    const toLock = selectedOrders.filter((o) => !o.label_printed_at);
+    if (toLock.length) {
+      const nowIso = new Date().toISOString();
+      const updates = toLock.map((o) =>
+        supabase
+          .from("orders")
+          .update({
+            label_printed_at: nowIso,
+            status: o.status === "new" ? "processing" : o.status,
+          } as any)
+          .eq("id", o.id),
+      );
+      const results = await Promise.all(updates);
+      const failed = results.filter((r) => r.error).length;
+      if (failed) toast.error(`تعذّر قفل ${failed} طلب`);
+      else toast.success(`تم اعتماد وطباعة ${selectedOrders.length} بوليصة`);
+      fetchOrders();
+    } else {
+      toast.success(`إعادة طباعة ${selectedOrders.length} بوليصة`);
+    }
+    clearSelection();
+  };
 
   // Resolve courier name: prefer joined relation, fallback to local couriers list
   const courierNameOf = (order: OrderRow | null, courierId?: string | null) => {
@@ -848,10 +929,34 @@ export default function MerchantOrdersPage() {
 
             {/* Orders Table */}
             <Card className="overflow-hidden">
+              {selectedIds.length > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-primary/30 bg-primary/5 px-3 py-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="inline-flex items-center justify-center h-6 min-w-6 rounded-full bg-primary text-primary-foreground text-xs font-bold px-1.5">
+                      {selectedIds.length}
+                    </span>
+                    <span className="font-medium">طلب محدد</span>
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={clearSelection}>
+                      <X className="h-3.5 w-3.5" /> إلغاء التحديد
+                    </Button>
+                  </div>
+                  <Button size="sm" className="h-8 gap-1.5" onClick={handleBulkPrint}>
+                    <PrinterIcon className="h-3.5 w-3.5" />
+                    طباعة البوليصات المحددة ({selectedIds.length})
+                  </Button>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[40px] text-right">
+                        <Checkbox
+                          checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                          onCheckedChange={(c) => toggleAllVisible(!!c)}
+                          aria-label="تحديد كل الطلبات الظاهرة"
+                        />
+                      </TableHead>
                       <TableHead className="text-right">الزبون</TableHead>
                       <TableHead className="text-right">المحافظة</TableHead>
                       <TableHead className="text-right">شركة الشحن</TableHead>
@@ -864,7 +969,7 @@ export default function MerchantOrdersPage() {
                   <TableBody>
                     {loading && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           جاري التحميل...
                         </TableCell>
                       </TableRow>
@@ -878,8 +983,16 @@ export default function MerchantOrdersPage() {
                       const amount = order.final_sale_price ?? order.total_amount;
                       const courierName = courierNameOf(order);
                       const trackingNumber = order.shipments?.tracking_number ?? null;
+                      const checked = selectedIds.includes(order.id);
                       return (
-                        <TableRow key={order.id}>
+                        <TableRow key={order.id} className={checked ? "bg-primary/5" : ""}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(c) => toggleOne(order.id, !!c)}
+                              aria-label={`تحديد ${silaCodeOf(order.id)}`}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="font-medium text-foreground">{order.receiver_name}</div>
                             <div className="text-xs text-muted-foreground" dir="ltr">{order.phone_number}</div>
@@ -986,7 +1099,7 @@ export default function MerchantOrdersPage() {
                     })}
                     {!loading && orders.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           لا توجد طلبات بعد
                         </TableCell>
                       </TableRow>
