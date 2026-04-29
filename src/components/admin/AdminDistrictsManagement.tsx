@@ -483,6 +483,16 @@ export default function AdminDistrictsManagement() {
                       <div key={c.id} className="flex items-center gap-2 p-3 pr-10 hover:bg-muted/20">
                         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="text-sm text-foreground flex-1">{c.name}</span>
+                        {(c.lat == null || c.lng == null) && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-destructive/50 text-destructive gap-1 px-1.5 py-0 h-5"
+                            title="هذه المنطقة بدون إحداثيات — اضغط تعديل لضبطها على الخريطة"
+                          >
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            بدون إحداثيات
+                          </Badge>
+                        )}
                         <span className="text-xs text-muted-foreground">{fmtSYP(c.delivery_fee)}</span>
                         <Button size="icon" variant="ghost" onClick={() => openEdit(c)} className="h-7 w-7">
                           <Edit2 className="h-3 w-3" />
