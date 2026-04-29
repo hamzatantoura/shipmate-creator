@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
@@ -19,6 +19,7 @@ import AdminCouriersManagement from "@/components/admin/AdminCouriersManagement"
 import AdminBranchesManagement from "@/components/admin/AdminBranchesManagement";
 import AdminAnalyticsDashboard from "@/components/admin/AdminAnalyticsDashboard";
 import AdminWhatsappQueue from "@/components/admin/AdminWhatsappQueue";
+import AdminAuditLog from "@/components/admin/AdminAuditLog";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
 import SecureReceiptImage from "@/components/SecureReceiptImage";
 import type { Database } from "@/integrations/supabase/types";
@@ -96,7 +97,7 @@ export default function AdminLogistics() {
 
   // Persisted active tab — stays put across re-renders and page refreshes
   const TAB_STORAGE_KEY = "admin-active-tab";
-  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions", "whatsapp"];
+  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "districts", "merchants", "couriers", "branches", "transactions", "whatsapp", "audit"];
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === "undefined") return "analytics";
@@ -330,6 +331,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="whatsapp" className="gap-1.5">
               <MessageCircle className="h-3.5 w-3.5" /> رسائل الواتساب
             </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-1.5">
+              <ScrollText className="h-3.5 w-3.5" /> سجل التدقيق
+            </TabsTrigger>
           </TabsList>
 
           {/* Analytics dashboard tab */}
@@ -502,6 +506,9 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="transactions" forceMount className="mt-4 data-[state=inactive]:hidden">
             <WalletTransactionsLog showAll />
+          </TabsContent>
+          <TabsContent value="audit" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <AdminAuditLog />
           </TabsContent>
         </Tabs>
 
