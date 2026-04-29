@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,7 +27,7 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
-  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon,
+  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon, ChevronRight, ChevronLeft,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Calendar } from "@/components/ui/calendar";
@@ -110,11 +111,10 @@ const TAB_LABELS: Record<TabKey, string> = {
 
 export default function CourierOrders() {
   const { user, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [orders, setOrders] = useState<CourierOrderRow[]>([]);
   const [companyName, setCompanyName] = useState<string>("");
   const [companyLoaded, setCompanyLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState<"orders" | "scanner" | "wallet">("orders");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
@@ -143,6 +143,7 @@ export default function CourierOrders() {
   const [editSaving, setEditSaving] = useState(false);
   const [revertDialog, setRevertDialog] = useState<CourierOrderRow | null>(null);
   const [reverting, setReverting] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // ===== Smart Scanner state =====
   const [scanInput, setScanInput] = useState("");
@@ -150,26 +151,109 @@ export default function CourierOrders() {
   const [quickReason, setQuickReason] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  // Pagination
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(0);
+
+  // ===== Courier company name (one-shot) =====
+  useEffect(() => {
     if (!user) return;
-    setLoading(true);
-    const [ordersRes, courierRes] = await Promise.all([
-      supabase
+    let cancelled = false;
+    supabase
+      .from("couriers")
+      .select("name")
+      .eq("vendor_id", user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) console.error("Courier fetch error:", error);
+        setCompanyName(data?.name ?? "");
+        setCompanyLoaded(true);
+      });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // ===== AGGREGATE QUERY: lightweight, ALL rows for KPIs / chart / scanner / tab counts =====
+  // No heavy joins. Used purely to compute analytics + power the smart scanner search.
+  type AggOrder = Pick<
+    CourierOrderRow,
+    "id" | "status" | "updated_at" | "created_at" | "receiver_name" | "phone_number" | "shipment_id" | "return_reason"
+  >;
+  const aggregateQuery = useQuery({
+    queryKey: ["courier-orders-aggregate", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from("orders")
-        .select("id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)")
+        .select("id, status, updated_at, created_at, receiver_name, phone_number, shipment_id, return_reason")
         .is("deleted_at", null)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("couriers")
-        .select("name")
-        .eq("vendor_id", user.id)
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    if (ordersRes.error) toast.error("تعذر تحميل الطلبات");
-    else {
-      const rawOrders = (ordersRes.data || []) as unknown as CourierOrderRow[];
-      // Resolve branch names via separate query (no FK on assigned_branch_id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as AggOrder[];
+    },
+  });
+  const aggOrders: AggOrder[] = aggregateQuery.data ?? [];
+
+  // ===== PAGINATED TABLE QUERY: server-side filters + full joins =====
+  // All filters (tab, status, date range, search) applied at the DB level so
+  // pagination reflects the user's view.
+  const pageQuery = useQuery({
+    queryKey: [
+      "courier-orders-page",
+      user?.id, page, tab, statusFilter, sortDir,
+      search.trim().toLowerCase(),
+      dateRange?.from?.toISOString() ?? null,
+      dateRange?.to?.toISOString() ?? null,
+    ],
+    enabled: !!user?.id,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      let q = supabase
+        .from("orders")
+        .select(
+          "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)",
+          { count: "exact" }
+        )
+        .is("deleted_at", null);
+
+      // Tab filter (mutually exclusive buckets — mirror TAB_FILTERS server-side)
+      if (tab === "pending") q = q.in("status", ["new", "pending"]);
+      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "delivered") q = q.eq("status", "delivered");
+      else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
+
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+
+      if (dateRange?.from) {
+        const fromD = new Date(dateRange.from); fromD.setHours(0, 0, 0, 0);
+        q = q.gte("created_at", fromD.toISOString());
+      }
+      if (dateRange?.to) {
+        const toD = new Date(dateRange.to); toD.setHours(23, 59, 59, 999);
+        q = q.lte("created_at", toD.toISOString());
+      }
+
+      const term = search.trim();
+      if (term) {
+        // OR across name / phone / address. Sila code search is handled
+        // client-side via the aggregate query (id-prefix lookup).
+        const safe = term.replace(/[%,]/g, " ");
+        q = q.or(
+          `receiver_name.ilike.%${safe}%,phone_number.ilike.%${safe}%,detailed_address.ilike.%${safe}%`
+        );
+      }
+
+      q = q.order("created_at", { ascending: sortDir === "asc" }).range(from, to);
+
+      const { data, error, count } = await q;
+      if (error) throw error;
+
+      const rawOrders = (data || []) as unknown as CourierOrderRow[];
+
+      // Resolve branch names in a single batched query (no FK on assigned_branch_id)
       const branchIds = Array.from(new Set(rawOrders.map(o => o.assigned_branch_id).filter(Boolean) as string[]));
       let branchMap = new Map<string, string>();
       if (branchIds.length) {
@@ -182,17 +266,21 @@ export default function CourierOrders() {
         branch_name: o.assigned_branch_id ? (branchMap.get(o.assigned_branch_id) ?? null) : null,
         collection_fee: Number(o.shipments?.collection_fee ?? 0),
       }));
-      setOrders(enriched);
-    }
-    if (courierRes.error) {
-      console.error("Courier fetch error:", courierRes.error);
-    }
-    setCompanyName(courierRes.data?.name ?? "");
-    setCompanyLoaded(true);
-    setLoading(false);
-  }, [user]);
+      return { rows: enriched, total: count ?? 0 };
+    },
+  });
+  const orders: CourierOrderRow[] = pageQuery.data?.rows ?? [];
+  const totalCount = pageQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const loading = pageQuery.isLoading;
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // Reset to page 0 whenever filters change
+  useEffect(() => { setPage(0); }, [tab, statusFilter, sortDir, search, dateRange?.from, dateRange?.to]);
+
+  const fetchAll = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["courier-orders-aggregate", user?.id] });
+    queryClient.invalidateQueries({ queryKey: ["courier-orders-page", user?.id] });
+  }, [queryClient, user?.id]);
 
   // Persist filters to URL
   useEffect(() => {
@@ -246,20 +334,20 @@ export default function CourierOrders() {
     }
     setUpdatingId(null);
     toast.success("تم تحديث الحالة");
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus, return_reason: reason ?? o.return_reason } : o));
+    fetchAll();
     setReturnDialog(null);
   };
 
-  // ===== Derived KPIs & chart data =====
+  // ===== Derived KPIs & chart data (driven by lightweight AGGREGATE query — ALL rows) =====
   const kpis = useMemo(() => {
-    const total = orders.length;
-    const deliveredToday = orders.filter(o => o.status === "delivered" && isToday(o.updated_at)).length;
-    const finishedToday = orders.filter(o => isToday(o.updated_at) && ["delivered", "returned"].includes(o.status)).length;
+    const total = aggOrders.length;
+    const deliveredToday = aggOrders.filter(o => o.status === "delivered" && isToday(o.updated_at)).length;
+    const finishedToday = aggOrders.filter(o => isToday(o.updated_at) && ["delivered", "returned"].includes(o.status)).length;
     const successRate = finishedToday ? Math.round((deliveredToday / finishedToday) * 100) : 0;
-    const outForDelivery = orders.filter(o => o.status === "out_for_delivery").length;
-    const returned = orders.filter(o => o.status === "returned").length;
+    const outForDelivery = aggOrders.filter(o => o.status === "out_for_delivery").length;
+    const returned = aggOrders.filter(o => o.status === "returned").length;
     return { total, deliveredToday, successRate, outForDelivery, returned };
-  }, [orders]);
+  }, [aggOrders]);
 
   const chartData = useMemo(() => {
     const days: { key: string; label: string; delivered: number; returned: number }[] = [];
@@ -271,7 +359,7 @@ export default function CourierOrders() {
       days.push({ key, label, delivered: 0, returned: 0 });
     }
     const idx = new Map(days.map((d, i) => [d.key, i]));
-    for (const o of orders) {
+    for (const o of aggOrders) {
       if (!["delivered", "returned"].includes(o.status)) continue;
       const k = new Date(o.updated_at).toISOString().slice(0, 10);
       const i = idx.get(k);
@@ -280,53 +368,28 @@ export default function CourierOrders() {
       else days[i].returned++;
     }
     return days;
-  }, [orders]);
+  }, [aggOrders]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const fromTs = dateRange?.from ? new Date(dateRange.from).setHours(0,0,0,0) : null;
-    const toTs = dateRange?.to ? new Date(dateRange.to).setHours(23,59,59,999) : null;
-    const list = orders.filter(o => {
-      if (!TAB_FILTERS[tab](o.status)) return false;
-      if (statusFilter !== "all" && o.status !== statusFilter) return false;
-      if (fromTs !== null || toTs !== null) {
-        const t = new Date(o.created_at).getTime();
-        if (fromTs !== null && t < fromTs) return false;
-        if (toTs !== null && t > toTs) return false;
-      }
-      if (!q) return true;
-      const sila = silaCodeOf(o.id).toLowerCase();
-      return (
-        sila.includes(q) ||
-        o.receiver_name.toLowerCase().includes(q) ||
-        o.phone_number.toLowerCase().includes(q) ||
-        (o.detailed_address || "").toLowerCase().includes(q)
-      );
-    });
-    const sorted = [...list].sort((a, b) => {
-      const da = new Date(a.created_at).getTime();
-      const db = new Date(b.created_at).getTime();
-      return sortDir === "desc" ? db - da : da - db;
-    });
-    return sorted;
-  }, [orders, search, tab, statusFilter, sortDir, dateRange]);
+  // The page query is already filtered + sorted server-side. `filtered` is the
+  // current page's rows as displayed.
+  const filtered = orders;
 
   // Distinct statuses present in current data, for the status filter dropdown
   const availableStatuses = useMemo(() => {
     const set = new Set<string>();
-    orders.forEach(o => set.add(o.status));
+    aggOrders.forEach(o => set.add(o.status));
     return Array.from(set);
-  }, [orders]);
+  }, [aggOrders]);
 
-  // Per-tab counters (respect search to make counts useful)
+  // Per-tab counters — driven by the aggregate query so counts reflect ALL data.
   const tabCounts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const matchSearch = (o: CourierOrderRow) => {
+    const matchSearch = (o: AggOrder) => {
       if (!q) return true;
       const sila = silaCodeOf(o.id).toLowerCase();
       return sila.includes(q) || o.receiver_name.toLowerCase().includes(q) || o.phone_number.toLowerCase().includes(q);
     };
-    const base = orders.filter(matchSearch);
+    const base = aggOrders.filter(matchSearch);
     return {
       all: base.length,
       pending: base.filter(o => TAB_FILTERS.pending(o.status)).length,
@@ -334,9 +397,9 @@ export default function CourierOrders() {
       delivered: base.filter(o => TAB_FILTERS.delivered(o.status)).length,
       returned: base.filter(o => TAB_FILTERS.returned(o.status)).length,
     } as Record<TabKey, number>;
-  }, [orders, search]);
+  }, [aggOrders, search]);
 
-  // ===== Smart Scanner: lookup + propose next status =====
+  // ===== Smart Scanner: lookup across ALL orders (aggregate query) =====
   const handleScan = useCallback((rawCode: string) => {
     const code = (rawCode || "").trim();
     if (!code) return;
@@ -344,7 +407,7 @@ export default function CourierOrders() {
     const compact = upper.replace(/[^A-Z0-9]/g, "");
     const noPrefix = upper.replace(/^SL[-_]?/i, "").replace(/[^A-Z0-9]/g, "");
 
-    const found = orders.find((o) => {
+    const found = aggOrders.find((o) => {
       const idCompact = o.id.replace(/-/g, "").toUpperCase();
       const sila = silaCodeOf(o.id).toUpperCase();
       return (
@@ -366,8 +429,9 @@ export default function CourierOrders() {
       return;
     }
     setQuickReason("");
-    setQuickAction({ order: found, nextStatus: next });
-  }, [orders]);
+    // Cast to CourierOrderRow shape; quick-action dialog only needs id/status/receiver_name
+    setQuickAction({ order: found as unknown as CourierOrderRow, nextStatus: next });
+  }, [aggOrders]);
 
   const confirmQuickAction = async () => {
     if (!quickAction) return;
@@ -419,47 +483,97 @@ export default function CourierOrders() {
     }
   };
 
-  // Excel export — respects current filters (exports rows visible in `filtered`)
-  const exportExcel = () => {
-    if (filtered.length === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
-    const data = filtered.map(o => {
-      const cod = Number(o.final_sale_price ?? o.total_amount ?? 0);
-      return {
-        "تاريخ الطلبية": new Date(o.created_at).toLocaleDateString("en-GB"),
-        "مكان التسليم": o.detailed_address || "",
-        "الكود": silaCodeOf(o.id),
-        "اسم المستلم": o.receiver_name,
-        "رقم الهاتف": o.phone_number,
-        "المدينة": o.districts?.name || o.city,
-        "الفرع": o.branch_name || "—",
-        "قيمة": Number(o.total_amount ?? 0),
-        "المبلغ المطلوب تحصيله (COD)": cod,
-        "قيمة أجور الحوالة": Number(o.collection_fee ?? 0),
-        "رسوم التوصيل": Number(o.delivery_fee ?? 0),
-        "الحالة": getOrderStatusMeta(o.status).label,
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(data);
-    // Auto-size columns based on header + content max length (with comfortable padding)
-    const headers = Object.keys(data[0] || {});
-    ws["!cols"] = headers.map((h) => {
-      const maxContent = data.reduce((m, row) => {
-        const v = (row as Record<string, unknown>)[h];
-        const len = String(v ?? "").length;
-        return len > m ? len : m;
-      }, h.length);
-      // Arabic chars render wider — add generous padding
-      return { wch: Math.min(60, Math.max(14, maxContent + 6)) };
-    });
-    // Force RTL view on sheet
-    ws["!views"] = [{ RTL: true }];
-    const wb = XLSX.utils.book_new();
-    // Force RTL at workbook level too
-    wb.Workbook = { ...(wb.Workbook || {}), Views: [{ RTL: true }] };
-    XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
-    const stamp = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
-    toast.success(`تم تصدير ${filtered.length} طلب إلى Excel`);
+  // Excel export — ON-DEMAND fetch of the FILTERED dataset with full joins.
+  // Heavy export data is NOT kept in memory — we only fetch when the user clicks.
+  const exportExcel = async () => {
+    if (!user) return;
+    if (totalCount === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
+    setExportLoading(true);
+    try {
+      // Re-apply the SAME filters as the page query, but without `.range()` — fetch all.
+      let q = supabase
+        .from("orders")
+        .select(
+          "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)"
+        )
+        .is("deleted_at", null);
+      if (tab === "pending") q = q.in("status", ["new", "pending"]);
+      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "delivered") q = q.eq("status", "delivered");
+      else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (dateRange?.from) {
+        const fromD = new Date(dateRange.from); fromD.setHours(0, 0, 0, 0);
+        q = q.gte("created_at", fromD.toISOString());
+      }
+      if (dateRange?.to) {
+        const toD = new Date(dateRange.to); toD.setHours(23, 59, 59, 999);
+        q = q.lte("created_at", toD.toISOString());
+      }
+      const term = search.trim();
+      if (term) {
+        const safe = term.replace(/[%,]/g, " ");
+        q = q.or(
+          `receiver_name.ilike.%${safe}%,phone_number.ilike.%${safe}%,detailed_address.ilike.%${safe}%`
+        );
+      }
+      q = q.order("created_at", { ascending: sortDir === "asc" }).limit(10000);
+
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      const list = (rows || []) as unknown as CourierOrderRow[];
+      if (list.length === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
+
+      // Resolve branch names in one batched query
+      const branchIds = Array.from(new Set(list.map(o => o.assigned_branch_id).filter(Boolean) as string[]));
+      let branchMap = new Map<string, string>();
+      if (branchIds.length) {
+        const { data: branches } = await supabase
+          .from("courier_branches").select("id, name").in("id", branchIds);
+        branchMap = new Map((branches || []).map(b => [b.id as string, b.name as string]));
+      }
+
+      const data = list.map(o => {
+        const cod = Number(o.final_sale_price ?? o.total_amount ?? 0);
+        const branchName = o.assigned_branch_id ? (branchMap.get(o.assigned_branch_id) ?? null) : null;
+        const collectionFee = Number(o.shipments?.collection_fee ?? 0);
+        return {
+          "تاريخ الطلبية": new Date(o.created_at).toLocaleDateString("en-GB"),
+          "مكان التسليم": o.detailed_address || "",
+          "الكود": silaCodeOf(o.id),
+          "اسم المستلم": o.receiver_name,
+          "رقم الهاتف": o.phone_number,
+          "المدينة": o.districts?.name || o.city,
+          "الفرع": branchName || "—",
+          "قيمة": Number(o.total_amount ?? 0),
+          "المبلغ المطلوب تحصيله (COD)": cod,
+          "قيمة أجور الحوالة": collectionFee,
+          "رسوم التوصيل": Number(o.delivery_fee ?? 0),
+          "الحالة": getOrderStatusMeta(o.status).label,
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      const headers = Object.keys(data[0] || {});
+      ws["!cols"] = headers.map((h) => {
+        const maxContent = data.reduce((m, row) => {
+          const v = (row as Record<string, unknown>)[h];
+          const len = String(v ?? "").length;
+          return len > m ? len : m;
+        }, h.length);
+        return { wch: Math.min(60, Math.max(14, maxContent + 6)) };
+      });
+      ws["!views"] = [{ RTL: true }];
+      const wb = XLSX.utils.book_new();
+      wb.Workbook = { ...(wb.Workbook || {}), Views: [{ RTL: true }] };
+      XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
+      toast.success(`تم تصدير ${list.length} طلب إلى Excel`);
+    } catch (e: any) {
+      toast.error(e?.message || "فشل التصدير");
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const exportCsv = () => {
@@ -867,9 +981,11 @@ export default function CourierOrders() {
                   variant="outline"
                   className="h-9 gap-1.5"
                   onClick={exportExcel}
-                  disabled={filtered.length === 0}
+                  disabled={totalCount === 0 || exportLoading}
                 >
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  {exportLoading
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <FileSpreadsheet className="h-3.5 w-3.5" />}
                   تصدير إلى إكسل
                 </Button>
               </div>
@@ -1094,6 +1210,40 @@ export default function CourierOrders() {
             )}
           </CardContent>
         </Card>
+
+        {/* Pagination */}
+        {totalCount > 0 && (
+          <div className="flex items-center justify-between gap-3 mt-1 px-1 flex-wrap">
+            <div className="text-xs text-muted-foreground tabular-nums">
+              عرض {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} من {totalCount}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page === 0 || pageQuery.isFetching}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+                السابق
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums px-2">
+                صفحة {page + 1} من {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1"
+                onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                disabled={page + 1 >= totalPages || pageQuery.isFetching}
+              >
+                التالي
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
           </TabsContent>
 
           {/* SCANNER TAB */}

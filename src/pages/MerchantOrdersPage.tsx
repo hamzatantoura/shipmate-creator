@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
 import { isValidSyrianPhone } from "@/lib/syrian-phone";
@@ -44,7 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
@@ -186,9 +187,10 @@ const sendTrackingViaWhatsApp = (order: OrderRow) => {
 
 export default function MerchantOrdersPage() {
   const { profile, signOut, user } = useAuth();
+  const queryClient = useQueryClient();
   const [merchantProvinceId, setMerchantProvinceId] = useState<string | null>(null);
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
@@ -271,20 +273,36 @@ export default function MerchantOrdersPage() {
   };
 
   // Fetch real orders (with courier name resolved client-side from couriers state)
-  const fetchOrders = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments(tracking_number)")
-      .eq("merchant_id", user.id)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-    if (error) toast.error("تعذر تحميل الطلبات");
-    else setOrders((data || []) as OrderRow[]);
-    setLoading(false);
-  };
-  useEffect(() => { fetchOrders(); }, [user?.id]);
+  // ===== React Query: paginated orders (20/page) with relational joins =====
+  // Single query with joins — no N+1. districts(name) added so we don't depend
+  // on the client-side allDistricts lookup for area names.
+  const ordersQuery = useQuery({
+    queryKey: ["merchant-orders", user?.id, page],
+    enabled: !!user?.id,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error, count } = await supabase
+        .from("orders")
+        .select(
+          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments(tracking_number), districts(name)",
+          { count: "exact" }
+        )
+        .eq("merchant_id", user!.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      return { rows: (data || []) as OrderRow[], total: count ?? 0 };
+    },
+  });
+  const orders: OrderRow[] = ordersQuery.data?.rows ?? [];
+  const totalCount = ordersQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const loading = ordersQuery.isLoading;
+  const fetchOrders = () =>
+    queryClient.invalidateQueries({ queryKey: ["merchant-orders", user?.id] });
 
   // Resolve courier name: prefer joined relation, fallback to local couriers list
   const courierNameOf = (order: OrderRow | null, courierId?: string | null) => {
@@ -977,6 +995,40 @@ export default function MerchantOrdersPage() {
                 </Table>
               </div>
             </Card>
+
+            {/* Pagination */}
+            {totalCount > 0 && (
+              <div className="flex items-center justify-between gap-3 mt-3 px-1 flex-wrap">
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  عرض {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} من {totalCount}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0 || ordersQuery.isFetching}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                    السابق
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular-nums px-2">
+                    صفحة {page + 1} من {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1"
+                    onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+                    disabled={page + 1 >= totalPages || ordersQuery.isFetching}
+                  >
+                    التالي
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </main>
         </div>
 
