@@ -483,47 +483,97 @@ export default function CourierOrders() {
     }
   };
 
-  // Excel export — respects current filters (exports rows visible in `filtered`)
-  const exportExcel = () => {
-    if (filtered.length === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
-    const data = filtered.map(o => {
-      const cod = Number(o.final_sale_price ?? o.total_amount ?? 0);
-      return {
-        "تاريخ الطلبية": new Date(o.created_at).toLocaleDateString("en-GB"),
-        "مكان التسليم": o.detailed_address || "",
-        "الكود": silaCodeOf(o.id),
-        "اسم المستلم": o.receiver_name,
-        "رقم الهاتف": o.phone_number,
-        "المدينة": o.districts?.name || o.city,
-        "الفرع": o.branch_name || "—",
-        "قيمة": Number(o.total_amount ?? 0),
-        "المبلغ المطلوب تحصيله (COD)": cod,
-        "قيمة أجور الحوالة": Number(o.collection_fee ?? 0),
-        "رسوم التوصيل": Number(o.delivery_fee ?? 0),
-        "الحالة": getOrderStatusMeta(o.status).label,
-      };
-    });
-    const ws = XLSX.utils.json_to_sheet(data);
-    // Auto-size columns based on header + content max length (with comfortable padding)
-    const headers = Object.keys(data[0] || {});
-    ws["!cols"] = headers.map((h) => {
-      const maxContent = data.reduce((m, row) => {
-        const v = (row as Record<string, unknown>)[h];
-        const len = String(v ?? "").length;
-        return len > m ? len : m;
-      }, h.length);
-      // Arabic chars render wider — add generous padding
-      return { wch: Math.min(60, Math.max(14, maxContent + 6)) };
-    });
-    // Force RTL view on sheet
-    ws["!views"] = [{ RTL: true }];
-    const wb = XLSX.utils.book_new();
-    // Force RTL at workbook level too
-    wb.Workbook = { ...(wb.Workbook || {}), Views: [{ RTL: true }] };
-    XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
-    const stamp = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
-    toast.success(`تم تصدير ${filtered.length} طلب إلى Excel`);
+  // Excel export — ON-DEMAND fetch of the FILTERED dataset with full joins.
+  // Heavy export data is NOT kept in memory — we only fetch when the user clicks.
+  const exportExcel = async () => {
+    if (!user) return;
+    if (totalCount === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
+    setExportLoading(true);
+    try {
+      // Re-apply the SAME filters as the page query, but without `.range()` — fetch all.
+      let q = supabase
+        .from("orders")
+        .select(
+          "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)"
+        )
+        .is("deleted_at", null);
+      if (tab === "pending") q = q.in("status", ["new", "pending"]);
+      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "delivered") q = q.eq("status", "delivered");
+      else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (dateRange?.from) {
+        const fromD = new Date(dateRange.from); fromD.setHours(0, 0, 0, 0);
+        q = q.gte("created_at", fromD.toISOString());
+      }
+      if (dateRange?.to) {
+        const toD = new Date(dateRange.to); toD.setHours(23, 59, 59, 999);
+        q = q.lte("created_at", toD.toISOString());
+      }
+      const term = search.trim();
+      if (term) {
+        const safe = term.replace(/[%,]/g, " ");
+        q = q.or(
+          `receiver_name.ilike.%${safe}%,phone_number.ilike.%${safe}%,detailed_address.ilike.%${safe}%`
+        );
+      }
+      q = q.order("created_at", { ascending: sortDir === "asc" }).limit(10000);
+
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      const list = (rows || []) as unknown as CourierOrderRow[];
+      if (list.length === 0) { toast.error("لا توجد طلبات للتصدير"); return; }
+
+      // Resolve branch names in one batched query
+      const branchIds = Array.from(new Set(list.map(o => o.assigned_branch_id).filter(Boolean) as string[]));
+      let branchMap = new Map<string, string>();
+      if (branchIds.length) {
+        const { data: branches } = await supabase
+          .from("courier_branches").select("id, name").in("id", branchIds);
+        branchMap = new Map((branches || []).map(b => [b.id as string, b.name as string]));
+      }
+
+      const data = list.map(o => {
+        const cod = Number(o.final_sale_price ?? o.total_amount ?? 0);
+        const branchName = o.assigned_branch_id ? (branchMap.get(o.assigned_branch_id) ?? null) : null;
+        const collectionFee = Number(o.shipments?.collection_fee ?? 0);
+        return {
+          "تاريخ الطلبية": new Date(o.created_at).toLocaleDateString("en-GB"),
+          "مكان التسليم": o.detailed_address || "",
+          "الكود": silaCodeOf(o.id),
+          "اسم المستلم": o.receiver_name,
+          "رقم الهاتف": o.phone_number,
+          "المدينة": o.districts?.name || o.city,
+          "الفرع": branchName || "—",
+          "قيمة": Number(o.total_amount ?? 0),
+          "المبلغ المطلوب تحصيله (COD)": cod,
+          "قيمة أجور الحوالة": collectionFee,
+          "رسوم التوصيل": Number(o.delivery_fee ?? 0),
+          "الحالة": getOrderStatusMeta(o.status).label,
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      const headers = Object.keys(data[0] || {});
+      ws["!cols"] = headers.map((h) => {
+        const maxContent = data.reduce((m, row) => {
+          const v = (row as Record<string, unknown>)[h];
+          const len = String(v ?? "").length;
+          return len > m ? len : m;
+        }, h.length);
+        return { wch: Math.min(60, Math.max(14, maxContent + 6)) };
+      });
+      ws["!views"] = [{ RTL: true }];
+      const wb = XLSX.utils.book_new();
+      wb.Workbook = { ...(wb.Workbook || {}), Views: [{ RTL: true }] };
+      XLSX.utils.book_append_sheet(wb, ws, "الطلبات");
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `sila-orders-${stamp}.xlsx`);
+      toast.success(`تم تصدير ${list.length} طلب إلى Excel`);
+    } catch (e: any) {
+      toast.error(e?.message || "فشل التصدير");
+    } finally {
+      setExportLoading(false);
+    }
   };
 
   const exportCsv = () => {
