@@ -133,12 +133,12 @@ export default function AdminLogistics() {
   const totalPending = pendingTopups + pendingPayouts + pendingSettlements;
 
   const fetchData = async () => {
-    const [pRes, tRes, sAllRes, sActiveRes, platformWalletRes] = await Promise.all([
+    const [pRes, tRes, sAllRes, sActiveRes, platformEarningsRes] = await Promise.all([
       supabase.from("payout_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("top_up_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("shipments").select("status"),
       supabase.from("shipments").select("*").not("status", "in", '("delivered","returned")').order("created_at", { ascending: false }),
-      supabase.from("wallets").select("balance").eq("merchant_id", "00000000-0000-0000-0000-000000000001").maybeSingle(),
+      supabase.from("wallet_transactions").select("amount, type").in("type", ["commission", "shipping_fee", "return_fee"]),
     ]);
     if (pRes.data) {
       const merchantIds = [...new Set(pRes.data.map((p) => p.merchant_id).filter(Boolean))];
@@ -172,9 +172,13 @@ export default function AdminLogistics() {
       const delivered = sAllRes.data.filter(s => s.status === "delivered").length;
       setDeliveredCount(delivered);
     }
-    // Platform earnings come from the platform wallet ledger (handled by trigger)
-    if (platformWalletRes?.data) {
-      setTotalProfit(Number((platformWalletRes.data as any).balance) || 0);
+    // Platform earnings = sum of commission + shipping_fee + return_fee from ledger (absolute value)
+    if (platformEarningsRes?.data) {
+      const total = (platformEarningsRes.data as any[]).reduce(
+        (sum, row) => sum + Math.abs(Number(row.amount) || 0),
+        0,
+      );
+      setTotalProfit(total);
     }
     if (sActiveRes.data) setShipments(sActiveRes.data);
   };
