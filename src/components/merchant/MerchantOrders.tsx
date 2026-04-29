@@ -401,7 +401,11 @@ export default function MerchantOrders() {
             </DialogTitle>
           </DialogHeader>
           {loadingAudit ? (
-            <p className="text-center py-8 text-sm text-muted-foreground">جاري التحميل...</p>
+            <div className="space-y-2 py-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
           ) : auditLogs.length === 0 ? (
             <p className="text-center py-8 text-sm text-muted-foreground">لا توجد تعديلات على هذا الطلب</p>
           ) : (
