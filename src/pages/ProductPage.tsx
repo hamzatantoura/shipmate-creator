@@ -459,6 +459,7 @@ export default function ProductPage() {
             </Card>
           </div>
         </div>
+        <ProductReviews productId={product.id} />
       </main>
     </div>
   );
