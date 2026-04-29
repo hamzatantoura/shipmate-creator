@@ -27,9 +27,10 @@ import { toast } from "sonner";
 import {
   Package, LogOut, RefreshCw, Search, TrendingUp, Truck, CheckCircle2, RotateCcw, PackageOpen,
   Download, ChevronDown, X, Loader2, MoreHorizontal, Scale, Undo2, AlertTriangle, ScanLine, Wallet,
-  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon, ChevronRight, ChevronLeft,
+  Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon, ChevronRight, ChevronLeft, ClipboardList,
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { printDailyManifest, type ManifestRow } from "@/lib/print-bulk";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { DateRange } from "react-day-picker";
@@ -144,6 +145,7 @@ export default function CourierOrders() {
   const [revertDialog, setRevertDialog] = useState<CourierOrderRow | null>(null);
   const [reverting, setReverting] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [manifestLoading, setManifestLoading] = useState(false);
 
   // ===== Smart Scanner state =====
   const [scanInput, setScanInput] = useState("");
@@ -576,6 +578,79 @@ export default function CourierOrders() {
     }
   };
 
+  // Daily Manifest — ON-DEMAND fetch.
+  // If rows are selected, print just those (from current page).
+  // Otherwise, fetch the FULL filtered dataset (same filters as the page query)
+  // so the manifest covers the courier's whole filtered trip — not just one page.
+  const printManifest = async () => {
+    if (!user) return;
+    setManifestLoading(true);
+    try {
+      let manifestRows: ManifestRow[] = [];
+
+      if (selectedIds.length > 0) {
+        const sel = orders.filter((o) => selectedIds.includes(o.id));
+        manifestRows = sel.map((o) => ({
+          silaCode: silaCodeOf(o.id),
+          receiverName: o.receiver_name,
+          address: [o.districts?.name || o.city, o.detailed_address].filter(Boolean).join(" — "),
+          phone: o.phone_number,
+          cod: Number(o.final_sale_price ?? o.total_amount ?? 0),
+        }));
+      } else {
+        // Re-apply page-query filters without `.range()` to get the entire filtered set.
+        let q = supabase
+          .from("orders")
+          .select(
+            "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, created_at, districts(name)"
+          )
+          .is("deleted_at", null);
+        if (tab === "pending") q = q.in("status", ["new", "pending"]);
+        else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+        else if (tab === "delivered") q = q.eq("status", "delivered");
+        else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
+        if (statusFilter !== "all") q = q.eq("status", statusFilter);
+        if (dateRange?.from) {
+          const fromD = new Date(dateRange.from); fromD.setHours(0, 0, 0, 0);
+          q = q.gte("created_at", fromD.toISOString());
+        }
+        if (dateRange?.to) {
+          const toD = new Date(dateRange.to); toD.setHours(23, 59, 59, 999);
+          q = q.lte("created_at", toD.toISOString());
+        }
+        const term = search.trim();
+        if (term) {
+          const safe = term.replace(/[%,]/g, " ");
+          q = q.or(
+            `receiver_name.ilike.%${safe}%,phone_number.ilike.%${safe}%,detailed_address.ilike.%${safe}%`
+          );
+        }
+        q = q.order("created_at", { ascending: sortDir === "asc" }).limit(5000);
+        const { data, error } = await q;
+        if (error) throw error;
+        const list = (data || []) as any[];
+        manifestRows = list.map((o) => ({
+          silaCode: silaCodeOf(o.id),
+          receiverName: o.receiver_name,
+          address: [o.districts?.name || o.city, o.detailed_address].filter(Boolean).join(" — "),
+          phone: o.phone_number,
+          cod: Number(o.final_sale_price ?? o.total_amount ?? 0),
+        }));
+      }
+
+      if (!manifestRows.length) {
+        toast.error("لا توجد طلبات في النطاق المحدد");
+        return;
+      }
+      printDailyManifest(manifestRows, companyName || "شركة الشحن");
+      toast.success(`تم تجهيز كشف ${manifestRows.length} طلب`);
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر إنشاء كشف الرحلة");
+    } finally {
+      setManifestLoading(false);
+    }
+  };
+
   const exportCsv = () => {
     const rows = orders.filter(o => selectedIds.includes(o.id));
     if (rows.length === 0) { toast.error("لا توجد طلبات محددة"); return; }
@@ -987,6 +1062,20 @@ export default function CourierOrders() {
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <FileSpreadsheet className="h-3.5 w-3.5" />}
                   تصدير إلى إكسل
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-1.5"
+                  onClick={printManifest}
+                  disabled={manifestLoading || (totalCount === 0 && selectedIds.length === 0)}
+                  title={selectedIds.length > 0 ? `طباعة كشف لـ ${selectedIds.length} طلب محدد` : "طباعة كشف الرحلة لكامل الفلترة الحالية"}
+                >
+                  {manifestLoading
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <ClipboardList className="h-3.5 w-3.5" />}
+                  طباعة كشف الرحلة
+                  {selectedIds.length > 0 && ` (${selectedIds.length})`}
                 </Button>
               </div>
             </div>
