@@ -513,6 +513,14 @@ export default function MerchantOrdersPage() {
     const order = orders.find(o => o.id === printConfirmId);
     if (!order) return;
 
+    // Pre-print validation (mirrors the server-side trigger).
+    const validation = validateOrderForPrinting(order);
+    if (!validation.ok) {
+      toast.error(validation.error || "الطلب غير صالح للطباعة");
+      setPrintConfirmId(null);
+      return;
+    }
+
     // Resolve area/neighborhood name from districts table.
     // If district_id points to a child (has parent_id) → it's the area name.
     // If it points to a parent (province-level) → no specific area to print.
