@@ -981,9 +981,11 @@ export default function CourierOrders() {
                   variant="outline"
                   className="h-9 gap-1.5"
                   onClick={exportExcel}
-                  disabled={filtered.length === 0}
+                  disabled={totalCount === 0 || exportLoading}
                 >
-                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  {exportLoading
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <FileSpreadsheet className="h-3.5 w-3.5" />}
                   تصدير إلى إكسل
                 </Button>
               </div>
