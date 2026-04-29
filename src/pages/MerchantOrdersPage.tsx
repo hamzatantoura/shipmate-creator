@@ -226,7 +226,7 @@ export default function MerchantOrdersPage() {
       supabase.from("provinces").select("id, name_ar"),
     ]).then(([dRes, cRes, rRes, bRes, gRes, dpRes, pRes]) => {
       setAllDistricts((dRes.data || []) as DistrictRow[]);
-      setCouriers((cRes.data || []) as CourierOption[]);
+      setCouriers(((cRes.data || []) as unknown) as CourierOption[]);
       setCourierRates((rRes.data || []) as unknown as CourierRate[]);
       setBranches(((bRes.data || []) as unknown as BranchRow[]));
       const geo: Record<string, { lat: number | null; lng: number | null }> = {};
