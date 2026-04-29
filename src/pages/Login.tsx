@@ -8,8 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Truck } from "lucide-react";
 
-const ADMIN_EMAILS = new Set(["hamza.tantoura@gmail.com"]);
-
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -48,8 +46,8 @@ export default function Login() {
         .select("role")
         .eq("user_id", data.user.id);
 
-      const role = (roleRows?.[0]?.role as "admin" | "merchant" | "vendor" | undefined)
-        ?? (ADMIN_EMAILS.has(data.user.email ?? "") ? "admin" : null);
+      // Role is read ONLY from the user_roles table. No client-side fallback.
+      const role = (roleRows?.[0]?.role as "admin" | "merchant" | "vendor" | undefined) ?? null;
 
       const routes = {
         admin: "/admin",
