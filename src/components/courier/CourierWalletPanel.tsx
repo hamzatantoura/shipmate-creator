@@ -277,6 +277,11 @@ export default function CourierWalletPanel() {
       toast.error("أدخل مبلغًا صحيحًا للتحويل");
       return;
     }
+    // Client-side guard mirroring the server-side validate_courier_settlement trigger
+    if (amount > metrics.netOwedToSila) {
+      toast.error(`المبلغ يتجاوز المستحق الفعلي للمنصة (${formatCurrency(metrics.netOwedToSila)})`);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -606,10 +611,16 @@ export default function CourierWalletPanel() {
               <Input
                 id="settlement-amount"
                 inputMode="decimal"
+                type="number"
+                min="1"
+                max={Math.max(0, metrics.netOwedToSila)}
                 value={paymentForm.amount}
                 onChange={(event) => setPaymentForm((current) => ({ ...current, amount: event.target.value }))}
-                placeholder="0"
+                placeholder={`الحد الأقصى: ${Math.max(0, Math.round(metrics.netOwedToSila)).toLocaleString()}`}
               />
+              <p className="text-xs text-muted-foreground">
+                المستحق المتبقي للمنصة: <span className="font-semibold text-foreground">{formatCurrency(Math.max(0, metrics.netOwedToSila))}</span>
+              </p>
             </div>
 
             <div className="grid gap-2">
