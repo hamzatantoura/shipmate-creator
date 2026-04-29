@@ -79,7 +79,7 @@ export function CourierSettlementsPanel() {
     setLoading(true);
     const { data, error } = await supabase
       .from("courier_settlements")
-      .select("*, couriers(name)")
+      .select("*")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -87,6 +87,18 @@ export function CourierSettlementsPanel() {
       setLoading(false);
       return;
     }
+
+    // Resolve courier names in a separate query (no FK relationship defined)
+    const courierIds = [...new Set((data ?? []).map((r: any) => r.courier_id).filter(Boolean))];
+    let courierMap = new Map<string, string>();
+    if (courierIds.length > 0) {
+      const { data: couriers } = await supabase
+        .from("couriers")
+        .select("id, name")
+        .in("id", courierIds);
+      courierMap = new Map((couriers ?? []).map((c: any) => [c.id, c.name]));
+    }
+
     const mapped: Settlement[] = (data ?? []).map((r: any) => ({
       id: r.id,
       courier_id: r.courier_id,
@@ -100,7 +112,7 @@ export function CourierSettlementsPanel() {
       reviewed_at: r.reviewed_at,
       receipt_url: r.receipt_url,
       created_at: r.created_at,
-      courier_name: r.couriers?.name ?? "—",
+      courier_name: courierMap.get(r.courier_id) ?? "—",
     }));
     setRows(mapped);
     setLoading(false);
