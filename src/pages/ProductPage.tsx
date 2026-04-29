@@ -173,22 +173,17 @@ export default function ProductPage() {
     setSubmitting(true);
     const totalAmount = product.price * qty;
 
-    const { data: orderData, error } = await supabase.from("orders").insert({
-      merchant_id: product.merchant_id,
-      product_id: product.id,
-      quantity: qty,
-      total_amount: totalAmount,
-      delivery_fee: customerDeliveryFee,
-      platform_fee: totalAmount * 0.05,
-      net_amount: totalAmount - customerDeliveryFee - (totalAmount * 0.05),
-      receiver_name: form.receiver_name.trim(),
-      phone_number: form.phone_number.trim(),
-      city: selectedDistrictObj?.province_ar || "",
-      detailed_address: form.detailed_address.trim() || "غير محدد",
-      district_id: selectedDistrict,
-      customer_lat: customerLat,
-      customer_lng: customerLng,
-    } as any).select("id").single();
+    const { data: rpcData, error } = await supabase.rpc("create_storefront_order" as any, {
+      p_merchant_id: product.merchant_id,
+      p_product_id: product.id,
+      p_quantity: qty,
+      p_district_id: selectedDistrict,
+      p_receiver_name: form.receiver_name.trim(),
+      p_phone_number: form.phone_number.trim(),
+      p_detailed_address: form.detailed_address.trim() || "غير محدد",
+      p_customer_lat: customerLat,
+      p_customer_lng: customerLng,
+    });
     setSubmitting(false);
 
     if (error) {
@@ -197,13 +192,18 @@ export default function ProductPage() {
       return;
     }
 
+    const orderResult = rpcData as { order_id?: string; total_amount?: number; delivery_fee?: number } | null;
+    const newOrderId = orderResult?.order_id;
+    const serverTotal = Number(orderResult?.total_amount ?? totalAmount);
+    const serverDelivery = Number(orderResult?.delivery_fee ?? customerDeliveryFee);
+
     setOrderDetails({
-      orderId: (orderData as any)?.id?.slice(0, 8)?.toUpperCase() || "—",
+      orderId: newOrderId ? newOrderId.slice(0, 8).toUpperCase() : "—",
       receiverName: form.receiver_name.trim(),
       phone: form.phone_number.trim(),
       city: selectedDistrictObj?.province_ar || "",
       address: form.detailed_address.trim() || "غير محدد",
-      total: totalAmount + customerDeliveryFee,
+      total: serverTotal + serverDelivery,
       productName: product.name,
     });
     setSubmitted(true);
