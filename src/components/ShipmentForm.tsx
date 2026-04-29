@@ -294,7 +294,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       }
 
       const { data: couriersData } = await supabase
-        .from("couriers")
+        .from("couriers_public" as any)
         .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value")
         .in("id", courierIds)
         .eq("is_active", true);
