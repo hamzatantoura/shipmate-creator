@@ -25,6 +25,7 @@ import TrackShipment from "./pages/TrackShipment";
 import TrackOrderPage from "./pages/TrackOrderPage";
 import Storefront from "./pages/Storefront";
 import ProductPage from "./pages/ProductPage";
+import ReviewOrderPage from "./pages/ReviewOrderPage";
 import NotFound from "./pages/NotFound";
 import { Navigate } from "react-router-dom";
 
@@ -46,6 +47,9 @@ const App = () => (
           <Route path="/track" element={<TrackOrderPage />} />
           <Route path="/track-shipment" element={<TrackShipment />} />
           <Route path="/track-shipment/:trackingId" element={<TrackShipment />} />
+
+          {/* Public customer review page (no auth) */}
+          <Route path="/review/:order_id" element={<ReviewOrderPage />} />
 
           {/* Public storefront & product pages */}
           <Route path="/store/:merchantId" element={<Storefront />} />
