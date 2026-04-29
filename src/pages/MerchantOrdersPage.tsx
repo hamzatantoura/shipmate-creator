@@ -45,7 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft, Printer as PrinterIcon, X } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft, X } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -941,7 +941,7 @@ export default function MerchantOrdersPage() {
                     </Button>
                   </div>
                   <Button size="sm" className="h-8 gap-1.5" onClick={handleBulkPrint}>
-                    <PrinterIcon className="h-3.5 w-3.5" />
+                    <Printer className="h-3.5 w-3.5" />
                     طباعة البوليصات المحددة ({selectedIds.length})
                   </Button>
                 </div>
