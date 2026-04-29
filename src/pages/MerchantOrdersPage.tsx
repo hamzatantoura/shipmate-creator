@@ -1064,6 +1064,11 @@ export default function MerchantOrdersPage() {
                                   </Tooltip>
                                 </TooltipProvider>
                               )}
+                              {reviewMap[order.id] && (
+                                <span className="inline-flex items-center gap-1" title="تقييم العميل">
+                                  <StarRating value={reviewMap[order.id]} readOnly size={12} />
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
