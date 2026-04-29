@@ -56,7 +56,7 @@ const fmtSYP = (n: number) =>
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("ar-SY", { year: "numeric", month: "short", day: "numeric" });
 
-export default function AdminSettlements() {
+export function CourierSettlementsPanel() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,9 +174,7 @@ export default function AdminSettlements() {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <AppHeader />
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div dir="rtl" className="space-y-6">
         <div className="flex items-center gap-3">
           <Receipt className="h-6 w-6 text-primary" />
           <div>
@@ -297,7 +295,6 @@ export default function AdminSettlements() {
             </TabsContent>
           ))}
         </Tabs>
-      </main>
 
       <Dialog
         open={actionDialog.open}
@@ -365,6 +362,17 @@ export default function AdminSettlements() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+export default function AdminSettlements() {
+  return (
+    <div className="min-h-screen bg-background" dir="rtl">
+      <AppHeader />
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <CourierSettlementsPanel />
+      </main>
     </div>
   );
 }
