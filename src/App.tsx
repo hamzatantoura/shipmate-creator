@@ -126,27 +126,16 @@ const App = () => (
           } />
 
           {/* Legacy redirects */}
-          <Route path="/dashboard" element={<Login />} />
+          <Route path="/dashboard" element={<Navigate to="/login" replace />} />
           <Route path="/admin-logistics" element={
             <AuthGuard allowedRoles={["admin"]}>
               <AdminLogistics />
             </AuthGuard>
           } />
-          <Route path="/products" element={
-            <AuthGuard allowedRoles={["merchant"]}>
-              <MerchantProductsPage />
-            </AuthGuard>
-          } />
-          <Route path="/orders" element={
-            <AuthGuard allowedRoles={["merchant"]}>
-              <MerchantOrdersPage />
-            </AuthGuard>
-          } />
-          <Route path="/wallet" element={
-            <AuthGuard allowedRoles={["merchant"]}>
-              <MerchantWalletPage />
-            </AuthGuard>
-          } />
+          <Route path="/products" element={<Navigate to="/merchant/products" replace />} />
+          <Route path="/orders" element={<Navigate to="/merchant/orders" replace />} />
+          <Route path="/wallet" element={<Navigate to="/merchant/wallet" replace />} />
+          <Route path="/pricing" element={<Navigate to="/signup" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -22,7 +22,7 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
           <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-10">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
-              <Link to="/" className="flex items-center gap-2">
+              <Link to="/merchant" className="flex items-center gap-2">
                 <img src={silaLogo} alt="Sila" className="h-7 w-7" />
                 <span className="font-display font-bold text-lg text-primary">صلة</span>
               </Link>

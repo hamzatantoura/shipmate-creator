@@ -42,9 +42,6 @@ export default function Landing() {
             <span className="font-display font-bold text-xl text-primary tracking-tight">Sila</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/pricing">
-              <Button variant="ghost" size="sm" className="text-sm">الأسعار</Button>
-            </Link>
             <Link to="/track">
               <Button variant="ghost" size="sm" className="text-sm">تتبع شحنة</Button>
             </Link>
@@ -92,9 +89,9 @@ export default function Landing() {
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Link to="/pricing">
+                <Link to="/track">
                   <Button size="lg" variant="outline" className="text-base px-7 h-12 border-primary/30 text-foreground hover:bg-primary/5">
-                    تعرّف على الخطط
+                    تتبّع شحنة
                   </Button>
                 </Link>
               </div>
@@ -276,7 +273,6 @@ export default function Landing() {
             <div>
               <h4 className="font-display font-semibold text-foreground mb-3">روابط سريعة</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/pricing" className="hover:text-primary transition-colors">الأسعار</Link></li>
                 <li><Link to="/track" className="hover:text-primary transition-colors">تتبع شحنة</Link></li>
                 <li><Link to="/signup" className="hover:text-primary transition-colors">تسجيل تاجر</Link></li>
                 <li><Link to="/login" className="hover:text-primary transition-colors">تسجيل دخول</Link></li>

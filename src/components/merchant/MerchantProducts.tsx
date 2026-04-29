@@ -249,7 +249,19 @@ export default function MerchantProducts() {
       </div>
 
       {products.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground"><Package className="h-12 w-12 mx-auto mb-3 opacity-40" /><p>لا توجد منتجات بعد.</p></div>
+        <div className="flex flex-col items-center justify-center text-center py-20 gap-4">
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Package className="h-8 w-8 text-primary" />
+          </div>
+          <div className="space-y-1 max-w-sm">
+            <h3 className="font-display font-semibold text-lg text-foreground">ابدأ ببناء متجرك</h3>
+            <p className="text-sm text-muted-foreground">أضف منتجك الأول ليصبح متجرك جاهزاً لاستقبال الطلبات من الزبائن.</p>
+          </div>
+          <Button onClick={openAddDialog} className="gap-2 glow-btn mt-1">
+            <Plus className="h-4 w-4" />
+            أضف منتجك الأول
+          </Button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map(p => {
