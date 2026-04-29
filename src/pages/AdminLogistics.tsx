@@ -18,6 +18,7 @@ import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
 import AdminCouriersManagement from "@/components/admin/AdminCouriersManagement";
 import AdminBranchesManagement from "@/components/admin/AdminBranchesManagement";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
+import SecureReceiptImage from "@/components/SecureReceiptImage";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
@@ -190,14 +191,15 @@ export default function AdminLogistics() {
   const uploadReceipt = async (file: File) => {
     if (!selectedPayout) return;
     setUploading(true);
-    const path = `receipts/${selectedPayout.id}_${Date.now()}.${file.name.split(".").pop()}`;
+    // Admin RLS allows arbitrary paths in the private `uploads` bucket; group payout
+    // receipts under their own prefix.
+    const path = `payouts/${selectedPayout.id}_${Date.now()}.${file.name.split(".").pop()}`;
     const { error } = await supabase.storage.from("uploads").upload(path, file);
     if (error) { toast.error("فشل رفع الإيصال"); setUploading(false); return; }
-    const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(path);
-    await supabase.from("payout_requests").update({ receipt_url: urlData.publicUrl } as any).eq("id", selectedPayout.id);
+    await supabase.from("payout_requests").update({ receipt_url: path } as any).eq("id", selectedPayout.id);
     toast.success("تم رفع إيصال التحويل");
     setUploading(false); fetchData();
-    setSelectedPayout({ ...selectedPayout, receipt_url: urlData.publicUrl });
+    setSelectedPayout({ ...selectedPayout, receipt_url: path });
   };
 
   const approveTopUp = async (topup: TopUpRequest) => {
@@ -514,7 +516,7 @@ export default function AdminLogistics() {
                 </div>
                 <div className="space-y-2">
                   <Label>إيصال التحويل</Label>
-                  {selectedPayout.receipt_url ? <img src={selectedPayout.receipt_url} alt="receipt" className="rounded-lg border border-border max-h-48 object-contain" /> : <p className="text-xs text-muted-foreground">لم يتم رفع إيصال بعد</p>}
+                  {selectedPayout.receipt_url ? <SecureReceiptImage source={selectedPayout.receipt_url} /> : <p className="text-xs text-muted-foreground">لم يتم رفع إيصال بعد</p>}
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && uploadReceipt(e.target.files[0])} />
                     <Button variant="outline" size="sm" className="gap-2" disabled={uploading} asChild>
@@ -531,7 +533,12 @@ export default function AdminLogistics() {
         <Dialog open={!!receiptPreview} onOpenChange={o => !o && setReceiptPreview(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>صورة الإيصال</DialogTitle></DialogHeader>
-            {receiptPreview && <img src={receiptPreview} alt="receipt" className="rounded-lg max-h-96 object-contain mx-auto" />}
+            {receiptPreview && (
+              <SecureReceiptImage
+                source={receiptPreview}
+                className="rounded-lg max-h-96 object-contain mx-auto"
+              />
+            )}
           </DialogContent>
         </Dialog>
       </main>
