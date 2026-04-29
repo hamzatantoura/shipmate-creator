@@ -29,6 +29,34 @@ const AuthContext = createContext<AuthState>({
 
 const ADMIN_EMAILS = new Set(["hamza.tantoura@gmail.com"]);
 
+// Detect natural session expiration errors so we can silently sign the user out
+// instead of surfacing a scary toast / red error overlay.
+function isRefreshTokenMissingError(error: unknown): boolean {
+  if (!error) return false;
+  const message =
+    typeof error === "string"
+      ? error
+      : (error as { message?: string })?.message ?? "";
+  const code = (error as { code?: string })?.code ?? "";
+  return (
+    /Invalid Refresh Token/i.test(message) ||
+    /Refresh Token Not Found/i.test(message) ||
+    /refresh_token_not_found/i.test(code) ||
+    /Auth session missing/i.test(message)
+  );
+}
+
+async function handleExpiredSession() {
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // ignore — local session is already gone
+  }
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.replace("/login");
+  }
+}
+
 async function loadAuthState(user: User): Promise<Omit<AuthState, "signOut">> {
   const [{ data: profile }, { data: roleRows }] = await Promise.all([
     supabase
@@ -76,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         // Handle token refresh failure — sign out gracefully
         if (event === "TOKEN_REFRESHED" && !session) {
-          void supabase.auth.signOut();
+          void handleExpiredSession();
           return;
         }
         if (event === "SIGNED_OUT") {
@@ -89,12 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        // Session expired or invalid — sign out cleanly
-        console.warn("Session error, signing out:", error.message);
-        void supabase.auth.signOut();
+        // Natural expiration (refresh token missing/invalid) — sign out silently.
+        // Anything else: log a warning but still clear the broken session.
+        if (!isRefreshTokenMissingError(error)) {
+          console.warn("Session error, signing out:", error.message);
+        }
+        void handleExpiredSession();
         return;
       }
       void syncAuthState(session?.user ?? null);
+    }).catch((err) => {
+      if (!isRefreshTokenMissingError(err)) {
+        console.warn("Unexpected getSession failure:", err);
+      }
+      void handleExpiredSession();
     });
 
     return () => subscription.unsubscribe();
