@@ -187,9 +187,10 @@ const sendTrackingViaWhatsApp = (order: OrderRow) => {
 
 export default function MerchantOrdersPage() {
   const { profile, signOut, user } = useAuth();
+  const queryClient = useQueryClient();
   const [merchantProvinceId, setMerchantProvinceId] = useState<string | null>(null);
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
@@ -272,20 +273,36 @@ export default function MerchantOrdersPage() {
   };
 
   // Fetch real orders (with courier name resolved client-side from couriers state)
-  const fetchOrders = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("orders")
-      .select("id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments(tracking_number)")
-      .eq("merchant_id", user.id)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-    if (error) toast.error("تعذر تحميل الطلبات");
-    else setOrders((data || []) as OrderRow[]);
-    setLoading(false);
-  };
-  useEffect(() => { fetchOrders(); }, [user?.id]);
+  // ===== React Query: paginated orders (20/page) with relational joins =====
+  // Single query with joins — no N+1. districts(name) added so we don't depend
+  // on the client-side allDistricts lookup for area names.
+  const ordersQuery = useQuery({
+    queryKey: ["merchant-orders", user?.id, page],
+    enabled: !!user?.id,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error, count } = await supabase
+        .from("orders")
+        .select(
+          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments(tracking_number), districts(name)",
+          { count: "exact" }
+        )
+        .eq("merchant_id", user!.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      return { rows: (data || []) as OrderRow[], total: count ?? 0 };
+    },
+  });
+  const orders: OrderRow[] = ordersQuery.data?.rows ?? [];
+  const totalCount = ordersQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const loading = ordersQuery.isLoading;
+  const fetchOrders = () =>
+    queryClient.invalidateQueries({ queryKey: ["merchant-orders", user?.id] });
 
   // Resolve courier name: prefer joined relation, fallback to local couriers list
   const courierNameOf = (order: OrderRow | null, courierId?: string | null) => {
