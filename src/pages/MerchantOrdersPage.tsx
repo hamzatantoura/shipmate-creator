@@ -1177,7 +1177,19 @@ export default function MerchantOrdersPage() {
                     {!loading && orders.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                          لا توجد طلبات بعد
+                          <div className="flex flex-col items-center gap-3 py-6">
+                            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Package className="h-7 w-7 text-primary" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="font-medium text-foreground">لا توجد طلبات بعد</p>
+                              <p className="text-xs text-muted-foreground">ابدأ بإضافة أول طلب لزبونك من زر "إضافة طلب جديد" بالأعلى</p>
+                            </div>
+                            <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-2 mt-1">
+                              <Plus className="h-4 w-4" />
+                              إضافة طلب جديد
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )}
