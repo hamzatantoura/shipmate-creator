@@ -1472,6 +1472,7 @@ export type Database = {
       }
     }
     Functions: {
+      approve_top_up: { Args: { p_topup_id: string }; Returns: Json }
       complete_payout: {
         Args: { p_new_status: string; p_payout_id: string }
         Returns: undefined
@@ -1513,6 +1514,11 @@ export type Database = {
         }[]
       }
       get_admin_analytics: { Args: never; Returns: Json }
+      get_courier_net_owed: { Args: { _courier_id: string }; Returns: number }
+      get_merchant_ledger_balance: {
+        Args: { _merchant_id: string }
+        Returns: number
+      }
       get_nearest_branches: {
         Args: { max_radius_km?: number; target_lat: number; target_lng: number }
         Returns: {
@@ -1562,6 +1568,18 @@ export type Database = {
           lng: number
           phone: string
         }[]
+      }
+      reverse_payout: {
+        Args: { p_payout_id: string; p_reason?: string }
+        Returns: Json
+      }
+      review_courier_settlement: {
+        Args: {
+          p_action: string
+          p_admin_note?: string
+          p_settlement_id: string
+        }
+        Returns: Json
       }
       set_district_coords: {
         Args: { p_district_id: string; p_lat: number; p_lng: number }
