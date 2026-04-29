@@ -58,7 +58,7 @@ export default function TopUp() {
       <AppHeader />
       <main className="max-w-lg mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center gap-2">
-          <Link to="/wallet">
+          <Link to="/merchant/wallet">
             <Button variant="ghost" size="icon"><ArrowRight className="h-4 w-4" /></Button>
           </Link>
           <h1 className="text-2xl font-display font-bold text-foreground">شحن الرصيد</h1>
