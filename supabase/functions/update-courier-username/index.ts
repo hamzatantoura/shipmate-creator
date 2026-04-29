@@ -62,6 +62,23 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Lookup-only mode: return current username when no new username provided
+    if (!username) {
+      const { data: info, error: gErr } = await admin.auth.admin.getUserById(vendor_id);
+      if (gErr || !info.user) {
+        return new Response(JSON.stringify({ error: "المستخدم غير موجود" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const em = info.user.email ?? "";
+      const cur = em.replace(/@courier\.sila\.local$/i, "");
+      return new Response(
+        JSON.stringify({ ok: true, username: cur, login_email: em, lookup: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     if (!USERNAME_RE.test(username)) {
       return new Response(JSON.stringify({ error: "اسم المستخدم: 3-32 حرفًا، أحرف إنجليزية صغيرة وأرقام و _ فقط" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
