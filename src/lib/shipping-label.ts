@@ -104,11 +104,11 @@ export async function generateShippingLabel(shipment: ShipmentData, format: "a6"
   }
   if (courierId) {
     const { data: c } = await supabase
-      .from("couriers")
+      .from("couriers_public" as any)
       .select("name, logo_url")
       .eq("id", courierId)
       .maybeSingle();
-    if (c) courier = { name: c.name, logo_url: c.logo_url };
+    if (c) courier = { name: (c as any).name, logo_url: (c as any).logo_url };
   }
   const courierName = courier?.name || "غير معيّن";
 
