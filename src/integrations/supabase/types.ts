@@ -1270,6 +1270,50 @@ export type Database = {
           },
         ]
       }
+      whatsapp_queue: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          message: string
+          order_id: string | null
+          phone_number: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["whatsapp_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          message: string
+          order_id?: string | null
+          phone_number: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          message?: string
+          order_id?: string | null
+          phone_number?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_queue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1386,6 +1430,7 @@ export type Database = {
         | "Hama"
         | "Tartous"
       size_category: "small" | "medium" | "large"
+      whatsapp_status: "pending" | "sent" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1524,6 +1569,7 @@ export const Constants = {
         "Tartous",
       ],
       size_category: ["small", "medium", "large"],
+      whatsapp_status: ["pending", "sent", "failed"],
     },
   },
 } as const
