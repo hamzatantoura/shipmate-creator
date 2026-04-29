@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Pencil, Trash2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
+import { useAuth } from "@/hooks/use-auth";
 
 const MERCHANT_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -22,6 +23,7 @@ interface Product {
 }
 
 export default function Products() {
+  const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -41,12 +43,15 @@ export default function Products() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) { toast.error("يجب تسجيل الدخول"); return; }
     setLoading(true);
 
     let image_url: string | null = null;
     if (imageFile) {
       const ext = imageFile.name.split(".").pop();
-      const path = `products/${Date.now()}.${ext}`;
+      // SECURITY: product images must live under the uploader's own user folder
+      // to satisfy the storage.objects RLS policy on `product-images`.
+      const path = `${user.id}/${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from("product-images").upload(path, imageFile);
       if (upErr) { toast.error("فشل رفع الصورة"); setLoading(false); return; }
       const { data: pub } = supabase.storage.from("product-images").getPublicUrl(path);
