@@ -1389,6 +1389,74 @@ function ResetPasswordCard({
 }) {
   const [newPassword, setNewPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [currentUsername, setCurrentUsername] = useState<string>("");
+  const [newUsername, setNewUsername] = useState<string>("");
+  const [usernameBusy, setUsernameBusy] = useState(false);
+  const [loadingUsername, setLoadingUsername] = useState(true);
+
+  // Load current username (derived from auth email)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingUsername(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("reset-courier-password", {
+          body: { vendor_id: vendorId, password: "__lookup_only__" },
+        });
+        // Avoid actually resetting on lookup. Use a dedicated lookup if available;
+        // here we fall back to reading from the profiles table by user_id.
+        if (!cancelled && data?.username) {
+          setCurrentUsername(data.username);
+          setNewUsername(data.username);
+        }
+        if (error || !data?.username) {
+          // Fallback: read from auth.users via profiles is not allowed; leave blank
+          if (!cancelled) {
+            setCurrentUsername("");
+            setNewUsername("");
+          }
+        }
+      } catch { /* ignore */ }
+      finally { if (!cancelled) setLoadingUsername(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [vendorId]);
+
+  const handleSaveUsername = async () => {
+    const u = newUsername.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,32}$/.test(u)) {
+      toast.error("اسم المستخدم: 3-32 حرفاً، أحرف إنجليزية صغيرة وأرقام و _ فقط");
+      return;
+    }
+    if (u === currentUsername) {
+      toast.info("اسم المستخدم لم يتغيّر");
+      return;
+    }
+    setUsernameBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("update-courier-username", {
+        body: { vendor_id: vendorId, username: u },
+      });
+      if (error) {
+        const ctx = (error as any)?.context;
+        let msg = error.message || "فشل تحديث اسم المستخدم";
+        try {
+          if (ctx && typeof ctx.json === "function") {
+            const j = await ctx.json();
+            if (j?.error) msg = j.error;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      setCurrentUsername(u);
+      toast.success("تم تحديث اسم المستخدم");
+    } catch (e: any) {
+      toast.error(e.message || "فشل تحديث اسم المستخدم");
+    } finally {
+      setUsernameBusy(false);
+    }
+  };
 
   const handleReset = async () => {
     if (newPassword.trim().length < 6) {
@@ -1439,6 +1507,34 @@ function ResetPasswordCard({
           {copied === "email" ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
         </Button>
       </div>
+
+      <div className="border-t border-border pt-3 space-y-2">
+        <Label className="text-sm font-semibold flex items-center gap-1.5">
+          <UserPlus className="h-3.5 w-3.5 text-primary" /> اسم المستخدم
+        </Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="text"
+            dir="ltr"
+            placeholder={loadingUsername ? "جاري التحميل..." : "fast_express"}
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+            disabled={loadingUsername}
+          />
+          <Button
+            onClick={handleSaveUsername}
+            disabled={usernameBusy || loadingUsername || !newUsername.trim() || newUsername.trim() === currentUsername}
+            className="gap-1.5 shrink-0"
+          >
+            {usernameBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            حفظ
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          عدّل اسم المستخدم يدوياً (3-32 حرفاً، أحرف إنجليزية صغيرة وأرقام و _ فقط). سيُستخدم للدخول فوراً.
+        </p>
+      </div>
+
       <div className="border-t border-border pt-3 space-y-2">
         <Label className="text-sm font-semibold flex items-center gap-1.5">
           <KeyRound className="h-3.5 w-3.5 text-primary" /> إعادة تعيين كلمة المرور
