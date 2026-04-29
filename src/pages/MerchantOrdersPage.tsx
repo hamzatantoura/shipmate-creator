@@ -1058,6 +1058,14 @@ export default function MerchantOrdersPage() {
                           <TableCell>
                             <div className="font-medium text-foreground">{order.receiver_name}</div>
                             <div className="text-xs text-muted-foreground" dir="ltr">{order.phone_number}</div>
+                            {order.label_printed_at && (
+                              <div className="mt-1">
+                                <Badge variant="outline" className="gap-1 text-[10px] bg-success/10 text-success border-success/30">
+                                  <FileCheck2 className="h-3 w-3" />
+                                  بوليصة مطبوعة
+                                </Badge>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm">{display}</TableCell>
                           <TableCell className="text-sm">
