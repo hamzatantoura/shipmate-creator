@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
 import { isValidSyrianPhone } from "@/lib/syrian-phone";
@@ -44,7 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown } from "lucide-react";
+import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Building2, ChevronDown, ChevronRight, ChevronLeft } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
