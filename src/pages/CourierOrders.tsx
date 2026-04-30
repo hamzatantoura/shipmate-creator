@@ -70,10 +70,12 @@ interface CourierOrderRow {
 
 /**
  * Logical lifecycle transitions for couriers.
- * processing → shipped → out_for_delivery → delivered | returned
+ * pending → received_by_courier → shipped → out_for_delivery → delivered | returned
  */
 const NEXT_STATUS_MAP: Record<string, { value: string; label: string }[]> = {
-  new:              [{ value: "processing", label: "قيد المعالجة" }, { value: "shipped", label: "مع شركة الشحن" }],
+  new:              [{ value: "received_by_courier", label: "تم الاستلام من شركة الشحن" }],
+  pending:          [{ value: "received_by_courier", label: "تم الاستلام من شركة الشحن" }],
+  received_by_courier: [{ value: "shipped", label: "مع شركة الشحن" }, { value: "returned", label: "مرتجع" }],
   processing:       [{ value: "shipped", label: "مع شركة الشحن" }, { value: "returned", label: "مرتجع" }],
   shipped:          [{ value: "out_for_delivery", label: "قيد التوصيل" }, { value: "returned", label: "مرتجع" }],
   out_for_delivery: [{ value: "delivered", label: "تم التسليم" }, { value: "returned", label: "مرتجع" }],
@@ -88,6 +90,12 @@ const RETURN_REASONS = [
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
+const orderStatusFromShipmentStatus = (status: string) => {
+  if (status === "received_by_courier" || status === "picked_up" || status === "at_warehouse") return "processing";
+  if (status === "in_transit_intercity") return "shipped";
+  if (status === "with_distributor") return "out_for_delivery";
+  return status;
+};
 const isToday = (iso: string) => {
   const d = new Date(iso); const t = new Date();
   return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
@@ -98,7 +106,7 @@ const TAB_FILTERS: Record<TabKey, (s: string) => boolean> = {
   all: () => true,
   // STRICT mutually exclusive pipeline buckets
   pending:   (s) => ["new", "pending"].includes(s),
-  active:    (s) => ["processing", "shipped", "out_for_delivery"].includes(s),
+  active:    (s) => ["received_by_courier", "processing", "shipped", "out_for_delivery"].includes(s),
   delivered: (s) => s === "delivered",
   returned:  (s) => ["returned", "cancelled"].includes(s),
 };
