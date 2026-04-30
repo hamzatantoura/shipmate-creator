@@ -395,7 +395,7 @@ export default function MerchantOrdersPage() {
         cod: Number(order.final_sale_price ?? order.total_amount),
         notes: order.notes,
         courierName: courierNameOf(order),
-        courierLogoUrl: order.couriers?.logo_url ?? null,
+        courierLogoUrl: courierLogoOf(order),
         trackingNumber: order.shipments?.tracking_number ?? null,
         branchName: branch?.name ?? null,
         branchAddress: null,
@@ -431,11 +431,19 @@ export default function MerchantOrdersPage() {
     clearSelection();
   };
 
-  // Resolve courier name: prefer joined relation, fallback to local couriers list
+  // Resolve courier name: prefer local couriers map (RLS-safe via couriers_public),
+  // fallback to joined relation when present.
   const courierNameOf = (order: OrderRow | null, courierId?: string | null) => {
-    if (order?.couriers?.name) return order.couriers.name;
     const id = courierId ?? order?.courier_id ?? null;
-    return id ? couriers.find(c => c.id === id)?.name || null : null;
+    const local = id ? couriers.find(c => c.id === id)?.name : null;
+    if (local) return local;
+    return order?.couriers?.name ?? null;
+  };
+  const courierLogoOf = (order: OrderRow | null, courierId?: string | null) => {
+    const id = courierId ?? order?.courier_id ?? null;
+    const local = id ? couriers.find(c => c.id === id)?.logo_url ?? null : null;
+    if (local) return local;
+    return order?.couriers?.logo_url ?? null;
   };
 
   // Form state
@@ -646,7 +654,7 @@ export default function MerchantOrdersPage() {
         cod: Number(order.final_sale_price ?? order.total_amount),
         notes: order.notes,
         courierName: courierNameOf(order),
-        courierLogoUrl: order.couriers?.logo_url ?? null,
+        courierLogoUrl: courierLogoOf(order),
         trackingNumber: order.shipments?.tracking_number ?? null,
         branchName: branch?.name ?? null,
         branchAddress: null,
