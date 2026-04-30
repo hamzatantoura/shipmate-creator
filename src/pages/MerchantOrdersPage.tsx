@@ -204,6 +204,8 @@ export default function MerchantOrdersPage() {
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<OrderRow | null>(null);
+  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   // Bulk selection (for "Bulk Print Waybills")
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -430,6 +432,41 @@ export default function MerchantOrdersPage() {
       toast.success(`إعادة طباعة ${printableOrders.length} بوليصة`);
     }
     clearSelection();
+  };
+
+  // Cancel/delete an order — only allowed BEFORE the waybill is printed
+  // and BEFORE a shipment exists (i.e. before handing it to the courier).
+  // We use soft-delete (deleted_at + status='cancelled') so audit history
+  // and any wallet ledger references stay intact.
+  const handleCancelOrder = async () => {
+    if (!cancelOrderId) return;
+    const target = orders.find((o) => o.id === cancelOrderId);
+    if (!target) {
+      setCancelOrderId(null);
+      return;
+    }
+    if (isLocked(target)) {
+      toast.error("لا يمكن إلغاء هذا الطلب — تم تسليمه إلى شركة الشحن أو طُبعت بوليصته.");
+      setCancelOrderId(null);
+      return;
+    }
+    setCancelling(true);
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        status: "cancelled",
+        deleted_at: new Date().toISOString(),
+      } as any)
+      .eq("id", cancelOrderId);
+    setCancelling(false);
+    if (error) {
+      toast.error(error.message || "تعذّر إلغاء الطلب");
+      return;
+    }
+    toast.success("تم إلغاء الطلب بنجاح");
+    setCancelOrderId(null);
+    setSelectedIds((prev) => prev.filter((id) => id !== cancelOrderId));
+    fetchOrders();
   };
 
   // Resolve courier name: prefer local couriers map (RLS-safe via couriers_public),
@@ -1276,6 +1313,18 @@ export default function MerchantOrdersPage() {
                                   تعديل
                                 </Button>
                               )}
+                              {!locked && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setCancelOrderId(order.id)}
+                                  className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  title="إلغاء الطلب"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                  إلغاء
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1376,6 +1425,33 @@ export default function MerchantOrdersPage() {
               <AlertDialogCancel>إلغاء</AlertDialogCancel>
               <AlertDialogAction onClick={confirmPrint}>
                 نعم، اعتمد واطبع
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Cancel order confirmation */}
+        <AlertDialog open={!!cancelOrderId} onOpenChange={(o) => !o && !cancelling && setCancelOrderId(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <X className="h-5 w-5 text-destructive" />
+                إلغاء الطلب؟
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                سيتم إلغاء هذا الطلب نهائياً وإزالته من قائمة الطلبات النشطة.
+                لا يمكن التراجع عن هذا الإجراء. هذا متاح فقط للطلبات التي لم يتم
+                طباعة بوليصتها أو تسليمها لشركة الشحن.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel disabled={cancelling}>تراجع</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); handleCancelOrder(); }}
+                disabled={cancelling}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {cancelling ? "جاري الإلغاء..." : "نعم، ألغِ الطلب"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
