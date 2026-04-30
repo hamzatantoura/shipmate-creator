@@ -402,9 +402,10 @@ export default function CourierOrders() {
       return;
     }
     // Surgical cache update — no refetch.
-    const newShipmentStatus = (data as any)?.status as string | undefined;
+    const newShipmentStatus = ((data as any)?.status as string | undefined) ?? newStatus;
+    const nextOrderStatus = orderStatusFromShipmentStatus(newShipmentStatus);
     patchOrderInCache(id, {
-      status: newStatus,
+      status: nextOrderStatus,
       return_reason: newStatus === "returned" ? (reason ?? null) : target.return_reason ?? null,
     });
     toast.success("تم تحديث الحالة");
@@ -779,7 +780,7 @@ export default function CourierOrders() {
       .map((r, i) => (r.error ? null : targets[i].id))
       .filter(Boolean) as string[];
     // Surgical update for every row that succeeded — no refetch.
-    succeededIds.forEach((id) => patchOrderInCache(id, { status: newStatus }));
+    succeededIds.forEach((id) => patchOrderInCache(id, { status: orderStatusFromShipmentStatus(newStatus) }));
     setBulkLoading(false);
     if (failedDetails.length === 0) {
       toast.success(`تم تحديث ${selectedIds.length} طلب`);
