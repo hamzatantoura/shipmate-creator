@@ -81,6 +81,7 @@ interface OrderRow {
   label_printed_at: string | null;
   notes: string | null;
   return_reason: string | null;
+  courier?: { name: string; logo_url: string | null } | null;
   couriers?: { name: string; logo_url: string | null } | null;
   shipments?: { tracking_number: string | null } | null;
 }
@@ -296,7 +297,7 @@ export default function MerchantOrdersPage() {
       const { data, error, count } = await supabase
         .from("orders")
         .select(
-          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, assigned_branch_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
+          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, assigned_branch_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, courier:couriers_public!orders_courier_id_fkey(name, logo_url), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
           { count: "exact" }
         )
         .eq("merchant_id", user!.id)
@@ -437,13 +438,13 @@ export default function MerchantOrdersPage() {
     const id = courierId ?? order?.courier_id ?? null;
     const local = id ? couriers.find(c => c.id === id)?.name : null;
     if (local) return local;
-    return order?.couriers?.name ?? null;
+    return order?.courier?.name ?? order?.couriers?.name ?? null;
   };
   const courierLogoOf = (order: OrderRow | null, courierId?: string | null) => {
     const id = courierId ?? order?.courier_id ?? null;
     const local = id ? couriers.find(c => c.id === id)?.logo_url ?? null : null;
     if (local) return local;
-    return order?.couriers?.logo_url ?? null;
+    return order?.courier?.logo_url ?? order?.couriers?.logo_url ?? null;
   };
 
   // Form state
@@ -527,6 +528,9 @@ export default function MerchantOrdersPage() {
       label_printed_at: null,
       notes: null,
       return_reason: null,
+      courier: matchedCourier
+        ? { name: matchedCourier.name, logo_url: courierLogo }
+        : null,
       couriers: matchedCourier
         ? { name: matchedCourier.name, logo_url: courierLogo }
         : null,
