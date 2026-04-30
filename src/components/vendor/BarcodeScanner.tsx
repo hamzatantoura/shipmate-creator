@@ -58,6 +58,34 @@ export default function BarcodeScanner() {
     setScanning(true);
 
     try {
+      // Pre-flight check: in iframes (like the Lovable preview) the browser
+      // often blocks camera access. Detect this clearly so the user knows
+      // it's a permission/iframe issue, not a code bug.
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("المتصفح لا يدعم الوصول إلى الكاميرا. جرّب فتح التطبيق في تبويب جديد أو من رابط النشر.");
+      }
+
+      // Explicitly request permission first — gives a clearer error than html5-qrcode's generic failure
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        probe.getTracks().forEach((t) => t.stop());
+      } catch (permErr: any) {
+        const name = permErr?.name || "";
+        if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+          throw new Error("تم رفض إذن الكاميرا. افتح إعدادات الموقع في المتصفح واسمح بالوصول للكاميرا، ثم أعد المحاولة.");
+        }
+        if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+          throw new Error("لم يتم العثور على كاميرا في هذا الجهاز.");
+        }
+        if (name === "NotReadableError" || name === "TrackStartError") {
+          throw new Error("الكاميرا مستخدمة من تطبيق آخر. أغلق التطبيقات الأخرى ثم أعد المحاولة.");
+        }
+        if (name === "SecurityError" || (window.self !== window.top)) {
+          throw new Error("الكاميرا محجوبة داخل المعاينة. اضغط 'Open in new tab' لفتح التطبيق في تبويب مستقل.");
+        }
+        throw new Error(permErr?.message || "تعذر الوصول إلى الكاميرا.");
+      }
+
       const scanner = new Html5Qrcode(containerRef.current);
       scannerRef.current = scanner;
 
@@ -74,7 +102,7 @@ export default function BarcodeScanner() {
         () => {} // ignore scan errors
       );
     } catch (err: any) {
-      toast.error("تعذر تشغيل الكاميرا: " + (err.message || "تحقق من صلاحيات الكاميرا"));
+      toast.error(err?.message || "تعذر تشغيل الكاميرا. تحقق من صلاحيات الكاميرا.", { duration: 6000 });
       setScanning(false);
     }
   };
