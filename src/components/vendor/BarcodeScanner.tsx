@@ -38,6 +38,13 @@ const STATUS_AR: Record<string, string> = {
   returned: "مرتجع",
 };
 
+const orderStatusFromShipmentStatus = (status: string) => {
+  if (status === "received_by_courier" || status === "picked_up" || status === "at_warehouse") return "processing";
+  if (status === "in_transit_intercity") return "shipped";
+  if (status === "with_distributor") return "out_for_delivery";
+  return status;
+};
+
 const CITY_AR: Record<string, string> = {
   Damascus: "دمشق", Aleppo: "حلب", Homs: "حمص",
   Lattakia: "اللاذقية", Hama: "حماة", Tartous: "طرطوس",
@@ -183,6 +190,18 @@ export default function BarcodeScanner() {
     }
 
     const updated = (data as unknown as Shipment) ?? { ...shipment, status: newStatus };
+    const nextOrderStatus = orderStatusFromShipmentStatus(updated.status || newStatus);
+    const orderUpdate = await supabase
+      .from("orders")
+      .update({ status: nextOrderStatus, shipment_id: shipment.id } as any)
+      .or(`id.eq.${shipment.order_id},shipment_id.eq.${shipment.id}`);
+
+    if (orderUpdate.error) {
+      console.error("ORDER SYNC FAILED after transition_shipment_status:", orderUpdate.error);
+      toast.error(orderUpdate.error.message || "تم تحديث الشحنة لكن تعذرت مزامنة الطلب", { duration: 6000 });
+      return;
+    }
+
     toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[newStatus] || newStatus}`);
     setShipment({ ...shipment, ...updated });
     setNewStatus(getNextStatus(newStatus));
