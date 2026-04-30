@@ -563,16 +563,8 @@ export default function AdminDistrictsManagement() {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="d-fee">رسوم التوصيل (ل.س)</Label>
-              <Input
-                id="d-fee"
-                type="number"
-                value={form.delivery_fee}
-                onChange={(e) => setForm({ ...form, delivery_fee: e.target.value })}
-                placeholder="15000"
-                dir="ltr"
-              />
+            <div className="rounded-md border border-border/50 bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+              💡 رسوم التوصيل تُدار من <strong>شركات الشحن</strong> عبر "أسعار الشركات" — وليس من هنا.
             </div>
 
             <div className="grid grid-cols-2 gap-3">
