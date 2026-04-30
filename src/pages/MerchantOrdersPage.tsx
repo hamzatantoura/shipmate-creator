@@ -180,7 +180,11 @@ const mapCityToShipmentEnum = (
 // Create a shipment row for an order at the moment the merchant prints the
 // waybill (Option A: shipments are created lazily, only on label print —
 // not at order creation time). Returns the new shipment id and tracking number.
-const createShipmentForOrder = async (order: OrderRow, deliveryFee: number) => {
+const createShipmentForOrder = async (
+  order: OrderRow,
+  merchantId: string,
+  deliveryFee: number,
+) => {
   const tracking = silaCodeOf(order.id);
   const cod = Number(order.final_sale_price ?? order.total_amount ?? 0);
   const fee = Number(deliveryFee || 0);
@@ -188,7 +192,7 @@ const createShipmentForOrder = async (order: OrderRow, deliveryFee: number) => {
     .from("shipments")
     .insert({
       order_id: order.id,
-      merchant_id: (order as any).merchant_id ?? undefined, // RLS uses auth.uid() match
+      merchant_id: merchantId,
       courier_id: order.courier_id,
       receiver_name: order.receiver_name,
       phone_number: order.phone_number,
