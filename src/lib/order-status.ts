@@ -4,6 +4,7 @@ export type OrderStatusKey =
   | "draft"
   | "new"
   | "pending"
+  | "received_by_courier"
   | "processing"
   | "shipped"
   | "out_for_delivery"
@@ -38,6 +39,11 @@ export const ORDER_STATUS_META: Record<string, OrderStatusMeta> = {
     label: "قيد الانتظار",
     icon: Clock,
     className: "bg-warning/15 text-warning border-warning/30",
+  },
+  received_by_courier: {
+    label: "تم الاستلام من شركة الشحن",
+    icon: PackageCheck,
+    className: "bg-primary/15 text-primary border-primary/30",
   },
   processing: {
     label: "قيد المعالجة",
