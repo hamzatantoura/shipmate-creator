@@ -326,25 +326,20 @@ export default function CourierOrders() {
     }
     setUpdatingId(id);
     const target = orders.find(o => o.id === id);
-    const oldStatus = target?.status ?? null;
-    const patch: Record<string, unknown> = { status: newStatus };
-    if (newStatus === "returned" && reason) patch.return_reason = reason;
-    const { error } = await supabase.from("orders").update(patch).eq("id", id);
+    if (!target?.shipment_id) {
+      setUpdatingId(null);
+      toast.error("لا توجد شحنة مرتبطة بهذا الطلب");
+      return;
+    }
+    const { error } = await supabase.rpc("transition_shipment_status", {
+      p_shipment_id: target.shipment_id,
+      p_new_status: newStatus,
+      p_return_reason: newStatus === "returned" ? (reason ?? null) : null,
+    });
     if (error) {
       setUpdatingId(null);
       toast.error(error.message || "تعذر تحديث الحالة");
       return;
-    }
-    // Mirror to shipment + write to merchant timeline (shipment_status_history)
-    if (target?.shipment_id) {
-      await supabase.from("shipments").update({ status: newStatus }).eq("id", target.shipment_id);
-      const { error: histErr } = await supabase.from("shipment_status_history").insert({
-        shipment_id: target.shipment_id,
-        old_status: oldStatus,
-        new_status: newStatus,
-        changed_by: user?.id ?? "system",
-      });
-      if (histErr) console.warn("Timeline log failed:", histErr.message);
     }
     setUpdatingId(null);
     toast.success("تم تحديث الحالة");
@@ -703,19 +698,12 @@ export default function CourierOrders() {
     const targets = orders.filter(o => selectedIds.includes(o.id));
     const results = await Promise.all(
       targets.map(async (o) => {
-        const oldStatus = o.status;
-        const upd = await supabase.from("orders").update({ status: newStatus }).eq("id", o.id);
-        if (upd.error) return upd;
-        if (o.shipment_id) {
-          await supabase.from("shipments").update({ status: newStatus }).eq("id", o.shipment_id);
-          await supabase.from("shipment_status_history").insert({
-            shipment_id: o.shipment_id,
-            old_status: oldStatus,
-            new_status: newStatus,
-            changed_by: user?.id ?? "system",
-          });
-        }
-        return upd;
+        if (!o.shipment_id) return { error: { message: "no shipment" } as any };
+        return await supabase.rpc("transition_shipment_status", {
+          p_shipment_id: o.shipment_id,
+          p_new_status: newStatus,
+          p_return_reason: null,
+        });
       })
     );
     const failed = results.filter(r => r.error).length;
