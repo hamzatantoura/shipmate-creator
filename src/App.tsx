@@ -72,6 +72,11 @@ const App = () => (
               <MerchantOrdersPage />
             </AuthGuard>
           } />
+          <Route path="/merchant/archive" element={
+            <AuthGuard allowedRoles={["merchant"]}>
+              <MerchantArchivePage />
+            </AuthGuard>
+          } />
           <Route path="/merchant/wallet" element={
             <AuthGuard allowedRoles={["merchant"]}>
               <MerchantWalletPage />
