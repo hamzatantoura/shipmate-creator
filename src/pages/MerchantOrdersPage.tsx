@@ -434,6 +434,41 @@ export default function MerchantOrdersPage() {
     clearSelection();
   };
 
+  // Cancel/delete an order — only allowed BEFORE the waybill is printed
+  // and BEFORE a shipment exists (i.e. before handing it to the courier).
+  // We use soft-delete (deleted_at + status='cancelled') so audit history
+  // and any wallet ledger references stay intact.
+  const handleCancelOrder = async () => {
+    if (!cancelOrderId) return;
+    const target = orders.find((o) => o.id === cancelOrderId);
+    if (!target) {
+      setCancelOrderId(null);
+      return;
+    }
+    if (isLocked(target)) {
+      toast.error("لا يمكن إلغاء هذا الطلب — تم تسليمه إلى شركة الشحن أو طُبعت بوليصته.");
+      setCancelOrderId(null);
+      return;
+    }
+    setCancelling(true);
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        status: "cancelled",
+        deleted_at: new Date().toISOString(),
+      } as any)
+      .eq("id", cancelOrderId);
+    setCancelling(false);
+    if (error) {
+      toast.error(error.message || "تعذّر إلغاء الطلب");
+      return;
+    }
+    toast.success("تم إلغاء الطلب بنجاح");
+    setCancelOrderId(null);
+    setSelectedIds((prev) => prev.filter((id) => id !== cancelOrderId));
+    fetchOrders();
+  };
+
   // Resolve courier name: prefer local couriers map (RLS-safe via couriers_public),
   // fallback to joined relation when present.
   const courierNameOf = (order: OrderRow | null, courierId?: string | null) => {
