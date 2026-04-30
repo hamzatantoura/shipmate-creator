@@ -162,6 +162,54 @@ const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
 const isLocked = (o: OrderRow) => !!o.label_printed_at || !!o.shipment_id || ["processing", "shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
 
+// Map an Arabic/English province label to the shipment_city enum value used
+// by public.shipments.city. Mirrors the SQL helper map_order_city_to_shipment.
+const mapCityToShipmentEnum = (
+  city: string | null | undefined,
+): "Damascus" | "Aleppo" | "Homs" | "Hama" | "Lattakia" | "Tartous" => {
+  const c = (city || "").toLowerCase();
+  if (c.includes("دمشق") || c.includes("damascus")) return "Damascus";
+  if (c.includes("حلب") || c.includes("aleppo")) return "Aleppo";
+  if (c.includes("حمص") || c.includes("homs")) return "Homs";
+  if (c.includes("حماة") || c.includes("حماه") || c.includes("hama")) return "Hama";
+  if (c.includes("لاذقية") || c.includes("اللاذقية") || c.includes("lattakia") || c.includes("latakia")) return "Lattakia";
+  if (c.includes("طرطوس") || c.includes("tartous") || c.includes("tartus")) return "Tartous";
+  return "Damascus";
+};
+
+// Create a shipment row for an order at the moment the merchant prints the
+// waybill (Option A: shipments are created lazily, only on label print —
+// not at order creation time). Returns the new shipment id and tracking number.
+const createShipmentForOrder = async (
+  order: OrderRow,
+  merchantId: string,
+  deliveryFee: number,
+) => {
+  const tracking = silaCodeOf(order.id);
+  const cod = Number(order.final_sale_price ?? order.total_amount ?? 0);
+  const fee = Number(deliveryFee || 0);
+  const { data, error } = await supabase
+    .from("shipments")
+    .insert({
+      order_id: order.id,
+      merchant_id: merchantId,
+      courier_id: order.courier_id,
+      receiver_name: order.receiver_name,
+      phone_number: order.phone_number,
+      city: mapCityToShipmentEnum(order.city) as any,
+      detailed_address: order.detailed_address,
+      cod_amount: cod,
+      collection_fee: fee,
+      shipping_fee: fee,
+      tracking_number: tracking,
+      status: "pending",
+    } as any)
+    .select("id, tracking_number")
+    .single();
+  if (error || !data) throw new Error(error?.message || "تعذر إنشاء الشحنة");
+  return { shipmentId: (data as any).id as string, trackingNumber: (data as any).tracking_number as string | null };
+};
+
 // Format Syrian phone to international E.164-like (no +): 963XXXXXXXXX
 const toIntlSyrianPhone = (raw: string): string => {
   let p = (raw || "").replace(/[^\d]/g, "");
@@ -374,6 +422,27 @@ export default function MerchantOrdersPage() {
     }
     if (!printable.length) return;
     const printableOrders = printable as OrderRow[];
+
+    // Option A: lazily create a shipment for any printable order that doesn't
+    // have one yet. Track new shipment ids/tracking numbers per order.
+    const newShipmentByOrder: Record<string, { id: string; tracking: string | null }> = {};
+    if (user?.id) {
+      for (const o of printableOrders) {
+        if (o.shipment_id) continue;
+        try {
+          const provinceForFee = allDistricts.find((d) => d.id === o.district_id);
+          const districtIdForFee = provinceForFee?.parent_id ? o.district_id : null;
+          const provinceIdForFee = provinceForFee?.parent_id ? provinceForFee.parent_id : o.district_id;
+          const fee = resolveDeliveryFee(districtIdForFee, provinceIdForFee, o.courier_id);
+          const created = await createShipmentForOrder(o, user.id, fee);
+          newShipmentByOrder[o.id] = { id: created.shipmentId, tracking: created.trackingNumber };
+        } catch (e: any) {
+          toast.error(`تعذر إنشاء شحنة لطلب ${o.receiver_name}: ${e?.message || ""}`);
+          return;
+        }
+      }
+    }
+
     const labels: BulkLabelData[] = printableOrders.map((order) => {
       const matched = allDistricts.find((d) => d.id === order.district_id);
       const districtName = matched?.parent_id ? matched.name : null;
@@ -399,7 +468,10 @@ export default function MerchantOrdersPage() {
         notes: order.notes,
         courierName: courierNameOf(order),
         courierLogoUrl: courierLogoOf(order),
-        trackingNumber: order.shipments?.tracking_number ?? null,
+        trackingNumber:
+          newShipmentByOrder[order.id]?.tracking ??
+          order.shipments?.tracking_number ??
+          null,
         branchName: branch?.name ?? null,
         branchAddress: null,
       };
@@ -414,15 +486,15 @@ export default function MerchantOrdersPage() {
     const toLock = printableOrders.filter((o) => !o.label_printed_at);
     if (toLock.length) {
       const nowIso = new Date().toISOString();
-      const updates = toLock.map((o) =>
-        supabase
-          .from("orders")
-          .update({
-            label_printed_at: nowIso,
-            status: o.status === "new" ? "processing" : o.status,
-          } as any)
-          .eq("id", o.id),
-      );
+      const updates = toLock.map((o) => {
+        const patch: Record<string, any> = {
+          label_printed_at: nowIso,
+          status: o.status === "new" ? "processing" : o.status,
+        };
+        const newSh = newShipmentByOrder[o.id];
+        if (newSh) patch.shipment_id = newSh.id;
+        return supabase.from("orders").update(patch as any).eq("id", o.id);
+      });
       const results = await Promise.all(updates);
       const failed = results.filter((r) => r.error).length;
       if (failed) toast.error(`تعذّر قفل ${failed} طلب`);
@@ -686,6 +758,26 @@ export default function MerchantOrdersPage() {
       ? branches.find((b) => b.id === order.assigned_branch_id) ?? null
       : null;
 
+    // Option A: create the shipment NOW (at label-print time) if it doesn't
+    // already exist. This is the moment the order physically transitions
+    // from "merchant intent" to "courier liability".
+    let shipmentTracking: string | null = order.shipments?.tracking_number ?? null;
+    let newShipmentId: string | null = null;
+    if (!order.shipment_id && user?.id) {
+      try {
+        const provinceForFee = allDistricts.find((d) => d.id === order.district_id);
+        const districtIdForFee = provinceForFee?.parent_id ? order.district_id : null;
+        const provinceIdForFee = provinceForFee?.parent_id ? provinceForFee.parent_id : order.district_id;
+        const fee = resolveDeliveryFee(districtIdForFee, provinceIdForFee, order.courier_id);
+        const created = await createShipmentForOrder(order, user.id, fee);
+        newShipmentId = created.shipmentId;
+        shipmentTracking = created.trackingNumber;
+      } catch (e: any) {
+        toast.error(e?.message || "تعذر إنشاء الشحنة");
+        return;
+      }
+    }
+
     try {
       printShippingLabel({
         silaCode: silaCodeOf(order.id),
@@ -706,7 +798,7 @@ export default function MerchantOrdersPage() {
         notes: order.notes,
         courierName: courierNameOf(order),
         courierLogoUrl: courierLogoOf(order),
-        trackingNumber: order.shipments?.tracking_number ?? null,
+        trackingNumber: shipmentTracking,
         branchName: branch?.name ?? null,
         branchAddress: null,
       });
@@ -718,8 +810,13 @@ export default function MerchantOrdersPage() {
     // Lock the order in DB only if not already locked
     if (!order.label_printed_at) {
       const newStatus = order.status === "new" ? "processing" : order.status;
+      const updates: Record<string, any> = {
+        label_printed_at: new Date().toISOString(),
+        status: newStatus,
+      };
+      if (newShipmentId) updates.shipment_id = newShipmentId;
       const { error } = await supabase.from("orders")
-        .update({ label_printed_at: new Date().toISOString(), status: newStatus } as any)
+        .update(updates as any)
         .eq("id", printConfirmId);
       if (error) { toast.error("تم فتح البوليصة لكن تعذر قفل الطلب"); }
       else { toast.success("تم اعتماد الطلب وقفله للتعديل"); }
