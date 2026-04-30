@@ -38,15 +38,13 @@ interface District {
   lng?: number | null;
 }
 
-const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
-
 export default function AdminDistrictsManagement() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ===== Persisted UI state (survives tab switches and refresh in same session) =====
   const SS_KEY = "admin-districts-ui";
-  type FormState = { name: string; parent_id: string; delivery_fee: string; lat: string; lng: string };
+  type FormState = { name: string; parent_id: string; lat: string; lng: string };
   type Persisted = {
     search: string;
     expanded: string[];
@@ -55,7 +53,7 @@ export default function AdminDistrictsManagement() {
     parentForNew: string | null;
     form: FormState;
   };
-  const emptyFormState: FormState = { name: "", parent_id: "", delivery_fee: "", lat: "", lng: "" };
+  const emptyFormState: FormState = { name: "", parent_id: "", lat: "", lng: "" };
   const readPersisted = (): Persisted => {
     if (typeof window === "undefined") {
       return { search: "", expanded: [], dialogOpen: false, editingId: null, parentForNew: null, form: emptyFormState };
@@ -184,7 +182,7 @@ export default function AdminDistrictsManagement() {
     setEditing(null);
     setEditingId(null);
     setParentForNew(parentId);
-    setForm({ name: "", parent_id: parentId || "", delivery_fee: "", lat: "", lng: "" });
+    setForm({ name: "", parent_id: parentId || "", lat: "", lng: "" });
     setDialogOpen(true);
   };
 
@@ -195,7 +193,6 @@ export default function AdminDistrictsManagement() {
     setForm({
       name: d.name,
       parent_id: d.parent_id || "",
-      delivery_fee: String(d.delivery_fee),
       lat: d.lat != null ? String(d.lat) : "",
       lng: d.lng != null ? String(d.lng) : "",
     });
@@ -204,7 +201,6 @@ export default function AdminDistrictsManagement() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("الاسم مطلوب"); return; }
-    const fee = Number(form.delivery_fee) || 0;
     const latVal = form.lat.trim() === "" ? null : Number(form.lat);
     const lngVal = form.lng.trim() === "" ? null : Number(form.lng);
     if ((latVal !== null && isNaN(latVal)) || (lngVal !== null && isNaN(lngVal))) {
@@ -213,7 +209,8 @@ export default function AdminDistrictsManagement() {
     const payload: any = {
       name: form.name.trim(),
       parent_id: form.parent_id || null,
-      delivery_fee: fee,
+      // delivery_fee is intentionally NOT set from this UI.
+      // Pricing comes from courier_pricing_tiers per-courier — never from districts.
       lat: latVal,
       lng: lngVal,
       // Legacy required columns – fill from name
@@ -226,6 +223,10 @@ export default function AdminDistrictsManagement() {
       area: form.parent_id ? form.name.trim() : null,
       area_ar: form.parent_id ? form.name.trim() : null,
     };
+    if (!editing) {
+      // For new rows the column is NOT NULL with no default — set to 0 (no implicit pricing).
+      payload.delivery_fee = 0;
+    }
 
     if (editing) {
       const { error } = await supabase.from("districts").update(payload).eq("id", editing.id);
@@ -369,9 +370,9 @@ export default function AdminDistrictsManagement() {
     <div className="space-y-4" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div>
           <h2 className="text-xl font-display font-bold text-foreground">إدارة المناطق</h2>
-          <p className="text-sm text-muted-foreground">المحافظات والأحياء التابعة لها مع رسوم التوصيل</p>
+          <p className="text-sm text-muted-foreground">المحافظات والأحياء — التسعير يُدار من شركات الشحن</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
