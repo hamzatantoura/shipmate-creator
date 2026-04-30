@@ -81,6 +81,7 @@ interface OrderRow {
   label_printed_at: string | null;
   notes: string | null;
   return_reason: string | null;
+  courier?: { name: string; logo_url: string | null } | null;
   couriers?: { name: string; logo_url: string | null } | null;
   shipments?: { tracking_number: string | null } | null;
 }
