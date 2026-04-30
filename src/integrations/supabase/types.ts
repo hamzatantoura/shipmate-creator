@@ -1569,6 +1569,29 @@ export type Database = {
           phone: string
         }[]
       }
+      lookup_shipment_by_code: {
+        Args: { code: string }
+        Returns: {
+          branch_name: string
+          city: Database["public"]["Enums"]["shipment_city"]
+          cod_amount: number
+          collection_fee: number
+          courier_id: string
+          courier_name: string
+          created_at: string
+          detailed_address: string
+          id: string
+          merchant_id: string
+          notes: string
+          order_id: string
+          phone_number: string
+          receiver_name: string
+          shipping_fee: number
+          status: string
+          tracking_number: string
+          updated_at: string
+        }[]
+      }
       map_order_city_to_shipment: {
         Args: { _city: string }
         Returns: Database["public"]["Enums"]["shipment_city"]
