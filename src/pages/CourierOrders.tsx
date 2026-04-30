@@ -116,6 +116,7 @@ export default function CourierOrders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [companyName, setCompanyName] = useState<string>("");
   const [companyLoaded, setCompanyLoaded] = useState(false);
+  const [companyError, setCompanyError] = useState<"none" | "not_linked" | "fetch_failed">("none");
   const [mainTab, setMainTab] = useState<"orders" | "scanner" | "wallet">("orders");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [returnDialog, setReturnDialog] = useState<{ orderId: string } | null>(null);
@@ -161,16 +162,27 @@ export default function CourierOrders() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    // Use secure RPC: returns only safe fields (id, name, logo_url, is_active)
+    // for the courier linked to the current vendor account. vendor_id is never
+    // exposed to the client.
     supabase
-      .from("couriers")
-      .select("name")
-      .eq("vendor_id", user.id)
-      .limit(1)
-      .maybeSingle()
+      .rpc("get_current_vendor_courier_profile")
       .then(({ data, error }) => {
         if (cancelled) return;
-        if (error) console.error("Courier fetch error:", error);
-        setCompanyName(data?.name ?? "");
+        if (error) {
+          console.error("Courier profile RPC error:", error);
+          setCompanyName("");
+          setCompanyError("fetch_failed");
+        } else {
+          const row = Array.isArray(data) ? data[0] : data;
+          if (row?.name) {
+            setCompanyName(row.name as string);
+            setCompanyError("none");
+          } else {
+            setCompanyName("");
+            setCompanyError("not_linked");
+          }
+        }
         setCompanyLoaded(true);
       });
     return () => { cancelled = true; };
@@ -805,7 +817,9 @@ export default function CourierOrders() {
             {companyLoaded && !companyName ? (
               <p className="text-sm text-destructive mt-1 flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                لم يتم العثور على ملف شركة الشحن المرتبط بحسابك. يُرجى التواصل مع الإدارة.
+                {companyError === "fetch_failed"
+                  ? "تعذّر تحميل ملف الشركة حالياً. تحقق من الاتصال أو أعد المحاولة."
+                  : "لم يتم العثور على ملف شركة الشحن المرتبط بحسابك. يُرجى التواصل مع الإدارة."}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground mt-1">
