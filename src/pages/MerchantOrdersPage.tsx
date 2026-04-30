@@ -1430,6 +1430,33 @@ export default function MerchantOrdersPage() {
           </AlertDialogContent>
         </AlertDialog>
 
+        {/* Cancel order confirmation */}
+        <AlertDialog open={!!cancelOrderId} onOpenChange={(o) => !o && !cancelling && setCancelOrderId(null)}>
+          <AlertDialogContent dir="rtl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <X className="h-5 w-5 text-destructive" />
+                إلغاء الطلب؟
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                سيتم إلغاء هذا الطلب نهائياً وإزالته من قائمة الطلبات النشطة.
+                لا يمكن التراجع عن هذا الإجراء. هذا متاح فقط للطلبات التي لم يتم
+                طباعة بوليصتها أو تسليمها لشركة الشحن.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel disabled={cancelling}>تراجع</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); handleCancelOrder(); }}
+                disabled={cancelling}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {cancelling ? "جاري الإلغاء..." : "نعم، ألغِ الطلب"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {editOrder && (
           <EditOrderDialog
             order={editOrder}
