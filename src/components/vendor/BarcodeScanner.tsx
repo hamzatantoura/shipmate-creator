@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScanLine, X, CheckCircle, User, Phone, MapPin, Loader2 } from "lucide-react";
+import { ScanLine, X, CheckCircle, User, Phone, MapPin, Loader2, Truck, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
+type EnrichedShipment = Shipment & { courier_name?: string | null; branch_name?: string | null };
 type OrderLookupMatch = Pick<
   Database["public"]["Tables"]["orders"]["Row"],
   "id" | "shipment_id" | "receiver_name" | "phone_number" | "city" | "detailed_address" | "total_amount" | "status"
@@ -43,10 +44,11 @@ const CITY_AR: Record<string, string> = {
 
 export default function BarcodeScanner() {
   const [scanning, setScanning] = useState(false);
-  const [shipment, setShipment] = useState<Shipment | null>(null);
+  const [shipment, setShipment] = useState<EnrichedShipment | null>(null);
   const [orderMatch, setOrderMatch] = useState<OrderLookupMatch | null>(null);
   const [newStatus, setNewStatus] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [looking, setLooking] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const containerRef = useRef<string>("barcode-scanner-" + Date.now());
 
@@ -54,9 +56,6 @@ export default function BarcodeScanner() {
     setShipment(null);
     setOrderMatch(null);
     setScanning(true);
-
-    // Wait for DOM element
-    await new Promise(r => setTimeout(r, 100));
 
     try {
       const scanner = new Html5Qrcode(containerRef.current);
@@ -66,12 +65,11 @@ export default function BarcodeScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 150 } },
         async (decodedText) => {
-          // Stop scanning immediately
-          await scanner.stop().catch(() => {});
+          // Stop the camera in parallel — don't block the lookup waiting for it
+          scanner.stop().catch(() => {});
           scannerRef.current = null;
           setScanning(false);
-
-          await lookupShipment(decodedText);
+          lookupShipment(decodedText);
         },
         () => {} // ignore scan errors
       );
@@ -85,86 +83,32 @@ export default function BarcodeScanner() {
     setShipment(null);
     setOrderMatch(null);
 
-    const cleaned = (rawCode || "").trim().replace(/\s+/g, "");
-    const cleanedUpper = cleaned.toUpperCase();
-    const noPrefix = cleanedUpper.replace(/^SL[-_]?/i, "");
-    const compactCode = cleanedUpper.replace(/[^A-Z0-9]/g, "");
-    const compactPrefix = noPrefix.replace(/[^A-Z0-9]/g, "");
-    // eslint-disable-next-line no-console
-    console.log("[BarcodeScanner] scanned raw:", JSON.stringify(rawCode), "→ cleaned:", cleanedUpper, "→ noPrefix:", noPrefix);
-
+    const cleaned = (rawCode || "").trim();
     if (cleaned.length < 4) {
       toast.error(`الرمز قصير جداً: ${rawCode}`);
       return;
     }
 
-    let { data } = await supabase
-      .from("shipments")
-      .select("*")
-      .eq("tracking_number", cleaned)
-      .maybeSingle();
+    setLooking(true);
+    try {
+      // Single round-trip: indexed lookup + joins + RLS, all server-side.
+      const { data, error } = await supabase.rpc("lookup_shipment_by_code", { code: cleaned });
+      if (error) throw error;
 
-    if (!data && cleanedUpper !== cleaned) {
-      const trackingRes = await supabase
-        .from("shipments")
-        .select("*")
-        .eq("tracking_number", cleanedUpper)
-        .maybeSingle();
-      data = trackingRes.data ?? null;
-    }
+      const row = (data && data.length > 0 ? data[0] : null) as EnrichedShipment | null;
 
-    if (!data) {
-      const trackingRes = await supabase
-        .from("shipments")
-        .select("*")
-        .ilike("tracking_number", cleanedUpper)
-        .maybeSingle();
-      data = trackingRes.data ?? null;
-    }
-
-    // 2) Sila code / order id prefix match (UUIDs are matched client-side after fetching scoped rows)
-    if (!data) {
-      const { data: orderRows } = await supabase
-        .from("orders")
-        .select("id, shipment_id, receiver_name, phone_number, city, detailed_address, total_amount, status")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-
-      const matchedOrder = (orderRows ?? []).find((order) => {
-        const normalizedId = order.id.replace(/-/g, "").toUpperCase();
-        const orderSilaCode = `SL-${normalizedId.slice(0, 6)}`;
-        return normalizedId.startsWith(compactPrefix) || orderSilaCode === cleanedUpper || normalizedId === compactCode;
-      });
-
-      if (matchedOrder?.shipment_id) {
-        const r = await supabase.from("shipments").select("*").eq("id", matchedOrder.shipment_id).maybeSingle();
-        data = r.data ?? null;
-      } else if (matchedOrder) {
-        setOrderMatch(matchedOrder);
-        toast("تم العثور على الطلب، لكن لا توجد شحنة مرتبطة بهذا الرمز بعد");
-        return;
+      if (row) {
+        setShipment(row);
+        const nextStatus = getNextStatus(row.status);
+        if (nextStatus) setNewStatus(nextStatus);
+        toast.success(`تم العثور على الشحنة: ${row.tracking_number || cleaned}`);
+      } else {
+        toast.error(`لم يتم العثور على شحنة بالرمز: ${rawCode}`);
       }
-    }
-
-    // 3) Shipment UUID prefix match as final fallback
-    if (!data) {
-      const { data: shipmentRows } = await supabase
-        .from("shipments")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-
-      const byId = (shipmentRows ?? []).filter((row) => row.id.replace(/-/g, "").toUpperCase().startsWith(compactPrefix));
-      if (byId.length === 1) data = byId[0];
-    }
-
-    if (data) {
-      setShipment(data);
-      const nextStatus = getNextStatus(data.status);
-      if (nextStatus) setNewStatus(nextStatus);
-      toast.success(`تم العثور على الشحنة: ${data.tracking_number || cleaned}`);
-    } else {
-      toast.error(`لم يتم العثور على شحنة بالرمز: ${rawCode}`);
+    } catch (err: any) {
+      toast.error(err.message || "تعذر البحث عن الشحنة");
+    } finally {
+      setLooking(false);
     }
   };
 
@@ -249,6 +193,16 @@ export default function BarcodeScanner() {
         </Card>
       )}
 
+      {/* Instant loading state while RPC is in flight */}
+      {looking && !shipment && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-6 flex items-center justify-center gap-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            جارٍ البحث عن الشحنة...
+          </CardContent>
+        </Card>
+      )}
+
       {/* Scanned shipment result */}
       {shipment && (
         <Card className="border-primary/30 bg-primary/5">
@@ -264,6 +218,10 @@ export default function BarcodeScanner() {
               <div className="flex items-center gap-2"><User className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground font-medium">{shipment.receiver_name}</span></div>
               <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground" dir="ltr">{shipment.phone_number}</span></div>
               <div className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground">{CITY_AR[shipment.city] || shipment.city} — {shipment.detailed_address}</span></div>
+              {shipment.courier_name && (
+                <div className="flex items-center gap-2"><Truck className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground">شركة الشحن: <span className="font-medium">{shipment.courier_name}</span></span></div>
+              )}
+              <div className="flex items-center gap-2"><Building2 className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-foreground">فرع الاستلام: <span className="font-medium">{shipment.branch_name || "توصيل للمنزل"}</span></span></div>
             </div>
 
             <div className="bg-background rounded-md p-3 flex items-center justify-between">
