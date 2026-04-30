@@ -1,87 +1,102 @@
-# تشخيص دقيق
 
-نعم — لقد قمت فعلاً بتسجيل الدخول إلى حساب شركة "مسارات" وأرسلت الطلب إليها. تأكدت من قاعدة البيانات:
+## المشكلة الفعلية
 
-| الحقل | القيمة |
-|---|---|
-| الطلب `SL-EFA60B` | موجود ✅ |
-| `courier_id` | `4e2a25c4…` (= **مسارات**) ✅ |
-| `status` | `new` ✅ |
-| `shipment_id` | **NULL** ❌ ← أصل المشكلة |
+بعد فحص آخر migrations والكود، حددت **3 أعطال جوهرية** تمنع القفل من العمل وتسبب الفصل بين واجهة التاجر وحركة المندوب:
 
-ثم تحققت من جميع طلبات مسارات: **9 طلبات، كلها `shipment_id = NULL`** — وليس طلباً واحداً فقط.
+### 1) القفل الأول (first-print-lock) شبه مستحيل التحقق
 
-## السبب الحقيقي
+في `enforce_order_lock()` لكي يُسمح للتاجر بأول قفل، يجب أن **يكون التحديث متضمناً في الوقت نفسه**:
+- `label_printed_at` ينتقل من NULL → قيمة
+- `shipment_id` ينتقل من NULL → قيمة  
+- `status` يصبح `'processing'`
 
-في `MerchantOrdersPage.tsx`، عند إنشاء طلب جديد، الكود يُدخل صفّاً في جدول `orders` فقط، **ولا يُنشئ صفّاً مقابلاً في جدول `shipments` أبداً**. وبما أن لا يوجد أي تريغر (DB Trigger) على جدول `orders` يقوم بذلك تلقائياً، يبقى `shipment_id` فارغاً للأبد.
+لكن في الواقع `lock_order_after_label_print` RPC تعمل بـ `SECURITY DEFINER` وتُحدّث الجدول من داخل الدالة — وهنا التريغر يستدعي `auth.uid()` ويرى التاجر، فيدخل في فرع `is_first_print_lock`. لكن إذا كان `shipment_id` **مرتبطاً مسبقاً** بالطلب (وهو الوضع الطبيعي عند إنشاء الشحنة قبل الطباعة)، فإن `OLD.shipment_id IS NOT NULL` يجعل `is_already_locked = true` فوراً، فيسقط في فرع المنع ويرفض حتى تغيير `label_printed_at`. → **القفل يفشل بـ "ORDER_LOCKED_AFTER_LABEL_PRINT"**.
 
-النتيجة على بوابة شركة الشحن:
-- **مسح الباركود** → يبحث عن `shipments.tracking_number` → لا يجد شيئاً → "لم يتم إنشاء سجل شحنة بعد" ❌
-- **عرض الطلبات** → الـ join مع `shipments` يرجع NULL، فلا تظهر بيانات الشحنة (cod_amount, tracking, weight…) ❌
-- **تحديث الحالة** → الكود يحاول `UPDATE shipments WHERE id = NULL` → لا يحدث شيء ❌
+### 2) `sync_shipment_status_to_order` يضرب جدار `enforce_order_lock`
 
-أما الرسالة الأخرى ("لم يتم العثور على ملف شركة الشحن") فتعني أنك دخلت بحساب آخر غير `hamza` (الـ vendor الفعلي لمسارات). لكنها مشكلة منفصلة لا علاقة لها بموضوعنا.
-
----
-
-# الحل الجذري المقترح
-
-أُنشئ **Database Trigger** على جدول `orders` يقوم تلقائياً بإنشاء `shipment` مرافق لكل طلب جديد، ويربطه بـ `orders.shipment_id`. هذا الحل يعمل لكل الطلبات المستقبلية بدون أي تعديل في الواجهة.
-
-## خطوات التنفيذ
-
-### 1) Migration: دالة + تريغر (AFTER INSERT)
-ينشئ صفّاً في `shipments` مع:
-- `merchant_id`, `courier_id` ← من الطلب
-- `cod_amount` ← `final_sale_price` أو `total_amount`
-- `collection_fee` ← `delivery_fee`
-- `receiver_name`, `phone_number`, `city`, `detailed_address` ← من الطلب
-- `tracking_number` ← `'SL-' || upper(substr(replace(order_id::text, '-', ''), 1, 6))` (نفس صيغة باركود الواجهة)
-- `status = 'pending'`, `order_id = NEW.id`
-
-ثم `UPDATE orders SET shipment_id = <new_id> WHERE id = NEW.id`.
-
-### 2) Backfill للطلبات الـ 9 الموجودة
-نفس المنطق على كل الطلبات الحالية بـ `shipment_id IS NULL` — لكي يعمل طلب SL-EFA60B والطلبات السابقة فوراً.
-
-### 3) (اختياري لكن موصى به) Trigger ثانٍ على UPDATE
-عندما يُحدِّث المتجر `final_sale_price` أو `delivery_fee`، نُحدِّث `shipments.cod_amount` و `collection_fee` تلقائياً للحفاظ على التزامن.
-
-### تفاصيل تقنية مختصرة
-```sql
-create or replace function public.create_shipment_for_order()
-returns trigger language plpgsql security definer
-set search_path = public as $$
-declare new_shipment_id uuid;
-begin
-  insert into public.shipments (
-    order_id, merchant_id, courier_id,
-    receiver_name, phone_number, city, detailed_address,
-    cod_amount, collection_fee, tracking_number, status
-  ) values (
-    new.id, new.merchant_id, new.courier_id,
-    new.receiver_name, new.phone_number, new.city::city, new.detailed_address,
-    coalesce(new.final_sale_price, new.total_amount, 0),
-    coalesce(new.delivery_fee, 0),
-    'SL-' || upper(substr(replace(new.id::text,'-',''),1,6)),
-    'pending'
-  ) returning id into new_shipment_id;
-
-  update public.orders set shipment_id = new_shipment_id where id = new.id;
-  return new;
-end; $$;
-
-create trigger orders_create_shipment_aft_ins
-after insert on public.orders
-for each row execute function public.create_shipment_for_order();
+عند مسح المندوب للباركود، الـRPC تغيّر حالة الشحنة → التريغر `trg_sync_shipment_to_order` يُحدّث `orders.status`. لكنه يعمل بـ`SECURITY DEFINER` فيُنفَّذ بصلاحيات المالك (postgres). داخله، التريغر `enforce_order_lock` يستدعي `auth.uid()` الذي **يبقى هو المندوب (vendor)**، لذا يمر. لكن إذا كان `auth.uid()` فارغاً (تحديث من جوب) أو كان السياق تاجراً، فإن تغيير الحالة من `processing` إلى `shipped` يُرفض بسبب الشرط:
 ```
-> ملاحظة: سأتحقق من نوع `city` الحقيقي (USER-DEFINED enum) قبل التنفيذ، وأضيف cast مناسب أو fallback آمن لو المدينة لا تطابق قيمة في الـ enum.
+NEW.status IS DISTINCT FROM OLD.status AND NEW.status NOT IN ('cancelled')
+```
+→ **التحديثات الواردة من الشحنة تتعطل صامتاً** والواجهة لا تتحدث.
+
+### 3) `prevent_merchant_status_spoof` يضرب التريغر نفسه أيضاً
+
+نفس المشكلة: حين يتدفق التحديث القادم من جدول الشحنات (عبر `sync_shipment_status_to_order`) إلى جدول الطلبات، تُستدعى `prevent_merchant_status_spoof` التي تحظر `'shipped'` و`'delivered'` و`'returned'` إذا لم يكن المستدعي admin/vendor — وفي بعض السياقات (jobs خلفية، cron، وظائف مرتبطة) يكون `auth.uid()` تاجراً أو فارغاً → **رمي خطأ صامت**.
+
+### 4) واجهة التاجر لا تحدّث الكاش بعد القفل بسكل سريع
+
+`MerchantOrdersPage` يضع تحديثاً متفائلاً ولكن لا يُعيد جلب الطلب من نفس استعلام القفل، لذا تبقى أزرار التعديل/الإلغاء ظاهرة لمدة ثوانٍ، ويعتقد المستخدم أن القفل لم يطبق.
 
 ---
 
-# للموافقة
+## خطة الإصلاح
 
-هل أنفّذ الآن:
-1. ✅ التريغر الجذري على `INSERT`
-2. ✅ Backfill للطلبات الـ 9 الحالية (سيظهر SL-EFA60B فوراً في بوابة مسارات بكامل بياناته)
-3. ◻ التريغر الثاني على `UPDATE` للتزامن (اختياري — قل لي إن أردته)
+### أ) إصلاح تريغر `enforce_order_lock`
+
+إعادة تعريف منطق **"القفل الأول"** ليعتمد فقط على انتقال `label_printed_at` من NULL → قيمة، **مع السماح ببقاء `shipment_id` موجوداً مسبقاً** (وهو الطبيعي):
+
+```
+is_first_print_lock := OLD.label_printed_at IS NULL
+                    AND NEW.label_printed_at IS NOT NULL
+                    AND (OLD.shipment_id IS NULL OR OLD.shipment_id = NEW.shipment_id);
+```
+
+ثم:
+- في فرع القفل الأول: نسمح بالتحديث ونضع `status='processing'` تلقائياً.
+- في فرع "مقفول مسبقاً": نتجاهل التحديثات القادمة من **التريغرات الأخرى** (أي حين `current_setting('app.from_shipment_sync', true) = '1'`).
+
+### ب) إصلاح `sync_shipment_status_to_order`
+
+داخل الدالة، نضع علامة جلسة قبل التحديث ونحذفها بعده:
+```
+PERFORM set_config('app.from_shipment_sync', '1', true);
+UPDATE public.orders SET ... ;
+PERFORM set_config('app.from_shipment_sync', '', true);
+```
+ونعدّل `enforce_order_lock` و`prevent_merchant_status_spoof` ليتجاهلا التحديث إذا كانت العلامة مفعلة (لأنه قادم من النظام، لا من التاجر).
+
+### ج) `prevent_merchant_status_spoof`
+
+نسمح أيضاً بتحوّل الحالة إلى `'cancelled'` للتاجر إذا لم يكن مقفولاً، ونسمح بأي تحوّل صادر من `app.from_shipment_sync='1'` بدون قيود.
+
+### د) ضمان وجود `order_id` على الشحنة
+
+`sync_shipment_status_to_order` تستخدم `WHERE shipment_id = NEW.id OR id = NEW.order_id`. إذا أنشأ التاجر شحنة قبل ربطها (order_id NULL)، المزامنة تفشل. سنضيف:
+- تريغر `BEFORE INSERT/UPDATE` على `shipments` يضمن أن إذا تم إنشاء/تحديث `shipments.order_id`، يتم تلقائياً تحديث `orders.shipment_id` بالقيمة المقابلة.
+- في `BarcodeScanner.updateStatus`، نُبقي على المزامنة الاحتياطية الحالية (orders update) كحماية.
+
+### هـ) إصلاحات الواجهة
+
+في `MerchantOrdersPage.tsx`:
+- بعد نجاح `lock_order_after_label_print`، نُجبر `queryClient.invalidateQueries(['merchant-orders'])` بدل تحديث متفائل غير موثوق.
+- نُضيف اشتراك Realtime على جدول `orders` المُفلتر بـ `merchant_id=eq.{userId}` لاستقبال تحديث `status` و`shipment_id` و`label_printed_at` الفورية، ونحدّث الكاش جراحياً عبر `setQueryData`.
+
+في `CourierOrders.tsx`: التأكد من أن الـ realtime patch يحدّث `status` على الطلبات أيضاً (موجود — نتحقق فقط).
+
+---
+
+## الملفات التي ستتغير
+
+1. **migration جديد** (`fix_order_locking_and_sync.sql`):
+   - إعادة كتابة `enforce_order_lock()`
+   - إعادة كتابة `prevent_merchant_status_spoof()`
+   - إعادة كتابة `sync_shipment_status_to_order()` مع علم الجلسة
+   - تريغر جديد `auto_link_shipment_to_order` على جدول `shipments`
+
+2. **`src/pages/MerchantOrdersPage.tsx`**:
+   - استبدال التحديث المتفائل بـ `invalidateQueries` بعد القفل
+   - إضافة اشتراك Realtime على `orders`
+
+3. **`src/components/vendor/BarcodeScanner.tsx`**:
+   - تبسيط `updateStatus`: لا حاجة لتحديث `orders` يدوياً بعد إصلاح المزامنة (نتركها كـfallback صامت).
+
+4. **`src/lib/order-locking.ts`**: لا تغيير (المنطق صحيح).
+
+---
+
+## نتيجة متوقعة
+
+- التاجر يضغط "طباعة البوليصة" → القفل ينجح فوراً، أزرار التعديل/الإلغاء تختفي خلال أقل من ثانية.
+- المندوب يمسح الباركود → حالة الشحنة تتغير → تلقائياً حالة الطلب في واجهة التاجر تتحدث Realtime دون تحديث يدوي.
+- لا يمكن للتاجر تغيير أي حقل بعد طباعة البوليصة (محمي على مستوى DB، ليس فقط UI).
