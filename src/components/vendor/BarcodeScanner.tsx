@@ -191,10 +191,13 @@ export default function BarcodeScanner() {
 
     const updated = (data as unknown as Shipment) ?? { ...shipment, status: newStatus };
     const nextOrderStatus = orderStatusFromShipmentStatus(updated.status || newStatus);
+    const orderFilter = shipment.order_id
+      ? `id.eq.${shipment.order_id},shipment_id.eq.${shipment.id}`
+      : `shipment_id.eq.${shipment.id}`;
     const orderUpdate = await supabase
       .from("orders")
       .update({ status: nextOrderStatus, shipment_id: shipment.id } as any)
-      .or(`id.eq.${shipment.order_id},shipment_id.eq.${shipment.id}`);
+      .or(orderFilter);
 
     if (orderUpdate.error) {
       console.error("ORDER SYNC FAILED after transition_shipment_status:", orderUpdate.error);
