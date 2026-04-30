@@ -1313,6 +1313,18 @@ export default function MerchantOrdersPage() {
                                   تعديل
                                 </Button>
                               )}
+                              {!locked && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setCancelOrderId(order.id)}
+                                  className="gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  title="إلغاء الطلب"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                  إلغاء
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
