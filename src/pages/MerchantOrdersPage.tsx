@@ -162,6 +162,50 @@ const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
 const isLocked = (o: OrderRow) => !!o.label_printed_at || !!o.shipment_id || ["processing", "shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
 
+// Map an Arabic/English province label to the shipment_city enum value used
+// by public.shipments.city. Mirrors the SQL helper map_order_city_to_shipment.
+const mapCityToShipmentEnum = (
+  city: string | null | undefined,
+): "Damascus" | "Aleppo" | "Homs" | "Hama" | "Lattakia" | "Tartous" => {
+  const c = (city || "").toLowerCase();
+  if (c.includes("دمشق") || c.includes("damascus")) return "Damascus";
+  if (c.includes("حلب") || c.includes("aleppo")) return "Aleppo";
+  if (c.includes("حمص") || c.includes("homs")) return "Homs";
+  if (c.includes("حماة") || c.includes("حماه") || c.includes("hama")) return "Hama";
+  if (c.includes("لاذقية") || c.includes("اللاذقية") || c.includes("lattakia") || c.includes("latakia")) return "Lattakia";
+  if (c.includes("طرطوس") || c.includes("tartous") || c.includes("tartus")) return "Tartous";
+  return "Damascus";
+};
+
+// Create a shipment row for an order at the moment the merchant prints the
+// waybill (Option A: shipments are created lazily, only on label print —
+// not at order creation time). Returns the new shipment id and tracking number.
+const createShipmentForOrder = async (order: OrderRow, deliveryFee: number) => {
+  const tracking = silaCodeOf(order.id);
+  const cod = Number(order.final_sale_price ?? order.total_amount ?? 0);
+  const fee = Number(deliveryFee || 0);
+  const { data, error } = await supabase
+    .from("shipments")
+    .insert({
+      order_id: order.id,
+      merchant_id: (order as any).merchant_id ?? undefined, // RLS uses auth.uid() match
+      courier_id: order.courier_id,
+      receiver_name: order.receiver_name,
+      phone_number: order.phone_number,
+      city: mapCityToShipmentEnum(order.city) as any,
+      detailed_address: order.detailed_address,
+      cod_amount: cod,
+      collection_fee: fee,
+      shipping_fee: fee,
+      tracking_number: tracking,
+      status: "pending",
+    } as any)
+    .select("id, tracking_number")
+    .single();
+  if (error || !data) throw new Error(error?.message || "تعذر إنشاء الشحنة");
+  return { shipmentId: (data as any).id as string, trackingNumber: (data as any).tracking_number as string | null };
+};
+
 // Format Syrian phone to international E.164-like (no +): 963XXXXXXXXX
 const toIntlSyrianPhone = (raw: string): string => {
   let p = (raw || "").replace(/[^\d]/g, "");
