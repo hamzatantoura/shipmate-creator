@@ -12,6 +12,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import MerchantDashboard from "./pages/MerchantDashboard";
 import MerchantOrdersPage from "./pages/MerchantOrdersPage";
+import MerchantArchivePage from "./pages/MerchantArchivePage";
 import MerchantWalletPage from "./pages/MerchantWalletPage";
 import MerchantProductsPage from "./pages/MerchantProductsPage";
 import MerchantSettingsPage from "./pages/MerchantSettingsPage";
