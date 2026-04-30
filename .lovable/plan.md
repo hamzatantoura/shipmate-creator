@@ -1,92 +1,87 @@
+# تشخيص دقيق
 
-## تقرير الفحص الشامل للروابط والصفحات
+نعم — لقد قمت فعلاً بتسجيل الدخول إلى حساب شركة "مسارات" وأرسلت الطلب إليها. تأكدت من قاعدة البيانات:
 
-قمت بفحص ملفات `App.tsx` وكل الصفحات والمكونات. النتائج مصنّفة حسب الخطورة.
+| الحقل | القيمة |
+|---|---|
+| الطلب `SL-EFA60B` | موجود ✅ |
+| `courier_id` | `4e2a25c4…` (= **مسارات**) ✅ |
+| `status` | `new` ✅ |
+| `shipment_id` | **NULL** ❌ ← أصل المشكلة |
 
----
+ثم تحققت من جميع طلبات مسارات: **9 طلبات، كلها `shipment_id = NULL`** — وليس طلباً واحداً فقط.
 
-### 🔴 مشاكل حرجة (روابط معطلة / صفحات وهمية)
+## السبب الحقيقي
 
-| # | المشكلة | الموقع | السلوك الحالي |
-|---|---------|--------|----------------|
-| 1 | صفحات Legacy وهمية تستخدم `MERCHANT_ID = "00000000-..."` ثابت | `src/pages/Orders.tsx`, `src/pages/Products.tsx`, `src/pages/WalletPage.tsx`, `src/pages/Index.tsx` | تعرض بيانات لتاجر غير موجود — مرتبطة بـ routes `/orders`, `/products`, `/wallet` |
-| 2 | المسار `/dashboard` يفتح صفحة **Login** | `App.tsx:129` | يربك المستخدم بعد تسجيل الدخول |
-| 3 | زر "إنشاء شحنة" في `Orders.tsx` يوجّه إلى `/dashboard?...` (= Login) | `Orders.tsx:61` | زر مكسور تماماً |
-| 4 | المسار `/pricing` غير موجود لكنه مذكور 3 مرات في الصفحة الرئيسية | `Landing.tsx:45,95,279` | يفتح **NotFound** |
-| 5 | `TopUp.tsx` زر "العودة" يذهب إلى `/wallet` (الصفحة الوهمية القديمة) | `TopUp.tsx:61` | المفترض `/merchant/wallet` |
-| 6 | شعار "Sila" في `MerchantLayout` يذهب إلى `/` (Landing) | `MerchantLayout.tsx:25` | يخرج التاجر من لوحته بدل الذهاب إلى `/merchant/dashboard` |
-| 7 | في `AdminLogistics.tsx:141` استخدام UUID وهمي `...000001` لمحفظة المنصة | الكود | يجب الاعتماد على ledger الفعلي |
+في `MerchantOrdersPage.tsx`، عند إنشاء طلب جديد، الكود يُدخل صفّاً في جدول `orders` فقط، **ولا يُنشئ صفّاً مقابلاً في جدول `shipments` أبداً**. وبما أن لا يوجد أي تريغر (DB Trigger) على جدول `orders` يقوم بذلك تلقائياً، يبقى `shipment_id` فارغاً للأبد.
 
----
+النتيجة على بوابة شركة الشحن:
+- **مسح الباركود** → يبحث عن `shipments.tracking_number` → لا يجد شيئاً → "لم يتم إنشاء سجل شحنة بعد" ❌
+- **عرض الطلبات** → الـ join مع `shipments` يرجع NULL، فلا تظهر بيانات الشحنة (cod_amount, tracking, weight…) ❌
+- **تحديث الحالة** → الكود يحاول `UPDATE shipments WHERE id = NULL` → لا يحدث شيء ❌
 
-### 🟠 مشاكل متوسطة (UX / تنظيم)
-
-- `App.tsx` يحتفظ بـ routes قديمة `/orders`, `/products`, `/wallet` بجانب الحديثة `/merchant/*` → ازدواجية مربكة.
-- `Landing.tsx` يحتوي قسم "الأسعار" في الـ Footer لكن لا توجد صفحة `/pricing`.
-- `Index.tsx` صفحة قديمة ما زالت موجودة في الكود لكن غير مرتبطة بأي route (كود ميت).
-- `AdminDistricts.tsx` صفحة موجودة لكن يتم redirect منها إلى `?tab=districts` — يمكن حذف الملف.
-- صفحة TopUp تعرض رسالة "سيتم مراجعته قريباً" بدون رابط لتتبّع الطلب.
+أما الرسالة الأخرى ("لم يتم العثور على ملف شركة الشحن") فتعني أنك دخلت بحساب آخر غير `hamza` (الـ vendor الفعلي لمسارات). لكنها مشكلة منفصلة لا علاقة لها بموضوعنا.
 
 ---
 
-### 🟢 اقتراحات تحسين UX
+# الحل الجذري المقترح
 
-1. **breadcrumbs موحدة** في كل صفحات `/merchant/*` و `/admin/*` لتسهيل التنقل.
-2. **زر "العودة للوحة"** في صفحات فرعية (TopUp مثلاً) بدل العودة العمياء.
-3. **شارة Notifications** في الهيدر للتاجر (طلبات جديدة، تسوية مكتملة).
-4. **Empty State احترافي**: حالياً صفحة المنتجات/الطلبات الفارغة بسيطة — أضف CTA واضح ("أضف منتجك الأول").
-5. **دعم Keyboard shortcuts** للإدمن (تبديل سريع بين tabs).
-6. **حفظ آخر فلتر** في صفحة الطلبات (status, date range) في `sessionStorage`.
+أُنشئ **Database Trigger** على جدول `orders` يقوم تلقائياً بإنشاء `shipment` مرافق لكل طلب جديد، ويربطه بـ `orders.shipment_id`. هذا الحل يعمل لكل الطلبات المستقبلية بدون أي تعديل في الواجهة.
 
----
+## خطوات التنفيذ
 
-## خطة التنفيذ (Step 19: Navigation & Cleanup)
+### 1) Migration: دالة + تريغر (AFTER INSERT)
+ينشئ صفّاً في `shipments` مع:
+- `merchant_id`, `courier_id` ← من الطلب
+- `cod_amount` ← `final_sale_price` أو `total_amount`
+- `collection_fee` ← `delivery_fee`
+- `receiver_name`, `phone_number`, `city`, `detailed_address` ← من الطلب
+- `tracking_number` ← `'SL-' || upper(substr(replace(order_id::text, '-', ''), 1, 6))` (نفس صيغة باركود الواجهة)
+- `status = 'pending'`, `order_id = NEW.id`
 
-### A. إصلاح الروابط المكسورة
-1. **حذف Routes والصفحات القديمة الميتة**:
-   - حذف الملفات: `src/pages/Orders.tsx`, `src/pages/Products.tsx`, `src/pages/WalletPage.tsx`, `src/pages/Index.tsx`, `src/pages/AdminDistricts.tsx`.
-   - تحويل `/orders`, `/products`, `/wallet` في `App.tsx` إلى `<Navigate>` نحو `/merchant/orders`, `/merchant/products`, `/merchant/wallet`.
-   - تحويل `/dashboard` من `<Login />` إلى `<Navigate to="/login" replace />` (أو إلى `/merchant` إذا مسجّل دخول).
+ثم `UPDATE orders SET shipment_id = <new_id> WHERE id = NEW.id`.
 
-2. **إصلاح `TopUp.tsx`**: تغيير زر العودة من `/wallet` إلى `/merchant/wallet`.
+### 2) Backfill للطلبات الـ 9 الموجودة
+نفس المنطق على كل الطلبات الحالية بـ `shipment_id IS NULL` — لكي يعمل طلب SL-EFA60B والطلبات السابقة فوراً.
 
-3. **إصلاح شعار `MerchantLayout`**: تغيير `Link to="/"` إلى `Link to="/merchant"` (نفس الشيء لـ `CourierOrders` header إن لزم).
+### 3) (اختياري لكن موصى به) Trigger ثانٍ على UPDATE
+عندما يُحدِّث المتجر `final_sale_price` أو `delivery_fee`، نُحدِّث `shipments.cod_amount` و `collection_fee` تلقائياً للحفاظ على التزامن.
 
-4. **إصلاح روابط `/pricing` في Landing**:
-   - الخيار الأبسط: إزالة الروابط الثلاثة واستبدالها بسحب نحو قسم الأسعار داخل نفس الصفحة (anchor `#pricing`) أو تحويلها إلى `/signup`.
-   - (نتجنّب إنشاء صفحة pricing فارغة لأن السياسة تمنع المحتوى الوهمي).
+### تفاصيل تقنية مختصرة
+```sql
+create or replace function public.create_shipment_for_order()
+returns trigger language plpgsql security definer
+set search_path = public as $$
+declare new_shipment_id uuid;
+begin
+  insert into public.shipments (
+    order_id, merchant_id, courier_id,
+    receiver_name, phone_number, city, detailed_address,
+    cod_amount, collection_fee, tracking_number, status
+  ) values (
+    new.id, new.merchant_id, new.courier_id,
+    new.receiver_name, new.phone_number, new.city::city, new.detailed_address,
+    coalesce(new.final_sale_price, new.total_amount, 0),
+    coalesce(new.delivery_fee, 0),
+    'SL-' || upper(substr(replace(new.id::text,'-',''),1,6)),
+    'pending'
+  ) returning id into new_shipment_id;
 
-5. **تنظيف `AdminLogistics.tsx`**: استبدال `eq("merchant_id", "00000000-...001")` باستعلام صريح من جدول المحفظة الخاص بالمنصة (إن وُجد) أو إزالته إذا أصبحت أرباح المنصة محسوبة من triggers الـ ledger في Step 18.
+  update public.orders set shipment_id = new_shipment_id where id = new.id;
+  return new;
+end; $$;
 
-### B. تحسينات UX سريعة
-6. إضافة **زر "العودة إلى المحفظة"** في `TopUp.tsx` بشكل واضح في الأعلى.
-7. تحسين **Empty States** في `MerchantOrdersPage` و `MerchantProductsPage` بـ illustration + CTA رئيسي.
-8. إضافة **breadcrumbs** في صفحات `/merchant/orders`, `/merchant/products`, `/merchant/wallet`, `/topup`.
-
-### C. ضمانات (Strict Logic Guard)
-- لن يتم تعديل أي منطق مالي أو تسعير.
-- لن تُضاف صفحات فارغة أو "Coming Soon".
-- كل route محذوف يُستبدل بـ `<Navigate>` لمنع كسر الإشارات الخارجية المحفوظة.
-
----
-
-## الملفات التي ستُعدّل/تُحذف
-
-**حذف:**
-- `src/pages/Orders.tsx`
-- `src/pages/Products.tsx`
-- `src/pages/WalletPage.tsx`
-- `src/pages/Index.tsx`
-- `src/pages/AdminDistricts.tsx`
-
-**تعديل:**
-- `src/App.tsx` (إعادة توجيه legacy routes)
-- `src/pages/TopUp.tsx` (إصلاح زر العودة + breadcrumb)
-- `src/components/merchant/MerchantLayout.tsx` (إصلاح رابط الشعار)
-- `src/pages/Landing.tsx` (إصلاح روابط /pricing)
-- `src/pages/AdminLogistics.tsx` (إزالة UUID الوهمي للمحفظة)
-- `src/pages/MerchantOrdersPage.tsx` + `MerchantProductsPage.tsx` (تحسين Empty States)
+create trigger orders_create_shipment_aft_ins
+after insert on public.orders
+for each row execute function public.create_shipment_for_order();
+```
+> ملاحظة: سأتحقق من نوع `city` الحقيقي (USER-DEFINED enum) قبل التنفيذ، وأضيف cast مناسب أو fallback آمن لو المدينة لا تطابق قيمة في الـ enum.
 
 ---
 
-هل توافق على تنفيذ Step 19 كاملاً، أم تفضّل أن نبدأ بالقسم A (الإصلاحات الحرجة) فقط ونؤجّل تحسينات UX (القسم B) لخطوة لاحقة؟
+# للموافقة
+
+هل أنفّذ الآن:
+1. ✅ التريغر الجذري على `INSERT`
+2. ✅ Backfill للطلبات الـ 9 الحالية (سيظهر SL-EFA60B فوراً في بوابة مسارات بكامل بياناته)
+3. ◻ التريغر الثاني على `UPDATE` للتزامن (اختياري — قل لي إن أردته)

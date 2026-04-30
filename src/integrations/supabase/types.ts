@@ -1569,6 +1569,10 @@ export type Database = {
           phone: string
         }[]
       }
+      map_order_city_to_shipment: {
+        Args: { _city: string }
+        Returns: Database["public"]["Enums"]["shipment_city"]
+      }
       reverse_payout: {
         Args: { p_payout_id: string; p_reason?: string }
         Returns: Json
