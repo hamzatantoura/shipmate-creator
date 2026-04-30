@@ -182,6 +182,23 @@ export default function BarcodeScanner() {
     if (error) {
       toast.error(error.message);
     } else {
+      // Sync linked order status so the merchant sees the update on their side
+      const orderStatusMap: Record<string, string> = {
+        picked_up: "processing",
+        at_warehouse: "processing",
+        in_transit_intercity: "in_transit",
+        with_distributor: "in_transit",
+        out_for_delivery: "out_for_delivery",
+        delivered: "delivered",
+        returned: "returned",
+      };
+      const mappedOrderStatus = orderStatusMap[newStatus];
+      if (mappedOrderStatus) {
+        await supabase
+          .from("orders")
+          .update({ status: mappedOrderStatus })
+          .eq("shipment_id", shipment.id);
+      }
       toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[newStatus] || newStatus}`);
       setShipment({ ...shipment, status: newStatus });
       // Suggest next status
