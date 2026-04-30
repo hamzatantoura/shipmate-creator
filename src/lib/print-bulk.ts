@@ -10,6 +10,8 @@ export interface BulkLabelData {
   courierName?: string | null;
   courierLogoUrl?: string | null;
   trackingNumber?: string | null;
+  branchName?: string | null;
+  branchAddress?: string | null;
 }
 
 export interface ManifestRow {
@@ -59,6 +61,10 @@ export function printBulkLabels(labels: BulkLabelData[]) {
         hour: "2-digit", minute: "2-digit",
       });
       const courierName = (data.courierName && data.courierName.trim()) || "—";
+      const branchLabel =
+        (data.branchName && data.branchName.trim()) || "توصيل للمنزل";
+      const branchAddr =
+        (data.branchAddress && data.branchAddress.trim()) || "";
       return `
         <div class="label">
           <div class="row">
@@ -87,6 +93,16 @@ export function printBulkLabels(labels: BulkLabelData[]) {
           <div class="section">
             <div class="label-tag">المستلم</div>
             <div class="value lg">${escapeHtml(data.receiver.name)}</div>
+            <div class="grid" style="margin-top:3px;">
+              <div>
+                <div class="label-tag">شركة الشحن</div>
+                <div class="value" style="font-size:10pt;">${escapeHtml(courierName)}</div>
+              </div>
+              <div>
+                <div class="label-tag">فرع الاستلام</div>
+                <div class="value" style="font-size:10pt;">${escapeHtml(branchLabel)}${branchAddr ? ` <span style=\"font-weight:500;color:#555;font-size:8.5pt;\">— ${escapeHtml(branchAddr)}</span>` : ""}</div>
+              </div>
+            </div>
             <div class="grid" style="margin-top:3px;">
               <div>
                 <div class="label-tag">الهاتف</div>

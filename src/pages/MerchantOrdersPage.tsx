@@ -72,6 +72,7 @@ interface OrderRow {
   detailed_address: string;
   district_id: string | null;
   courier_id: string | null;
+  assigned_branch_id: string | null;
   status: string;
   total_amount: number;
   final_sale_price: number | null;
