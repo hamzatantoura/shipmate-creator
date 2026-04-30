@@ -1581,6 +1581,43 @@ export type Database = {
           phone: string
         }[]
       }
+      lock_order_after_label_print: {
+        Args: { p_order_id: string; p_shipment_id?: string }
+        Returns: {
+          assigned_branch_id: string | null
+          city: string
+          courier_id: string | null
+          created_at: string
+          customer_lat: number | null
+          customer_lng: number | null
+          deleted_at: string | null
+          delivery_fee: number
+          detailed_address: string
+          district_id: string | null
+          final_sale_price: number | null
+          id: string
+          label_printed_at: string | null
+          merchant_id: string
+          net_amount: number
+          notes: string | null
+          phone_number: string
+          platform_fee: number
+          product_id: string | null
+          quantity: number
+          receiver_name: string
+          return_reason: string | null
+          shipment_id: string | null
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       lookup_shipment_by_code: {
         Args: { code: string }
         Returns: {
