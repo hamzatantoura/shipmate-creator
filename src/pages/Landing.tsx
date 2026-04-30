@@ -176,69 +176,6 @@ export default function Landing() {
       </section>
 
       {/* For Shipping Companies */}
-      <section className="py-20">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-10 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-sm font-medium px-4 py-1.5 rounded-full mb-5">
-                <Truck className="h-3.5 w-3.5" />
-                لشركات الشحن
-              </div>
-              <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-4">
-                انضم كشريك شحن واستقبل طلبات جديدة
-              </h2>
-              <p className="text-muted-foreground leading-relaxed mb-6">
-                سجّل شركتك على صلة واستقبل شحنات من مئات التجار. لوحة تحكم خاصة بك لإدارة التوصيل وتحديث الحالات وتأكيد التحصيل.
-              </p>
-              <ul className="space-y-3 mb-7">
-                {[
-                  "استقبال شحنات تلقائياً من التجار",
-                  "تحديث حالة التوصيل لحظة بلحظة",
-                  "تأكيد تحصيل مبالغ الدفع عند الاستلام",
-                  "تقارير مالية شهرية واضحة",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-foreground">
-                    <ShieldCheck className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link to="/signup">
-                <Button variant="outline" className="gap-2 border-primary/30 hover:bg-primary/5">
-                  سجّل كشريك شحن
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-            <div className="flex justify-center">
-              <div className="w-full max-w-sm bg-card rounded-2xl border border-border p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <BarChart3 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-display font-semibold text-foreground">لوحة شريك الشحن</p>
-                    <p className="text-xs text-muted-foreground">إحصائيات اليوم</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { label: "شحنات جديدة", val: "24", color: "bg-primary/10 text-primary" },
-                    { label: "قيد التوصيل", val: "18", color: "bg-amber-50 text-amber-600" },
-                    { label: "تم التسليم", val: "156", color: "bg-emerald-50 text-emerald-600" },
-                  ].map((r) => (
-                    <div key={r.label} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <span className="text-sm text-muted-foreground">{r.label}</span>
-                      <span className={`text-sm font-semibold px-2 py-0.5 rounded-md ${r.color}`}>{r.val}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
       <section className="py-20 bg-primary/5">
         <div className="max-w-3xl mx-auto px-4 text-center">
