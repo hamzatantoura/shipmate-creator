@@ -1633,6 +1633,43 @@ export type Database = {
         Args: { p_tracking_number: string }
         Returns: Json
       }
+      transition_shipment_status: {
+        Args: {
+          p_new_status: string
+          p_return_reason?: string
+          p_shipment_id: string
+        }
+        Returns: {
+          billable_weight: number | null
+          carrier_fee: number | null
+          city: Database["public"]["Enums"]["shipment_city"]
+          cod_amount: number
+          collection_fee: number | null
+          courier_id: string | null
+          created_at: string
+          detailed_address: string
+          final_weight: number | null
+          id: string
+          merchant_id: string
+          merchant_shipping_fee: number | null
+          notes: string | null
+          order_id: string | null
+          phone_number: string
+          platform_margin: number | null
+          receiver_name: string
+          shipping_fee: number | null
+          status: string
+          tracking_number: string | null
+          updated_at: string
+          volumetric_weight: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shipments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "merchant" | "vendor"
