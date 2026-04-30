@@ -204,6 +204,8 @@ export default function MerchantOrdersPage() {
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<OrderRow | null>(null);
+  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   // Bulk selection (for "Bulk Print Waybills")
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
