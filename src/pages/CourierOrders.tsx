@@ -210,6 +210,7 @@ export default function CourierOrders() {
         .from("orders")
         .select("id, status, updated_at, created_at, receiver_name, phone_number, shipment_id, return_reason")
         .is("deleted_at", null)
+        .not("shipment_id", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as AggOrder[];
@@ -239,11 +240,12 @@ export default function CourierOrders() {
           "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)",
           { count: "exact" }
         )
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .not("shipment_id", "is", null);
 
       // Tab filter (mutually exclusive buckets — mirror TAB_FILTERS server-side)
       if (tab === "pending") q = q.in("status", ["new", "pending"]);
-      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "active") q = q.in("status", ["received_by_courier", "processing", "shipped", "out_for_delivery"]);
       else if (tab === "delivered") q = q.eq("status", "delivered");
       else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
 
