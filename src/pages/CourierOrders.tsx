@@ -387,7 +387,7 @@ export default function CourierOrders() {
     const target = orders.find(o => o.id === id);
     if (!target?.shipment_id) {
       setUpdatingId(null);
-      toast.error("لا توجد شحنة مرتبطة بهذا الطلب");
+      toast.error("هذا الطلب لم يُسلَّم لشركة الشحن بعد — يجب طباعة البوليصة أولاً");
       return;
     }
     const { data, error } = await supabase.rpc("transition_shipment_status", {
@@ -766,7 +766,7 @@ export default function CourierOrders() {
     const targets = orders.filter(o => selectedIds.includes(o.id));
     const results = await Promise.all(
       targets.map(async (o) => {
-        if (!o.shipment_id) return { error: { message: "no shipment" } as any };
+        if (!o.shipment_id) return { error: { message: "هذا الطلب لم يُسلَّم لشركة الشحن بعد" } as any };
         return await supabase.rpc("transition_shipment_status", {
           p_shipment_id: o.shipment_id,
           p_new_status: newStatus,
