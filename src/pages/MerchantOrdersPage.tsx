@@ -297,7 +297,7 @@ export default function MerchantOrdersPage() {
       const { data, error, count } = await supabase
         .from("orders")
         .select(
-          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, assigned_branch_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
+          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, assigned_branch_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, courier:couriers_public!orders_courier_id_fkey(name, logo_url), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
           { count: "exact" }
         )
         .eq("merchant_id", user!.id)
@@ -528,6 +528,9 @@ export default function MerchantOrdersPage() {
       label_printed_at: null,
       notes: null,
       return_reason: null,
+      courier: matchedCourier
+        ? { name: matchedCourier.name, logo_url: courierLogo }
+        : null,
       couriers: matchedCourier
         ? { name: matchedCourier.name, logo_url: courierLogo }
         : null,
