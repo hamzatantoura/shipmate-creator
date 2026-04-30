@@ -17,7 +17,7 @@ type OrderLookupMatch = Pick<
 >;
 
 const STATUS_OPTIONS = [
-  { value: "picked_up", label: "تم الاستلام من التاجر" },
+  { value: "received_by_courier", label: "تم الاستلام من شركة الشحن" },
   { value: "at_warehouse", label: "في المستودع" },
   { value: "in_transit_intercity", label: "جاري الشحن بين المحافظات" },
   { value: "with_distributor", label: "مع مندوب التوزيع" },
@@ -28,6 +28,7 @@ const STATUS_OPTIONS = [
 
 const STATUS_AR: Record<string, string> = {
   pending: "جديد",
+  received_by_courier: "تم الاستلام من شركة الشحن",
   picked_up: "تم الاستلام",
   at_warehouse: "في المستودع",
   in_transit_intercity: "جاري الشحن",
@@ -157,7 +158,7 @@ export default function BarcodeScanner() {
   }, []);
 
   const getNextStatus = (current: string): string => {
-    const flow = ["pending", "picked_up", "at_warehouse", "in_transit_intercity", "with_distributor", "out_for_delivery", "delivered"];
+    const flow = ["pending", "received_by_courier", "at_warehouse", "in_transit_intercity", "with_distributor", "out_for_delivery", "delivered"];
     const idx = flow.indexOf(current);
     if (idx >= 0 && idx < flow.length - 1) return flow[idx + 1];
     return "";
@@ -170,12 +171,14 @@ export default function BarcodeScanner() {
     const { data, error } = await supabase.rpc("transition_shipment_status", {
       p_shipment_id: shipment.id,
       p_new_status: newStatus,
+      p_return_reason: null,
     });
 
     setUpdating(false);
 
     if (error) {
-      toast.error(error.message || "تعذر تحديث حالة الشحنة");
+      console.error("RPC FAILED transition_shipment_status:", error);
+      toast.error(error.message || "تعذر تحديث حالة الشحنة", { duration: 6000 });
       return;
     }
 
