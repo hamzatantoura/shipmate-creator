@@ -1518,10 +1518,13 @@ export type Database = {
       get_current_vendor_courier_profile: {
         Args: never
         Returns: {
+          cod_fee_type: string
+          cod_fee_value: number
           id: string
           is_active: boolean
           logo_url: string
           name: string
+          wallet_balance: number
         }[]
       }
       get_merchant_ledger_balance: {
