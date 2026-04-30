@@ -1515,6 +1515,15 @@ export type Database = {
       }
       get_admin_analytics: { Args: never; Returns: Json }
       get_courier_net_owed: { Args: { _courier_id: string }; Returns: number }
+      get_current_vendor_courier_profile: {
+        Args: never
+        Returns: {
+          id: string
+          is_active: boolean
+          logo_url: string
+          name: string
+        }[]
+      }
       get_merchant_ledger_balance: {
         Args: { _merchant_id: string }
         Returns: number
