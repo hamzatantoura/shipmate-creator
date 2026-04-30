@@ -373,6 +373,9 @@ export default function MerchantOrdersPage() {
     const labels: BulkLabelData[] = printableOrders.map((order) => {
       const matched = allDistricts.find((d) => d.id === order.district_id);
       const districtName = matched?.parent_id ? matched.name : null;
+      const branch = order.assigned_branch_id
+        ? branches.find((b) => b.id === order.assigned_branch_id) ?? null
+        : null;
       return {
         silaCode: silaCodeOf(order.id),
         createdAt: order.created_at,
@@ -393,6 +396,8 @@ export default function MerchantOrdersPage() {
         courierName: courierNameOf(order),
         courierLogoUrl: order.couriers?.logo_url ?? null,
         trackingNumber: order.shipments?.tracking_number ?? null,
+        branchName: branch?.name ?? null,
+        branchAddress: null,
       };
     });
     try {
@@ -617,6 +622,9 @@ export default function MerchantOrdersPage() {
     // If it points to a parent (province-level) → no specific area to print.
     const matched = allDistricts.find(d => d.id === order.district_id);
     const districtName = matched?.parent_id ? matched.name : null;
+    const branch = order.assigned_branch_id
+      ? branches.find((b) => b.id === order.assigned_branch_id) ?? null
+      : null;
 
     try {
       printShippingLabel({
@@ -639,6 +647,8 @@ export default function MerchantOrdersPage() {
         courierName: courierNameOf(order),
         courierLogoUrl: order.couriers?.logo_url ?? null,
         trackingNumber: order.shipments?.tracking_number ?? null,
+        branchName: branch?.name ?? null,
+        branchAddress: null,
       });
     } catch (e: any) {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");
