@@ -499,6 +499,16 @@ export default function MerchantOrdersPage() {
     const cityLabel = prov?.name || "";
     const cod = Number(form.cod) || 0;
     const deliveryFee = resolveDeliveryFee(area?.id || null, prov?.id || null, form.courierId || null);
+
+    // ===== Platform Financial Rule: COD must cover delivery fee + 50% margin =====
+    // Drafts are excluded since merchants may still be filling in pricing.
+    if (!asDraft && deliveryFee > 0 && cod < deliveryFee * 1.5) {
+      toast.error(
+        "عذراً، يجب أن يكون المبلغ المراد تحصيله أكبر من قيمة الشحن بـ 50% على الأقل لتغطية التكاليف."
+      );
+      return;
+    }
+
     const picked = smartCouriers.find((s) => s.courier_id === form.courierId);
     // Prefer the branch the merchant explicitly selected; otherwise default to nearest.
     const assignedBranchId = form.branchId || picked?.nearest_branch_id || null;
