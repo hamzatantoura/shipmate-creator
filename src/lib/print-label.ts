@@ -10,6 +10,8 @@ export interface LabelData {
   courierName?: string | null;
   courierLogoUrl?: string | null;
   trackingNumber?: string | null;
+  branchName?: string | null;
+  branchAddress?: string | null;
 }
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
@@ -33,6 +35,9 @@ export function printShippingLabel(data: LabelData) {
   });
 
   const courierName = (data.courierName && data.courierName.trim()) || "—";
+  const branchLabel =
+    (data.branchName && data.branchName.trim()) || "توصيل للمنزل";
+  const branchAddr = (data.branchAddress && data.branchAddress.trim()) || "";
 
   const html = `<!doctype html>
 <html dir="rtl" lang="ar">
@@ -99,6 +104,16 @@ export function printShippingLabel(data: LabelData) {
     <div class="section">
       <div class="label-tag">المستلم</div>
       <div class="value lg">${escapeHtml(data.receiver.name)}</div>
+      <div class="grid" style="margin-top:3px;">
+        <div>
+          <div class="label-tag">شركة الشحن</div>
+          <div class="value" style="font-size:10pt;">${escapeHtml(courierName)}</div>
+        </div>
+        <div>
+          <div class="label-tag">فرع الاستلام</div>
+          <div class="value" style="font-size:10pt;">${escapeHtml(branchLabel)}${branchAddr ? ` <span style=\"font-weight:500;color:#555;font-size:8.5pt;\">— ${escapeHtml(branchAddr)}</span>` : ""}</div>
+        </div>
+      </div>
       <div class="grid" style="margin-top:3px;">
         <div>
           <div class="label-tag">الهاتف</div>

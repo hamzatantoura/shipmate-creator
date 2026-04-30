@@ -72,6 +72,7 @@ interface OrderRow {
   detailed_address: string;
   district_id: string | null;
   courier_id: string | null;
+  assigned_branch_id: string | null;
   status: string;
   total_amount: number;
   final_sale_price: number | null;
@@ -294,7 +295,7 @@ export default function MerchantOrdersPage() {
       const { data, error, count } = await supabase
         .from("orders")
         .select(
-          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
+          "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, assigned_branch_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, couriers(name, logo_url), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
           { count: "exact" }
         )
         .eq("merchant_id", user!.id)
@@ -372,6 +373,9 @@ export default function MerchantOrdersPage() {
     const labels: BulkLabelData[] = printableOrders.map((order) => {
       const matched = allDistricts.find((d) => d.id === order.district_id);
       const districtName = matched?.parent_id ? matched.name : null;
+      const branch = order.assigned_branch_id
+        ? branches.find((b) => b.id === order.assigned_branch_id) ?? null
+        : null;
       return {
         silaCode: silaCodeOf(order.id),
         createdAt: order.created_at,
@@ -392,6 +396,8 @@ export default function MerchantOrdersPage() {
         courierName: courierNameOf(order),
         courierLogoUrl: order.couriers?.logo_url ?? null,
         trackingNumber: order.shipments?.tracking_number ?? null,
+        branchName: branch?.name ?? null,
+        branchAddress: null,
       };
     });
     try {
@@ -503,6 +509,7 @@ export default function MerchantOrdersPage() {
       detailed_address: form.address || "",
       district_id: finalDistrictId,
       courier_id: form.courierId || null,
+      assigned_branch_id: assignedBranchId ?? null,
       status: asDraft ? "draft" : "new",
       total_amount: cod,
       final_sale_price: null,
@@ -615,6 +622,9 @@ export default function MerchantOrdersPage() {
     // If it points to a parent (province-level) → no specific area to print.
     const matched = allDistricts.find(d => d.id === order.district_id);
     const districtName = matched?.parent_id ? matched.name : null;
+    const branch = order.assigned_branch_id
+      ? branches.find((b) => b.id === order.assigned_branch_id) ?? null
+      : null;
 
     try {
       printShippingLabel({
@@ -637,6 +647,8 @@ export default function MerchantOrdersPage() {
         courierName: courierNameOf(order),
         courierLogoUrl: order.couriers?.logo_url ?? null,
         trackingNumber: order.shipments?.tracking_number ?? null,
+        branchName: branch?.name ?? null,
+        branchAddress: null,
       });
     } catch (e: any) {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");
