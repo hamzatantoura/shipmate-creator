@@ -817,7 +817,9 @@ export default function CourierOrders() {
             {companyLoaded && !companyName ? (
               <p className="text-sm text-destructive mt-1 flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                لم يتم العثور على ملف شركة الشحن المرتبط بحسابك. يُرجى التواصل مع الإدارة.
+                {companyError === "fetch_failed"
+                  ? "تعذّر تحميل ملف الشركة حالياً. تحقق من الاتصال أو أعد المحاولة."
+                  : "لم يتم العثور على ملف شركة الشحن المرتبط بحسابك. يُرجى التواصل مع الإدارة."}
               </p>
             ) : (
               <p className="text-sm text-muted-foreground mt-1">
