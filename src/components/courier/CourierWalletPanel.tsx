@@ -40,6 +40,8 @@ interface CourierInfo {
   cod_fee_type: string;
   cod_fee_value: number;
   wallet_balance?: number;
+  logo_url?: string | null;
+  is_active?: boolean;
 }
 
 interface OrderRow {
@@ -114,20 +116,40 @@ export default function CourierWalletPanel() {
 
     setLoading(true);
     try {
-      const { data: courierData, error: courierError } = await supabase
-        .from("couriers")
-        .select("id, name, cod_fee_type, cod_fee_value, wallet_balance")
-        .eq("vendor_id", user.id)
-        .maybeSingle();
+      // Use the SECURITY DEFINER RPC instead of querying `couriers` directly
+      // (the table is access-restricted and would fail with permission denied).
+      const { data: profileRows, error: profileError } = await supabase.rpc(
+        "get_current_vendor_courier_profile",
+      );
 
-      if (courierError) throw courierError;
-      if (!courierData) {
+      if (profileError) {
+        // Connection / permission error — distinct from "no profile linked".
+        console.error("Courier profile RPC error:", profileError);
         setCourier(null);
         setOrders([]);
         setSettlements([]);
-        toast.error("لم يتم العثور على شركة الشحن المرتبطة بهذا الحساب");
+        toast.error("تعذر الاتصال بالخادم لتحميل بيانات شركة الشحن");
         return;
       }
+
+      const profile = Array.isArray(profileRows) ? profileRows[0] : null;
+      if (!profile) {
+        setCourier(null);
+        setOrders([]);
+        setSettlements([]);
+        toast.error("لا يوجد حساب شركة شحن مرتبط بهذا المستخدم");
+        return;
+      }
+
+      const courierData: CourierInfo = {
+        id: profile.id,
+        name: profile.name,
+        cod_fee_type: (profile as any).cod_fee_type ?? "percentage",
+        cod_fee_value: Number((profile as any).cod_fee_value ?? 0),
+        wallet_balance: Number((profile as any).wallet_balance ?? 0),
+        logo_url: (profile as any).logo_url ?? null,
+        is_active: (profile as any).is_active ?? true,
+      };
 
       setCourier(courierData);
 
