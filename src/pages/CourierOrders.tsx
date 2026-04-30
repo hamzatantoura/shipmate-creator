@@ -296,6 +296,49 @@ export default function CourierOrders() {
     queryClient.invalidateQueries({ queryKey: ["courier-orders-page", user?.id] });
   }, [queryClient, user?.id]);
 
+  // ===== Surgical cache patcher =====
+  // Updates the row in BOTH the paginated table cache and the lightweight
+  // aggregate cache without triggering any network refetch. This keeps the
+  // UI instant and prevents the freeze caused by full refetches.
+  const patchOrderInCache = useCallback(
+    (orderId: string, patch: Partial<CourierOrderRow> & { status?: string; return_reason?: string | null }) => {
+      // Patch all paginated query variants
+      queryClient.setQueriesData<{ rows: CourierOrderRow[]; total: number } | undefined>(
+        { queryKey: ["courier-orders-page", user?.id] },
+        (old) => {
+          if (!old) return old;
+          let changed = false;
+          const rows = old.rows.map((r) => {
+            if (r.id !== orderId) return r;
+            changed = true;
+            return { ...r, ...patch };
+          });
+          return changed ? { ...old, rows } : old;
+        }
+      );
+      // Patch aggregate (KPIs / chart / scanner)
+      queryClient.setQueryData<AggOrder[] | undefined>(
+        ["courier-orders-aggregate", user?.id],
+        (old) => {
+          if (!old) return old;
+          let changed = false;
+          const next = old.map((r) => {
+            if (r.id !== orderId) return r;
+            changed = true;
+            return {
+              ...r,
+              ...(patch.status !== undefined ? { status: patch.status } : {}),
+              ...(patch.return_reason !== undefined ? { return_reason: patch.return_reason } : {}),
+              updated_at: new Date().toISOString(),
+            };
+          });
+          return changed ? next : old;
+        }
+      );
+    },
+    [queryClient, user?.id]
+  );
+
   // Persist filters to URL
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
@@ -311,12 +354,18 @@ export default function CourierOrders() {
 
   useEffect(() => {
     if (!user) return;
+    // Realtime: do NOT trigger a full refetch on every event — that's what was
+    // freezing the browser. Subscribe quietly; the surgical cache patcher keeps
+    // the UI in sync after our own mutations. External changes will show up on
+    // the next user-driven query (filter/page change) or manual refresh.
     const ch = supabase
       .channel(`courier-orders-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        // intentionally no-op to avoid refetch storms
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user, fetchAll]);
+  }, [user]);
 
   const updateStatus = async (id: string, newStatus: string, reason?: string) => {
     if (newStatus === "returned" && !reason) {
@@ -331,19 +380,24 @@ export default function CourierOrders() {
       toast.error("لا توجد شحنة مرتبطة بهذا الطلب");
       return;
     }
-    const { error } = await supabase.rpc("transition_shipment_status", {
+    const { data, error } = await supabase.rpc("transition_shipment_status", {
       p_shipment_id: target.shipment_id,
       p_new_status: newStatus,
       p_return_reason: newStatus === "returned" ? (reason ?? null) : null,
     });
+    setUpdatingId(null);
     if (error) {
-      setUpdatingId(null);
-      toast.error(error.message || "تعذر تحديث الحالة");
+      console.error("RPC FAILED transition_shipment_status:", error);
+      toast.error(`تعذر تحديث الحالة: ${error.message || error.code || "خطأ غير معروف"}`, { duration: 6000 });
       return;
     }
-    setUpdatingId(null);
+    // Surgical cache update — no refetch.
+    const newShipmentStatus = (data as any)?.status as string | undefined;
+    patchOrderInCache(id, {
+      status: newStatus,
+      return_reason: newStatus === "returned" ? (reason ?? null) : target.return_reason ?? null,
+    });
     toast.success("تم تحديث الحالة");
-    fetchAll();
     setReturnDialog(null);
   };
 
@@ -706,15 +760,25 @@ export default function CourierOrders() {
         });
       })
     );
-    const failed = results.filter(r => r.error).length;
+    const failedDetails = results
+      .map((r, i) => (r.error ? { id: targets[i].id, msg: (r.error as any).message } : null))
+      .filter(Boolean) as { id: string; msg: string }[];
+    const succeededIds = results
+      .map((r, i) => (r.error ? null : targets[i].id))
+      .filter(Boolean) as string[];
+    // Surgical update for every row that succeeded — no refetch.
+    succeededIds.forEach((id) => patchOrderInCache(id, { status: newStatus }));
     setBulkLoading(false);
-    if (failed === 0) {
+    if (failedDetails.length === 0) {
       toast.success(`تم تحديث ${selectedIds.length} طلب`);
     } else {
-      toast.error(`فشل تحديث ${failed} من ${selectedIds.length} طلب`);
+      console.error("RPC FAILED bulk transition_shipment_status:", failedDetails);
+      toast.error(
+        `فشل تحديث ${failedDetails.length} من ${selectedIds.length} طلب — ${failedDetails[0].msg}`,
+        { duration: 6000 }
+      );
     }
     clearSelection();
-    fetchAll();
   };
 
   // ===== Edit Weight & Price =====
@@ -747,8 +811,8 @@ export default function CourierOrders() {
     if (orderUpd.error) { toast.error(orderUpd.error.message); return; }
     if (shipmentErr) toast.error("تم تحديث الطلب لكن تعذر تحديث الشحنة: " + shipmentErr);
     else toast.success("تم تحديث الوزن والقيمة");
+    patchOrderInCache(editDialog.id, { final_sale_price: p });
     setEditDialog(null);
-    fetchAll();
   };
 
   // ===== Revert final status =====
@@ -762,8 +826,8 @@ export default function CourierOrders() {
     setReverting(false);
     if (error) { toast.error(error.message || "تعذر التراجع"); return; }
     toast.success("تم إعادة الطلب إلى قيد التوصيل");
+    patchOrderInCache(revertDialog.id, { status: "out_for_delivery", return_reason: null });
     setRevertDialog(null);
-    fetchAll();
   };
 
   return (
