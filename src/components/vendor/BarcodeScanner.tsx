@@ -167,45 +167,22 @@ export default function BarcodeScanner() {
     if (!shipment || !newStatus) return;
     setUpdating(true);
 
-    await supabase.from("shipment_status_history").insert({
-      shipment_id: shipment.id,
-      old_status: shipment.status,
-      new_status: newStatus,
-      changed_by: "vendor",
-    } as any);
+    const { data, error } = await supabase.rpc("transition_shipment_status", {
+      p_shipment_id: shipment.id,
+      p_new_status: newStatus,
+    });
 
-    const { error } = await supabase
-      .from("shipments")
-      .update({ status: newStatus })
-      .eq("id", shipment.id);
+    setUpdating(false);
 
     if (error) {
-      toast.error(error.message);
-    } else {
-      // Sync linked order status so the merchant sees the update on their side
-      const orderStatusMap: Record<string, string> = {
-        picked_up: "processing",
-        at_warehouse: "processing",
-        in_transit_intercity: "in_transit",
-        with_distributor: "in_transit",
-        out_for_delivery: "out_for_delivery",
-        delivered: "delivered",
-        returned: "returned",
-      };
-      const mappedOrderStatus = orderStatusMap[newStatus];
-      if (mappedOrderStatus) {
-        await supabase
-          .from("orders")
-          .update({ status: mappedOrderStatus })
-          .eq("shipment_id", shipment.id);
-      }
-      toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[newStatus] || newStatus}`);
-      setShipment({ ...shipment, status: newStatus });
-      // Suggest next status
-      const next = getNextStatus(newStatus);
-      setNewStatus(next);
+      toast.error(error.message || "تعذر تحديث حالة الشحنة");
+      return;
     }
-    setUpdating(false);
+
+    const updated = (data as unknown as Shipment) ?? { ...shipment, status: newStatus };
+    toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[newStatus] || newStatus}`);
+    setShipment({ ...shipment, ...updated });
+    setNewStatus(getNextStatus(newStatus));
   };
 
   return (
