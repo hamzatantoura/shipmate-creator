@@ -1,4 +1,4 @@
-import { Home, ShoppingCart, Wallet, Store, Settings } from "lucide-react";
+import { Home, ShoppingCart, Wallet, Store, Settings, Archive } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -15,6 +15,7 @@ import {
 const items = [
   { title: "الرئيسية", url: "/merchant", icon: Home, exact: true },
   { title: "الطلبات", url: "/merchant/orders", icon: ShoppingCart },
+  { title: "الأرشيف", url: "/merchant/archive", icon: Archive },
   { title: "المحفظة", url: "/merchant/wallet", icon: Wallet },
   { title: "المتجر", url: "/merchant/products", icon: Store },
   { title: "الإعدادات", url: "/merchant/settings", icon: Settings },
