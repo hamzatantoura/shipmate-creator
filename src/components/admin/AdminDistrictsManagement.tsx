@@ -38,15 +38,13 @@ interface District {
   lng?: number | null;
 }
 
-const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
-
 export default function AdminDistrictsManagement() {
   const [districts, setDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ===== Persisted UI state (survives tab switches and refresh in same session) =====
   const SS_KEY = "admin-districts-ui";
-  type FormState = { name: string; parent_id: string; delivery_fee: string; lat: string; lng: string };
+  type FormState = { name: string; parent_id: string; lat: string; lng: string };
   type Persisted = {
     search: string;
     expanded: string[];
@@ -55,7 +53,7 @@ export default function AdminDistrictsManagement() {
     parentForNew: string | null;
     form: FormState;
   };
-  const emptyFormState: FormState = { name: "", parent_id: "", delivery_fee: "", lat: "", lng: "" };
+  const emptyFormState: FormState = { name: "", parent_id: "", lat: "", lng: "" };
   const readPersisted = (): Persisted => {
     if (typeof window === "undefined") {
       return { search: "", expanded: [], dialogOpen: false, editingId: null, parentForNew: null, form: emptyFormState };
@@ -184,7 +182,7 @@ export default function AdminDistrictsManagement() {
     setEditing(null);
     setEditingId(null);
     setParentForNew(parentId);
-    setForm({ name: "", parent_id: parentId || "", delivery_fee: "", lat: "", lng: "" });
+    setForm({ name: "", parent_id: parentId || "", lat: "", lng: "" });
     setDialogOpen(true);
   };
 
@@ -195,7 +193,6 @@ export default function AdminDistrictsManagement() {
     setForm({
       name: d.name,
       parent_id: d.parent_id || "",
-      delivery_fee: String(d.delivery_fee),
       lat: d.lat != null ? String(d.lat) : "",
       lng: d.lng != null ? String(d.lng) : "",
     });
@@ -204,7 +201,6 @@ export default function AdminDistrictsManagement() {
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("الاسم مطلوب"); return; }
-    const fee = Number(form.delivery_fee) || 0;
     const latVal = form.lat.trim() === "" ? null : Number(form.lat);
     const lngVal = form.lng.trim() === "" ? null : Number(form.lng);
     if ((latVal !== null && isNaN(latVal)) || (lngVal !== null && isNaN(lngVal))) {
@@ -213,7 +209,8 @@ export default function AdminDistrictsManagement() {
     const payload: any = {
       name: form.name.trim(),
       parent_id: form.parent_id || null,
-      delivery_fee: fee,
+      // delivery_fee is intentionally NOT set from this UI.
+      // Pricing comes from courier_pricing_tiers per-courier — never from districts.
       lat: latVal,
       lng: lngVal,
       // Legacy required columns – fill from name
@@ -226,6 +223,10 @@ export default function AdminDistrictsManagement() {
       area: form.parent_id ? form.name.trim() : null,
       area_ar: form.parent_id ? form.name.trim() : null,
     };
+    if (!editing) {
+      // For new rows the column is NOT NULL with no default — set to 0 (no implicit pricing).
+      payload.delivery_fee = 0;
+    }
 
     if (editing) {
       const { error } = await supabase.from("districts").update(payload).eq("id", editing.id);
@@ -280,8 +281,6 @@ export default function AdminDistrictsManagement() {
       const headerRaw = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^\ufeff/, ""));
       const idxProvince = headerRaw.findIndex(h => ["province", "محافظة", "المحافظة"].includes(h));
       const idxArea = headerRaw.findIndex(h => ["area", "منطقة", "المنطقة", "حي", "الحي"].includes(h));
-      const idxFee = headerRaw.findIndex(h => ["delivery_fee", "fee", "رسوم", "أجرة"].includes(h));
-
       if (idxProvince === -1) {
         toast.error("الملف يجب أن يحتوي على عمود province أو محافظة");
         setImporting(false);
@@ -305,7 +304,6 @@ export default function AdminDistrictsManagement() {
         const cells = lines[i].split(",").map(c => c.trim());
         const provName = cells[idxProvince]?.trim();
         const areaName = idxArea >= 0 ? cells[idxArea]?.trim() : "";
-        const feeVal = idxFee >= 0 ? Number(cells[idxFee]) || 0 : 0;
         if (!provName) { skipped++; continue; }
 
         // Ensure province exists
@@ -315,7 +313,7 @@ export default function AdminDistrictsManagement() {
             .from("districts")
             .insert({
               name: provName, parent_id: null,
-              delivery_fee: areaName ? 0 : feeVal,
+              delivery_fee: 0,
               province: provName, province_ar: provName,
             })
             .select("id").single();
@@ -337,7 +335,7 @@ export default function AdminDistrictsManagement() {
           if (dup) { skipped++; continue; }
           const { error } = await supabase.from("districts").insert({
             name: areaName, parent_id: parentId,
-            delivery_fee: feeVal,
+            delivery_fee: 0,
             province: provName, province_ar: provName,
             area: areaName, area_ar: areaName,
           });
@@ -358,7 +356,7 @@ export default function AdminDistrictsManagement() {
   };
 
   const downloadTemplate = () => {
-    const csv = "province,area,delivery_fee\nدمشق,المزة,15000\nدمشق,الميدان,15000\nحلب,الفرقان,18000\n";
+    const csv = "province,area\nدمشق,المزة\nدمشق,الميدان\nحلب,الفرقان\n";
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "districts_template.csv"; a.click();
@@ -369,9 +367,9 @@ export default function AdminDistrictsManagement() {
     <div className="space-y-4" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div>
           <h2 className="text-xl font-display font-bold text-foreground">إدارة المناطق</h2>
-          <p className="text-sm text-muted-foreground">المحافظات والأحياء التابعة لها مع رسوم التوصيل</p>
+          <p className="text-sm text-muted-foreground">المحافظات والأحياء — التسعير يُدار من شركات الشحن</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={downloadTemplate} className="gap-1.5">
@@ -453,7 +451,7 @@ export default function AdminDistrictsManagement() {
                       {missingCoordsByProvince[p.id]} بدون إحداثيات
                     </Badge>
                   )}
-                  <span className="text-xs text-muted-foreground hidden md:inline">{fmtSYP(p.delivery_fee)}</span>
+                  {/* السعر مُزال عن قصد — التسعير يُدار من شركات الشحن */}
                   <Button size="sm" variant="ghost" onClick={() => openCreate(p.id)} className="gap-1 h-8">
                     <Plus className="h-3.5 w-3.5" /> منطقة
                   </Button>
@@ -493,7 +491,7 @@ export default function AdminDistrictsManagement() {
                             بدون إحداثيات
                           </Badge>
                         )}
-                        <span className="text-xs text-muted-foreground">{fmtSYP(c.delivery_fee)}</span>
+                        {/* السعر مُزال عن قصد — التسعير يُدار من شركات الشحن */}
                         <Button size="icon" variant="ghost" onClick={() => openEdit(c)} className="h-7 w-7">
                           <Edit2 className="h-3 w-3" />
                         </Button>
@@ -562,16 +560,8 @@ export default function AdminDistrictsManagement() {
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="d-fee">رسوم التوصيل (ل.س)</Label>
-              <Input
-                id="d-fee"
-                type="number"
-                value={form.delivery_fee}
-                onChange={(e) => setForm({ ...form, delivery_fee: e.target.value })}
-                placeholder="15000"
-                dir="ltr"
-              />
+            <div className="rounded-md border border-border/50 bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+              💡 رسوم التوصيل تُدار من <strong>شركات الشحن</strong> عبر "أسعار الشركات" — وليس من هنا.
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -624,9 +614,9 @@ export default function AdminDistrictsManagement() {
           <DialogHeader>
             <DialogTitle>استيراد المناطق من CSV</DialogTitle>
             <DialogDescription>
-              الملف يجب أن يحتوي على الأعمدة: <code className="text-xs bg-muted px-1 rounded">province, area, delivery_fee</code>
+              الملف يجب أن يحتوي على الأعمدة: <code className="text-xs bg-muted px-1 rounded">province, area</code>
               <br />
-              إذا تركت <code>area</code> فارغاً، يُنشأ كمحافظة. تُنشأ المحافظات تلقائياً عند الحاجة.
+              إذا تركت <code>area</code> فارغاً، يُنشأ كمحافظة. التسعير يُضبط لاحقاً من شركات الشحن.
             </DialogDescription>
           </DialogHeader>
 
