@@ -281,8 +281,6 @@ export default function AdminDistrictsManagement() {
       const headerRaw = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^\ufeff/, ""));
       const idxProvince = headerRaw.findIndex(h => ["province", "محافظة", "المحافظة"].includes(h));
       const idxArea = headerRaw.findIndex(h => ["area", "منطقة", "المنطقة", "حي", "الحي"].includes(h));
-      const idxFee = headerRaw.findIndex(h => ["delivery_fee", "fee", "رسوم", "أجرة"].includes(h));
-
       if (idxProvince === -1) {
         toast.error("الملف يجب أن يحتوي على عمود province أو محافظة");
         setImporting(false);
@@ -306,7 +304,6 @@ export default function AdminDistrictsManagement() {
         const cells = lines[i].split(",").map(c => c.trim());
         const provName = cells[idxProvince]?.trim();
         const areaName = idxArea >= 0 ? cells[idxArea]?.trim() : "";
-        const feeVal = idxFee >= 0 ? Number(cells[idxFee]) || 0 : 0;
         if (!provName) { skipped++; continue; }
 
         // Ensure province exists
@@ -316,7 +313,7 @@ export default function AdminDistrictsManagement() {
             .from("districts")
             .insert({
               name: provName, parent_id: null,
-              delivery_fee: areaName ? 0 : feeVal,
+              delivery_fee: 0,
               province: provName, province_ar: provName,
             })
             .select("id").single();
@@ -338,7 +335,7 @@ export default function AdminDistrictsManagement() {
           if (dup) { skipped++; continue; }
           const { error } = await supabase.from("districts").insert({
             name: areaName, parent_id: parentId,
-            delivery_fee: feeVal,
+            delivery_fee: 0,
             province: provName, province_ar: provName,
             area: areaName, area_ar: areaName,
           });
@@ -359,7 +356,7 @@ export default function AdminDistrictsManagement() {
   };
 
   const downloadTemplate = () => {
-    const csv = "province,area,delivery_fee\nدمشق,المزة,15000\nدمشق,الميدان,15000\nحلب,الفرقان,18000\n";
+    const csv = "province,area\nدمشق,المزة\nدمشق,الميدان\nحلب,الفرقان\n";
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "districts_template.csv"; a.click();
@@ -617,9 +614,9 @@ export default function AdminDistrictsManagement() {
           <DialogHeader>
             <DialogTitle>استيراد المناطق من CSV</DialogTitle>
             <DialogDescription>
-              الملف يجب أن يحتوي على الأعمدة: <code className="text-xs bg-muted px-1 rounded">province, area, delivery_fee</code>
+              الملف يجب أن يحتوي على الأعمدة: <code className="text-xs bg-muted px-1 rounded">province, area</code>
               <br />
-              إذا تركت <code>area</code> فارغاً، يُنشأ كمحافظة. تُنشأ المحافظات تلقائياً عند الحاجة.
+              إذا تركت <code>area</code> فارغاً، يُنشأ كمحافظة. التسعير يُضبط لاحقاً من شركات الشحن.
             </DialogDescription>
           </DialogHeader>
 
