@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
@@ -380,6 +380,44 @@ export default function MerchantOrdersPage() {
   const loading = ordersQuery.isLoading;
   const fetchOrders = () =>
     queryClient.invalidateQueries({ queryKey: ["merchant-orders", user?.id] });
+
+  const patchOrderInCache = useCallback((orderId: string, patch: Partial<OrderRow>) => {
+    queryClient.setQueriesData<{ rows: OrderRow[]; total: number } | undefined>(
+      { queryKey: ["merchant-orders", user?.id] },
+      (old) => {
+        if (!old) return old;
+        let changed = false;
+        const rows = old.rows.map((row) => {
+          if (row.id !== orderId) return row;
+          changed = true;
+          return { ...row, ...patch };
+        });
+        return changed ? { ...old, rows } : old;
+      },
+    );
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`merchant-orders-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `merchant_id=eq.${user.id}` },
+        (payload) => {
+          const next = payload.new as Partial<OrderRow> & { id?: string };
+          if (!next.id) return;
+          patchOrderInCache(next.id, {
+            status: next.status,
+            shipment_id: next.shipment_id,
+            label_printed_at: next.label_printed_at,
+            return_reason: next.return_reason,
+          });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [patchOrderInCache, user?.id]);
 
   // Reset selection when the visible page/orders change
   useEffect(() => {
