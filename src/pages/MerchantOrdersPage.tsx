@@ -734,6 +734,26 @@ export default function MerchantOrdersPage() {
       ? branches.find((b) => b.id === order.assigned_branch_id) ?? null
       : null;
 
+    // Option A: create the shipment NOW (at label-print time) if it doesn't
+    // already exist. This is the moment the order physically transitions
+    // from "merchant intent" to "courier liability".
+    let shipmentTracking: string | null = order.shipments?.tracking_number ?? null;
+    let newShipmentId: string | null = null;
+    if (!order.shipment_id && user?.id) {
+      try {
+        const provinceForFee = allDistricts.find((d) => d.id === order.district_id);
+        const districtIdForFee = provinceForFee?.parent_id ? order.district_id : null;
+        const provinceIdForFee = provinceForFee?.parent_id ? provinceForFee.parent_id : order.district_id;
+        const fee = resolveDeliveryFee(districtIdForFee, provinceIdForFee, order.courier_id);
+        const created = await createShipmentForOrder(order, user.id, fee);
+        newShipmentId = created.shipmentId;
+        shipmentTracking = created.trackingNumber;
+      } catch (e: any) {
+        toast.error(e?.message || "تعذر إنشاء الشحنة");
+        return;
+      }
+    }
+
     try {
       printShippingLabel({
         silaCode: silaCodeOf(order.id),
@@ -754,7 +774,7 @@ export default function MerchantOrdersPage() {
         notes: order.notes,
         courierName: courierNameOf(order),
         courierLogoUrl: courierLogoOf(order),
-        trackingNumber: order.shipments?.tracking_number ?? null,
+        trackingNumber: shipmentTracking,
         branchName: branch?.name ?? null,
         branchAddress: null,
       });
@@ -766,8 +786,13 @@ export default function MerchantOrdersPage() {
     // Lock the order in DB only if not already locked
     if (!order.label_printed_at) {
       const newStatus = order.status === "new" ? "processing" : order.status;
+      const updates: Record<string, any> = {
+        label_printed_at: new Date().toISOString(),
+        status: newStatus,
+      };
+      if (newShipmentId) updates.shipment_id = newShipmentId;
       const { error } = await supabase.from("orders")
-        .update({ label_printed_at: new Date().toISOString(), status: newStatus } as any)
+        .update(updates as any)
         .eq("id", printConfirmId);
       if (error) { toast.error("تم فتح البوليصة لكن تعذر قفل الطلب"); }
       else { toast.success("تم اعتماد الطلب وقفله للتعديل"); }
