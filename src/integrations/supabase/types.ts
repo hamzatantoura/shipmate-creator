@@ -1355,21 +1355,24 @@ export type Database = {
           balance: number
           created_at: string
           id: string
-          merchant_id: string
+          is_platform: boolean
+          merchant_id: string | null
           updated_at: string
         }
         Insert: {
           balance?: number
           created_at?: string
           id?: string
-          merchant_id: string
+          is_platform?: boolean
+          merchant_id?: string | null
           updated_at?: string
         }
         Update: {
           balance?: number
           created_at?: string
           id?: string
-          merchant_id?: string
+          is_platform?: boolean
+          merchant_id?: string | null
           updated_at?: string
         }
         Relationships: [
