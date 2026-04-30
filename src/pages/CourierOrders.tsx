@@ -364,18 +364,23 @@ export default function CourierOrders() {
 
   useEffect(() => {
     if (!user) return;
-    // Realtime: do NOT trigger a full refetch on every event — that's what was
-    // freezing the browser. Subscribe quietly; the surgical cache patcher keeps
-    // the UI in sync after our own mutations. External changes will show up on
-    // the next user-driven query (filter/page change) or manual refresh.
+    // Realtime: patch changed rows in-place so courier actions and barcode scans
+    // are reflected immediately without refetch storms.
     const ch = supabase
       .channel(`courier-orders-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
-        // intentionally no-op to avoid refetch storms
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, (payload) => {
+        const next = payload.new as Partial<CourierOrderRow> & { id?: string };
+        if (!next.id) return;
+        patchOrderInCache(next.id, {
+          status: next.status,
+          return_reason: next.return_reason ?? null,
+          shipment_id: next.shipment_id,
+          updated_at: next.updated_at ?? new Date().toISOString(),
+        });
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [user]);
+  }, [patchOrderInCache, user]);
 
   const updateStatus = async (id: string, newStatus: string, reason?: string) => {
     if (newStatus === "returned" && !reason) {

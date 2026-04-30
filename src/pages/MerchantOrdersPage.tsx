@@ -536,20 +536,32 @@ export default function MerchantOrdersPage() {
       toast.error(e?.message || "تعذر فتح نافذة الطباعة");
       return;
     }
-    // Lock unprinted orders so the merchant can't edit them after waybills exist
+    // Lock unprinted orders through the backend state-machine so shipment/order
+    // linking, status sync, and edit-lock happen atomically.
     const toLock = printableOrders.filter((o) => !o.label_printed_at);
     if (toLock.length) {
-      const nowIso = new Date().toISOString();
       const updates = toLock.map((o) => {
-        const patch: Record<string, any> = {
-          label_printed_at: nowIso,
-          status: o.status === "new" ? "processing" : o.status,
-        };
         const newSh = newShipmentByOrder[o.id];
-        if (newSh) patch.shipment_id = newSh.id;
-        return supabase.from("orders").update(patch as any).eq("id", o.id);
+        return (supabase.rpc as any)("lock_order_after_label_print", {
+          p_order_id: o.id,
+          p_shipment_id: newSh?.id ?? o.shipment_id ?? null,
+        });
       });
       const results = await Promise.all(updates);
+      const nowIso = new Date().toISOString();
+      results.forEach((r, index) => {
+        if (r.error) return;
+        const order = toLock[index];
+        const newSh = newShipmentByOrder[order.id];
+        patchOrderInCache(order.id, {
+          label_printed_at: (r.data as OrderRow | null)?.label_printed_at ?? nowIso,
+          status: "processing",
+          shipment_id: (r.data as OrderRow | null)?.shipment_id ?? newSh?.id ?? order.shipment_id,
+          shipments: {
+            tracking_number: newSh?.tracking ?? order.shipments?.tracking_number ?? null,
+          },
+        });
+      });
       const failed = results.filter((r) => r.error).length;
       if (failed) toast.error(`تعذّر قفل ${failed} طلب`);
       else toast.success(`تم اعتماد وطباعة ${printableOrders.length} بوليصة`);
@@ -862,19 +874,27 @@ export default function MerchantOrdersPage() {
       return;
     }
 
-    // Lock the order in DB only if not already locked
+    // Lock the order in DB only if not already locked, using the backend
+    // state-machine instead of a direct PATCH that the lock trigger blocks.
     if (!order.label_printed_at) {
-      const newStatus = order.status === "new" ? "processing" : order.status;
-      const updates: Record<string, any> = {
-        label_printed_at: new Date().toISOString(),
-        status: newStatus,
-      };
-      if (newShipmentId) updates.shipment_id = newShipmentId;
-      const { error } = await supabase.from("orders")
-        .update(updates as any)
-        .eq("id", printConfirmId);
-      if (error) { toast.error("تم فتح البوليصة لكن تعذر قفل الطلب"); }
-      else { toast.success("تم اعتماد الطلب وقفله للتعديل"); }
+      const { data, error } = await (supabase.rpc as any)("lock_order_after_label_print", {
+        p_order_id: printConfirmId,
+        p_shipment_id: newShipmentId ?? order.shipment_id ?? null,
+      });
+      if (error) {
+        toast.error(error.message || "تم فتح البوليصة لكن تعذر قفل الطلب");
+      } else {
+        const lockedOrder = data as OrderRow | null;
+        patchOrderInCache(order.id, {
+          label_printed_at: lockedOrder?.label_printed_at ?? new Date().toISOString(),
+          status: "processing",
+          shipment_id: lockedOrder?.shipment_id ?? newShipmentId ?? order.shipment_id,
+          shipments: {
+            tracking_number: shipmentTracking ?? order.shipments?.tracking_number ?? null,
+          },
+        });
+        toast.success("تم اعتماد الطلب وقفله للتعديل");
+      }
     } else {
       toast.success("إعادة طباعة البوليصة");
     }
