@@ -438,13 +438,13 @@ export default function MerchantOrdersPage() {
     const id = courierId ?? order?.courier_id ?? null;
     const local = id ? couriers.find(c => c.id === id)?.name : null;
     if (local) return local;
-    return order?.couriers?.name ?? null;
+    return order?.courier?.name ?? order?.couriers?.name ?? null;
   };
   const courierLogoOf = (order: OrderRow | null, courierId?: string | null) => {
     const id = courierId ?? order?.courier_id ?? null;
     const local = id ? couriers.find(c => c.id === id)?.logo_url ?? null : null;
     if (local) return local;
-    return order?.couriers?.logo_url ?? null;
+    return order?.courier?.logo_url ?? order?.couriers?.logo_url ?? null;
   };
 
   // Form state
