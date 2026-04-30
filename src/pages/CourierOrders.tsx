@@ -569,9 +569,10 @@ export default function CourierOrders() {
         .select(
           "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)"
         )
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .not("shipment_id", "is", null);
       if (tab === "pending") q = q.in("status", ["new", "pending"]);
-      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "active") q = q.in("status", ["received_by_courier", "processing", "shipped", "out_for_delivery"]);
       else if (tab === "delivered") q = q.eq("status", "delivered");
       else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
@@ -675,9 +676,10 @@ export default function CourierOrders() {
           .select(
             "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, created_at, districts(name)"
           )
-          .is("deleted_at", null);
+          .is("deleted_at", null)
+          .not("shipment_id", "is", null);
         if (tab === "pending") q = q.in("status", ["new", "pending"]);
-        else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+        else if (tab === "active") q = q.in("status", ["received_by_courier", "processing", "shipped", "out_for_delivery"]);
         else if (tab === "delivered") q = q.eq("status", "delivered");
         else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
         if (statusFilter !== "all") q = q.eq("status", statusFilter);
