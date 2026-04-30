@@ -487,27 +487,114 @@ export default function MerchantOrdersPage() {
     // Prefer the branch the merchant explicitly selected; otherwise default to nearest.
     const assignedBranchId = form.branchId || picked?.nearest_branch_id || null;
 
-    setSubmitting(true);
-    const { error } = await supabase.from("orders").insert({
-      merchant_id: user.id,
+    // ===== Optimistic Update Pattern =====
+    // 1) Build a temporary order row that mirrors the shape returned by the
+    //    paginated SELECT (columns + joined relations) so the UI renders
+    //    correctly with no missing fields.
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const matchedCourier = couriers.find((c) => c.id === form.courierId) || null;
+    const courierLogo =
+      smartCouriers.find((s) => s.courier_id === form.courierId)?.logo_url ?? null;
+    const optimisticOrder: OrderRow = {
+      id: tempId,
       receiver_name: form.name || "—",
       phone_number: form.phone || "",
       city: cityLabel,
       detailed_address: form.address || "",
       district_id: finalDistrictId,
       courier_id: form.courierId || null,
-      assigned_branch_id: assignedBranchId,
-      total_amount: cod,
-      delivery_fee: deliveryFee,
       status: asDraft ? "draft" : "new",
-    } as any);
-    setSubmitting(false);
+      total_amount: cod,
+      final_sale_price: null,
+      shipment_id: null,
+      created_at: new Date().toISOString(),
+      label_printed_at: null,
+      notes: null,
+      return_reason: null,
+      couriers: matchedCourier
+        ? { name: matchedCourier.name, logo_url: courierLogo }
+        : null,
+      shipments: null,
+    };
 
-    if (error) { toast.error(error.message || "تعذر إنشاء الطلب"); return; }
-    toast.success(asDraft ? "تم حفظ المسودة" : "تم إنشاء الطلب");
+    // 2) Snapshot the cache for this user (all pages) so we can rollback
+    //    on failure. We also force the user back to page 0 so the new row
+    //    is visible at the top.
+    const userKey = ["merchant-orders", user.id] as const;
+    const targetKey = ["merchant-orders", user.id, 0] as const;
+    const previousSnapshots = queryClient.getQueriesData<{
+      rows: OrderRow[];
+      total: number;
+    }>({ queryKey: userKey });
+
+    setPage(0);
+    queryClient.setQueryData<{ rows: OrderRow[]; total: number } | undefined>(
+      targetKey,
+      (old) => {
+        const prevRows = old?.rows ?? [];
+        const prevTotal = old?.total ?? 0;
+        // Prepend optimistic row, keep page size at PAGE_SIZE
+        const nextRows = [optimisticOrder, ...prevRows].slice(0, PAGE_SIZE);
+        return { rows: nextRows, total: prevTotal + 1 };
+      },
+    );
+
+    // 3) Close the dialog & reset form immediately for snappy UX.
+    setSubmitting(true);
     resetForm();
     setCreateOpen(false);
-    fetchOrders();
+
+    // 4) Persist to DB. On failure, rollback every cached page we touched.
+    const { data: inserted, error } = await supabase
+      .from("orders")
+      .insert({
+        merchant_id: user.id,
+        receiver_name: form.name || "—",
+        phone_number: form.phone || "",
+        city: cityLabel,
+        detailed_address: form.address || "",
+        district_id: finalDistrictId,
+        courier_id: form.courierId || null,
+        assigned_branch_id: assignedBranchId,
+        total_amount: cod,
+        delivery_fee: deliveryFee,
+        status: asDraft ? "draft" : "new",
+      } as any)
+      .select("id")
+      .single();
+    setSubmitting(false);
+
+    if (error || !inserted) {
+      // Rollback: restore every snapshot we captured.
+      previousSnapshots.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      toast.error(error?.message || "تعذر إنشاء الطلب");
+      return;
+    }
+
+    // 5) Swap the temp id for the real id on the cached row so subsequent
+    //    actions (edit/print/select) operate on the real record. This avoids
+    //    a UI flicker that a full refetch would cause.
+    queryClient.setQueryData<{ rows: OrderRow[]; total: number } | undefined>(
+      targetKey,
+      (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          rows: old.rows.map((r) =>
+            r.id === tempId ? { ...r, id: (inserted as any).id } : r,
+          ),
+        };
+      },
+    );
+
+    toast.success(asDraft ? "تم حفظ المسودة" : "تم إنشاء الطلب");
+
+    // 6) Background sync: invalidate so other pages (and joined data like
+    //    districts(name)) reconcile silently. `refetchType: 'active'` keeps
+    //    inactive pages cheap until the user navigates to them.
+    queryClient.invalidateQueries({ queryKey: userKey, refetchType: "active" });
   };
 
   const confirmPrint = async () => {
