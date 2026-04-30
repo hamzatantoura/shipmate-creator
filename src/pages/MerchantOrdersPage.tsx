@@ -422,6 +422,27 @@ export default function MerchantOrdersPage() {
     }
     if (!printable.length) return;
     const printableOrders = printable as OrderRow[];
+
+    // Option A: lazily create a shipment for any printable order that doesn't
+    // have one yet. Track new shipment ids/tracking numbers per order.
+    const newShipmentByOrder: Record<string, { id: string; tracking: string | null }> = {};
+    if (user?.id) {
+      for (const o of printableOrders) {
+        if (o.shipment_id) continue;
+        try {
+          const provinceForFee = allDistricts.find((d) => d.id === o.district_id);
+          const districtIdForFee = provinceForFee?.parent_id ? o.district_id : null;
+          const provinceIdForFee = provinceForFee?.parent_id ? provinceForFee.parent_id : o.district_id;
+          const fee = resolveDeliveryFee(districtIdForFee, provinceIdForFee, o.courier_id);
+          const created = await createShipmentForOrder(o, user.id, fee);
+          newShipmentByOrder[o.id] = { id: created.shipmentId, tracking: created.trackingNumber };
+        } catch (e: any) {
+          toast.error(`تعذر إنشاء شحنة لطلب ${o.receiver_name}: ${e?.message || ""}`);
+          return;
+        }
+      }
+    }
+
     const labels: BulkLabelData[] = printableOrders.map((order) => {
       const matched = allDistricts.find((d) => d.id === order.district_id);
       const districtName = matched?.parent_id ? matched.name : null;
@@ -447,7 +468,10 @@ export default function MerchantOrdersPage() {
         notes: order.notes,
         courierName: courierNameOf(order),
         courierLogoUrl: courierLogoOf(order),
-        trackingNumber: order.shipments?.tracking_number ?? null,
+        trackingNumber:
+          newShipmentByOrder[order.id]?.tracking ??
+          order.shipments?.tracking_number ??
+          null,
         branchName: branch?.name ?? null,
         branchAddress: null,
       };
@@ -462,15 +486,15 @@ export default function MerchantOrdersPage() {
     const toLock = printableOrders.filter((o) => !o.label_printed_at);
     if (toLock.length) {
       const nowIso = new Date().toISOString();
-      const updates = toLock.map((o) =>
-        supabase
-          .from("orders")
-          .update({
-            label_printed_at: nowIso,
-            status: o.status === "new" ? "processing" : o.status,
-          } as any)
-          .eq("id", o.id),
-      );
+      const updates = toLock.map((o) => {
+        const patch: Record<string, any> = {
+          label_printed_at: nowIso,
+          status: o.status === "new" ? "processing" : o.status,
+        };
+        const newSh = newShipmentByOrder[o.id];
+        if (newSh) patch.shipment_id = newSh.id;
+        return supabase.from("orders").update(patch as any).eq("id", o.id);
+      });
       const results = await Promise.all(updates);
       const failed = results.filter((r) => r.error).length;
       if (failed) toast.error(`تعذّر قفل ${failed} طلب`);
