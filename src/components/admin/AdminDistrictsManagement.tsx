@@ -454,7 +454,7 @@ export default function AdminDistrictsManagement() {
                       {missingCoordsByProvince[p.id]} بدون إحداثيات
                     </Badge>
                   )}
-                  <span className="text-xs text-muted-foreground hidden md:inline">{fmtSYP(p.delivery_fee)}</span>
+                  {/* السعر مُزال عن قصد — التسعير يُدار من شركات الشحن */}
                   <Button size="sm" variant="ghost" onClick={() => openCreate(p.id)} className="gap-1 h-8">
                     <Plus className="h-3.5 w-3.5" /> منطقة
                   </Button>
@@ -494,7 +494,7 @@ export default function AdminDistrictsManagement() {
                             بدون إحداثيات
                           </Badge>
                         )}
-                        <span className="text-xs text-muted-foreground">{fmtSYP(c.delivery_fee)}</span>
+                        {/* السعر مُزال عن قصد — التسعير يُدار من شركات الشحن */}
                         <Button size="icon" variant="ghost" onClick={() => openEdit(c)} className="h-7 w-7">
                           <Edit2 className="h-3 w-3" />
                         </Button>
