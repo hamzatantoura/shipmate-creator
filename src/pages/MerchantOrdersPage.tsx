@@ -60,6 +60,7 @@ import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOrderStatusMeta } from "@/lib/order-status";
+import { isOrderLocked } from "@/lib/order-locking";
 import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/lib/print-validation";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
@@ -175,7 +176,7 @@ const buildTrackingNumber = (orderId: string): string => {
   }
   return `${silaCodeOf(orderId)}-${suffix}`;
 };
-const isLocked = (o: OrderRow) => !!o.label_printed_at || !!o.shipment_id || ["processing", "shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
+const isLocked = (o: OrderRow) => isOrderLocked(o).isEditLocked || isOrderLocked(o).isCancelLocked;
 
 // Map an Arabic/English province label to the shipment_city enum value used
 // by public.shipments.city. Mirrors the SQL helper map_order_city_to_shipment.
