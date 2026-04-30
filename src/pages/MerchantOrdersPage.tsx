@@ -533,7 +533,7 @@ export default function MerchantOrdersPage() {
       setCancelOrderId(null);
       return;
     }
-    if (isLocked(target)) {
+    if (isOrderLocked(target).isCancelLocked) {
       toast.error("لا يمكن إلغاء هذا الطلب — تم تسليمه إلى شركة الشحن أو طُبعت بوليصته.");
       setCancelOrderId(null);
       return;
@@ -1317,7 +1317,8 @@ export default function MerchantOrdersPage() {
                     {!loading && orders.map((order) => {
                       const meta = getOrderStatusMeta(order.status);
                       const StatusIcon = meta.icon;
-                      const locked = isLocked(order);
+                      const locks = isOrderLocked(order);
+                      const locked = locks.isEditLocked || locks.isCancelLocked;
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
@@ -1416,7 +1417,22 @@ export default function MerchantOrdersPage() {
                                 <Radar className="h-3.5 w-3.5 text-info" />
                                 التتبع
                               </Button>
-                              {!locked && (
+                              {locks.isEditLocked ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button size="sm" variant="ghost" disabled className="gap-1">
+                                          تعديل
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="text-xs">لا يمكن التعديل بعد طباعة البوليصة</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -1426,7 +1442,7 @@ export default function MerchantOrdersPage() {
                                   تعديل
                                 </Button>
                               )}
-                              {!locked && (
+                              {!locks.isCancelLocked && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
