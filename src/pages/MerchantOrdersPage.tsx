@@ -287,6 +287,7 @@ export default function MerchantOrdersPage() {
     queryKey: ["merchant-orders", user?.id, page],
     enabled: !!user?.id,
     placeholderData: keepPreviousData,
+    staleTime: 60_000,
     queryFn: async () => {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
