@@ -70,10 +70,12 @@ interface CourierOrderRow {
 
 /**
  * Logical lifecycle transitions for couriers.
- * processing → shipped → out_for_delivery → delivered | returned
+ * pending → received_by_courier → shipped → out_for_delivery → delivered | returned
  */
 const NEXT_STATUS_MAP: Record<string, { value: string; label: string }[]> = {
-  new:              [{ value: "processing", label: "قيد المعالجة" }, { value: "shipped", label: "مع شركة الشحن" }],
+  new:              [{ value: "received_by_courier", label: "تم الاستلام من شركة الشحن" }],
+  pending:          [{ value: "received_by_courier", label: "تم الاستلام من شركة الشحن" }],
+  received_by_courier: [{ value: "shipped", label: "مع شركة الشحن" }, { value: "returned", label: "مرتجع" }],
   processing:       [{ value: "shipped", label: "مع شركة الشحن" }, { value: "returned", label: "مرتجع" }],
   shipped:          [{ value: "out_for_delivery", label: "قيد التوصيل" }, { value: "returned", label: "مرتجع" }],
   out_for_delivery: [{ value: "delivered", label: "تم التسليم" }, { value: "returned", label: "مرتجع" }],
@@ -88,6 +90,12 @@ const RETURN_REASONS = [
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
+const orderStatusFromShipmentStatus = (status: string) => {
+  if (status === "received_by_courier" || status === "picked_up" || status === "at_warehouse") return "processing";
+  if (status === "in_transit_intercity") return "shipped";
+  if (status === "with_distributor") return "out_for_delivery";
+  return status;
+};
 const isToday = (iso: string) => {
   const d = new Date(iso); const t = new Date();
   return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
@@ -98,7 +106,7 @@ const TAB_FILTERS: Record<TabKey, (s: string) => boolean> = {
   all: () => true,
   // STRICT mutually exclusive pipeline buckets
   pending:   (s) => ["new", "pending"].includes(s),
-  active:    (s) => ["processing", "shipped", "out_for_delivery"].includes(s),
+  active:    (s) => ["received_by_courier", "processing", "shipped", "out_for_delivery"].includes(s),
   delivered: (s) => s === "delivered",
   returned:  (s) => ["returned", "cancelled"].includes(s),
 };
@@ -202,6 +210,7 @@ export default function CourierOrders() {
         .from("orders")
         .select("id, status, updated_at, created_at, receiver_name, phone_number, shipment_id, return_reason")
         .is("deleted_at", null)
+        .not("shipment_id", "is", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as AggOrder[];
@@ -231,11 +240,12 @@ export default function CourierOrders() {
           "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)",
           { count: "exact" }
         )
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .not("shipment_id", "is", null);
 
       // Tab filter (mutually exclusive buckets — mirror TAB_FILTERS server-side)
       if (tab === "pending") q = q.in("status", ["new", "pending"]);
-      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "active") q = q.in("status", ["received_by_courier", "processing", "shipped", "out_for_delivery"]);
       else if (tab === "delivered") q = q.eq("status", "delivered");
       else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
 
@@ -377,7 +387,7 @@ export default function CourierOrders() {
     const target = orders.find(o => o.id === id);
     if (!target?.shipment_id) {
       setUpdatingId(null);
-      toast.error("لا توجد شحنة مرتبطة بهذا الطلب");
+      toast.error("هذا الطلب لم يُسلَّم لشركة الشحن بعد — يجب طباعة البوليصة أولاً");
       return;
     }
     const { data, error } = await supabase.rpc("transition_shipment_status", {
@@ -392,9 +402,10 @@ export default function CourierOrders() {
       return;
     }
     // Surgical cache update — no refetch.
-    const newShipmentStatus = (data as any)?.status as string | undefined;
+    const newShipmentStatus = ((data as any)?.status as string | undefined) ?? newStatus;
+    const nextOrderStatus = orderStatusFromShipmentStatus(newShipmentStatus);
     patchOrderInCache(id, {
-      status: newStatus,
+      status: nextOrderStatus,
       return_reason: newStatus === "returned" ? (reason ?? null) : target.return_reason ?? null,
     });
     toast.success("تم تحديث الحالة");
@@ -537,6 +548,7 @@ export default function CourierOrders() {
       case "delivered":        return "bg-success/10 hover:bg-success/15";
       case "out_for_delivery": return "bg-info/10 hover:bg-info/15";
       case "shipped":          return "bg-info/5 hover:bg-info/10";
+      case "received_by_courier":
       case "processing":       return "bg-primary/5 hover:bg-primary/10";
       case "pending":
       case "new":              return "bg-warning/10 hover:bg-warning/15";
@@ -559,9 +571,10 @@ export default function CourierOrders() {
         .select(
           "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, delivery_fee, created_at, updated_at, notes, return_reason, shipment_id, assigned_branch_id, couriers(name), districts(name), shipments:shipment_id(collection_fee)"
         )
-        .is("deleted_at", null);
+        .is("deleted_at", null)
+        .not("shipment_id", "is", null);
       if (tab === "pending") q = q.in("status", ["new", "pending"]);
-      else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+      else if (tab === "active") q = q.in("status", ["received_by_courier", "processing", "shipped", "out_for_delivery"]);
       else if (tab === "delivered") q = q.eq("status", "delivered");
       else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
@@ -665,9 +678,10 @@ export default function CourierOrders() {
           .select(
             "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, created_at, districts(name)"
           )
-          .is("deleted_at", null);
+          .is("deleted_at", null)
+          .not("shipment_id", "is", null);
         if (tab === "pending") q = q.in("status", ["new", "pending"]);
-        else if (tab === "active") q = q.in("status", ["processing", "shipped", "out_for_delivery"]);
+        else if (tab === "active") q = q.in("status", ["received_by_courier", "processing", "shipped", "out_for_delivery"]);
         else if (tab === "delivered") q = q.eq("status", "delivered");
         else if (tab === "returned") q = q.in("status", ["returned", "cancelled"]);
         if (statusFilter !== "all") q = q.eq("status", statusFilter);
@@ -752,7 +766,7 @@ export default function CourierOrders() {
     const targets = orders.filter(o => selectedIds.includes(o.id));
     const results = await Promise.all(
       targets.map(async (o) => {
-        if (!o.shipment_id) return { error: { message: "no shipment" } as any };
+        if (!o.shipment_id) return { error: { message: "هذا الطلب لم يُسلَّم لشركة الشحن بعد" } as any };
         return await supabase.rpc("transition_shipment_status", {
           p_shipment_id: o.shipment_id,
           p_new_status: newStatus,
@@ -767,7 +781,7 @@ export default function CourierOrders() {
       .map((r, i) => (r.error ? null : targets[i].id))
       .filter(Boolean) as string[];
     // Surgical update for every row that succeeded — no refetch.
-    succeededIds.forEach((id) => patchOrderInCache(id, { status: newStatus }));
+    succeededIds.forEach((id) => patchOrderInCache(id, { status: orderStatusFromShipmentStatus(newStatus) }));
     setBulkLoading(false);
     if (failedDetails.length === 0) {
       toast.success(`تم تحديث ${selectedIds.length} طلب`);

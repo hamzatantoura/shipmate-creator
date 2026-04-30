@@ -17,7 +17,7 @@ type OrderLookupMatch = Pick<
 >;
 
 const STATUS_OPTIONS = [
-  { value: "picked_up", label: "تم الاستلام من التاجر" },
+  { value: "received_by_courier", label: "تم الاستلام من شركة الشحن" },
   { value: "at_warehouse", label: "في المستودع" },
   { value: "in_transit_intercity", label: "جاري الشحن بين المحافظات" },
   { value: "with_distributor", label: "مع مندوب التوزيع" },
@@ -28,6 +28,7 @@ const STATUS_OPTIONS = [
 
 const STATUS_AR: Record<string, string> = {
   pending: "جديد",
+  received_by_courier: "تم الاستلام من شركة الشحن",
   picked_up: "تم الاستلام",
   at_warehouse: "في المستودع",
   in_transit_intercity: "جاري الشحن",
@@ -35,6 +36,13 @@ const STATUS_AR: Record<string, string> = {
   out_for_delivery: "جاري التوصيل",
   delivered: "تم التسليم",
   returned: "مرتجع",
+};
+
+const orderStatusFromShipmentStatus = (status: string) => {
+  if (status === "received_by_courier" || status === "picked_up" || status === "at_warehouse") return "processing";
+  if (status === "in_transit_intercity") return "shipped";
+  if (status === "with_distributor") return "out_for_delivery";
+  return status;
 };
 
 const CITY_AR: Record<string, string> = {
@@ -157,7 +165,7 @@ export default function BarcodeScanner() {
   }, []);
 
   const getNextStatus = (current: string): string => {
-    const flow = ["pending", "picked_up", "at_warehouse", "in_transit_intercity", "with_distributor", "out_for_delivery", "delivered"];
+    const flow = ["pending", "received_by_courier", "at_warehouse", "in_transit_intercity", "with_distributor", "out_for_delivery", "delivered"];
     const idx = flow.indexOf(current);
     if (idx >= 0 && idx < flow.length - 1) return flow[idx + 1];
     return "";
@@ -170,16 +178,33 @@ export default function BarcodeScanner() {
     const { data, error } = await supabase.rpc("transition_shipment_status", {
       p_shipment_id: shipment.id,
       p_new_status: newStatus,
+      p_return_reason: null,
     });
 
     setUpdating(false);
 
     if (error) {
-      toast.error(error.message || "تعذر تحديث حالة الشحنة");
+      console.error("RPC FAILED transition_shipment_status:", error);
+      toast.error(error.message || "تعذر تحديث حالة الشحنة", { duration: 6000 });
       return;
     }
 
     const updated = (data as unknown as Shipment) ?? { ...shipment, status: newStatus };
+    const nextOrderStatus = orderStatusFromShipmentStatus(updated.status || newStatus);
+    const orderFilter = shipment.order_id
+      ? `id.eq.${shipment.order_id},shipment_id.eq.${shipment.id}`
+      : `shipment_id.eq.${shipment.id}`;
+    const orderUpdate = await supabase
+      .from("orders")
+      .update({ status: nextOrderStatus, shipment_id: shipment.id } as any)
+      .or(orderFilter);
+
+    if (orderUpdate.error) {
+      console.error("ORDER SYNC FAILED after transition_shipment_status:", orderUpdate.error);
+      toast.error(orderUpdate.error.message || "تم تحديث الشحنة لكن تعذرت مزامنة الطلب", { duration: 6000 });
+      return;
+    }
+
     toast.success(`تم تحديث الحالة إلى: ${STATUS_AR[newStatus] || newStatus}`);
     setShipment({ ...shipment, ...updated });
     setNewStatus(getNextStatus(newStatus));

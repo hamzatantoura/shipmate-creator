@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
@@ -60,6 +60,7 @@ import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOrderStatusMeta } from "@/lib/order-status";
+import { isOrderLocked } from "@/lib/order-locking";
 import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/lib/print-validation";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
@@ -175,7 +176,7 @@ const buildTrackingNumber = (orderId: string): string => {
   }
   return `${silaCodeOf(orderId)}-${suffix}`;
 };
-const isLocked = (o: OrderRow) => !!o.label_printed_at || !!o.shipment_id || ["processing", "shipped", "out_for_delivery", "delivered", "returned"].includes(o.status);
+const isLocked = (o: OrderRow) => isOrderLocked(o).isEditLocked || isOrderLocked(o).isCancelLocked;
 
 // Map an Arabic/English province label to the shipment_city enum value used
 // by public.shipments.city. Mirrors the SQL helper map_order_city_to_shipment.
@@ -380,6 +381,44 @@ export default function MerchantOrdersPage() {
   const fetchOrders = () =>
     queryClient.invalidateQueries({ queryKey: ["merchant-orders", user?.id] });
 
+  const patchOrderInCache = useCallback((orderId: string, patch: Partial<OrderRow>) => {
+    queryClient.setQueriesData<{ rows: OrderRow[]; total: number } | undefined>(
+      { queryKey: ["merchant-orders", user?.id] },
+      (old) => {
+        if (!old) return old;
+        let changed = false;
+        const rows = old.rows.map((row) => {
+          if (row.id !== orderId) return row;
+          changed = true;
+          return { ...row, ...patch };
+        });
+        return changed ? { ...old, rows } : old;
+      },
+    );
+  }, [queryClient, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`merchant-orders-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `merchant_id=eq.${user.id}` },
+        (payload) => {
+          const next = payload.new as Partial<OrderRow> & { id?: string };
+          if (!next.id) return;
+          patchOrderInCache(next.id, {
+            status: next.status,
+            shipment_id: next.shipment_id,
+            label_printed_at: next.label_printed_at,
+            return_reason: next.return_reason,
+          });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [patchOrderInCache, user?.id]);
+
   // Reset selection when the visible page/orders change
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => orders.some((o) => o.id === id)));
@@ -532,7 +571,8 @@ export default function MerchantOrdersPage() {
       setCancelOrderId(null);
       return;
     }
-    if (isLocked(target)) {
+    const targetLocks = isOrderLocked(target);
+    if (targetLocks.isCancelLocked || targetLocks.isEditLocked) {
       toast.error("لا يمكن إلغاء هذا الطلب — تم تسليمه إلى شركة الشحن أو طُبعت بوليصته.");
       setCancelOrderId(null);
       return;
@@ -1316,7 +1356,8 @@ export default function MerchantOrdersPage() {
                     {!loading && orders.map((order) => {
                       const meta = getOrderStatusMeta(order.status);
                       const StatusIcon = meta.icon;
-                      const locked = isLocked(order);
+                      const locks = isOrderLocked(order);
+                      const locked = locks.isEditLocked || locks.isCancelLocked;
                       const districtName = allDistricts.find(d => d.id === order.district_id)?.name;
                       const display = districtName ? `${order.city} - ${districtName}` : order.city;
                       const amount = order.final_sale_price ?? order.total_amount;
@@ -1415,7 +1456,22 @@ export default function MerchantOrdersPage() {
                                 <Radar className="h-3.5 w-3.5 text-info" />
                                 التتبع
                               </Button>
-                              {!locked && (
+                              {locks.isEditLocked ? (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button size="sm" variant="ghost" disabled className="gap-1">
+                                          تعديل
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                      <p className="text-xs">لا يمكن التعديل بعد طباعة البوليصة</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              ) : (
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -1425,7 +1481,7 @@ export default function MerchantOrdersPage() {
                                   تعديل
                                 </Button>
                               )}
-                              {!locked && (
+                              {!locks.isCancelLocked && !locks.isEditLocked && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
