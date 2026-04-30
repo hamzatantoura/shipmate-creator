@@ -13,7 +13,7 @@ const CANCEL_LOCKED_STATUSES = new Set([
 
 export const isOrderLocked = (order: LockableOrder) => {
   const isEditLocked = Boolean(order.label_printed_at) || Boolean(order.shipment_id);
-  const isCancelLocked = CANCEL_LOCKED_STATUSES.has(order.status ?? "");
+  const isCancelLocked = isEditLocked || CANCEL_LOCKED_STATUSES.has(order.status ?? "");
 
   return { isEditLocked, isCancelLocked };
 };
