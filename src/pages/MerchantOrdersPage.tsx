@@ -571,7 +571,8 @@ export default function MerchantOrdersPage() {
       setCancelOrderId(null);
       return;
     }
-    if (isOrderLocked(target).isCancelLocked) {
+    const targetLocks = isOrderLocked(target);
+    if (targetLocks.isCancelLocked || targetLocks.isEditLocked) {
       toast.error("لا يمكن إلغاء هذا الطلب — تم تسليمه إلى شركة الشحن أو طُبعت بوليصته.");
       setCancelOrderId(null);
       return;
@@ -1480,7 +1481,7 @@ export default function MerchantOrdersPage() {
                                   تعديل
                                 </Button>
                               )}
-                              {!locks.isCancelLocked && (
+                              {!locks.isCancelLocked && !locks.isEditLocked && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
