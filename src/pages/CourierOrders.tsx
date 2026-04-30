@@ -548,6 +548,7 @@ export default function CourierOrders() {
       case "delivered":        return "bg-success/10 hover:bg-success/15";
       case "out_for_delivery": return "bg-info/10 hover:bg-info/15";
       case "shipped":          return "bg-info/5 hover:bg-info/10";
+      case "received_by_courier":
       case "processing":       return "bg-primary/5 hover:bg-primary/10";
       case "pending":
       case "new":              return "bg-warning/10 hover:bg-warning/15";
