@@ -1,51 +1,96 @@
-# إصلاح فشل تحديث حالة "مرتجع" (Foreign Key Violation)
 
-## السبب الجذري المؤكد
-عند تحديث الشحنة إلى `returned`، ينطلق تريغر `handle_shipment_wallet_settlement` الذي يحاول تسجيل قيود محاسبية على **محفظة المنصة** بالمُعرّف الثابت `00000000-0000-0000-0000-000000000001`.
+## التشخيص النهائي
 
-تحقّقت من قاعدة البيانات: **هذه المحفظة غير موجودة أصلاً في جدول `wallets`**، لذا أي INSERT في `wallet_transactions` يستهدفها يفشل بـ FK violation، ويُلغى التحديث بأكمله (rollback)، فلا تُحفظ حالة الإرجاع.
+طلب الشبكة من جلستك الحالية (أدمن `hamza.tantoura@gmail.com`) يُظهر:
 
-نفس المشكلة ستحدث عند **التسليم الناجح** أيضاً (نفس الكود يحاول تسجيل عمولة المنصة) — أي أن النظام المالي معطّل بالكامل لكل الشحنات.
-
-## خطة الإصلاح (Migration واحد)
-
-### 1. إنشاء محفظة المنصة (Platform Wallet) بشكل دائم
-- إضافة `is_platform boolean DEFAULT false` إلى جدول `wallets` (لتمييزها).
-- جعل عمود `merchant_id` يقبل NULL **فقط** للمحفظة الرئيسية للمنصة.
-- إدراج (idempotent) سجل المحفظة بالمُعرّف الثابت `00000000-0000-0000-0000-000000000001` و `is_platform=true`.
-
-```sql
-ALTER TABLE wallets ADD COLUMN IF NOT EXISTS is_platform boolean NOT NULL DEFAULT false;
-ALTER TABLE wallets ALTER COLUMN merchant_id DROP NOT NULL;
-ALTER TABLE wallets ADD CONSTRAINT wallets_merchant_or_platform 
-  CHECK (is_platform = true OR merchant_id IS NOT NULL);
-
-INSERT INTO wallets (id, merchant_id, balance, is_platform)
-VALUES ('00000000-0000-0000-0000-000000000001', NULL, 0, true)
-ON CONFLICT (id) DO NOTHING;
+```
+GET /rest/v1/couriers?select=*  →  403  "permission denied for table couriers"
 ```
 
-### 2. تحصين تريغرات التسوية (Defense-in-Depth)
-تعديل `handle_shipment_wallet_settlement` و `handle_order_delivered_settlement` بحيث:
-- يتأكدان من وجود محفظة المنصة قبل أي قيد، وإن لم تكن موجودة يُنشئانها فوراً (`INSERT … ON CONFLICT DO NOTHING`).
-- يتأكدان من وجود محفظة التاجر بنفس الأسلوب.
-- بهذا لن يحدث FK violation حتى لو تأخرت الـ migrations لأي سبب.
+السبب ليس في:
+- ❌ الكود (سليم: `supabase.from("couriers").select("*")`)
+- ❌ سياسات RLS (سليمة: `Admins can view all couriers` تعمل عبر `has_role`)
+- ❌ دور المستخدم (مؤكد: أنت أدمن في `profiles` و `user_roles`)
+- ❌ جلسة الدخول (JWT صحيح، sub يطابق حساب الأدمن)
 
-### 3. مواءمة `handle_courier_wallet_credit` مع بروتوكول Ledger
-حالياً يكتب على عمود `couriers.wallet_balance` مباشرة (مخالف لبروتوكول Sila #3 الذي يفرض الـ Ledger).
-- التأكد من وجود الأعمدة (`wallet_balance`, `return_fee_percentage`) — إن لم توجد سيتم تجاوز الكتابة بأمان عبر `BEGIN...EXCEPTION WHEN undefined_column`.
-- (مرحلة لاحقة منفصلة): نقل المنطق بالكامل إلى جدول `wallet_transactions` خاص بالمحاسب (out of scope الآن لتجنّب تغييرات كبيرة).
+السبب هو في طبقة **أعمق** من RLS:
 
-### 4. ترحيل المعاملات المعلّقة (Backfill)
-- لا حاجة لـ backfill مالي، فقط إنشاء محفظة المنصة يكفي لفك القفل.
-- التأكد من أن كل تاجر له محفظة عبر `auto_create_merchant_wallet` (مفعّل أصلاً على trigger).
+> **جميع جداول قاعدة البيانات (29 جدول) لا تملك أي `GRANT` لدور `authenticated` على مستوى Postgres.**
 
-## ما لن يتغيّر
-- لا تعديلات على الواجهة الأمامية — المشكلة 100% في قاعدة البيانات.
-- لا تعديلات على منطق القفل (`enforce_order_lock`) — يعمل بشكل صحيح حسب التحقق.
-- منطق المسؤولية عن الإرجاع (`return_cost_responsibility`) يبقى كما هو.
+في Postgres، `GRANT` يأتي **قبل** RLS. إذا لم يُمنح الدور حق `SELECT` على الجدول أصلاً، فلا أهمية لسياسات RLS مهما كانت متساهلة — النتيجة دائماً `42501 permission denied`.
 
-## النتيجة المتوقعة
-- زر **"تأكيد الإرجاع"** سيعمل فوراً بعد تطبيق الـ migration.
-- التسليم الناجح أيضاً سيُسجّل عمولة المنصة بدون فشل.
-- لن تظهر رسالة `wallet_transactions_wallet_id_fkey` مرة أخرى.
+تم التحقق عبر `information_schema.role_table_grants`: كل الجداول تُرجع `__NONE__` لدور `authenticated`.
+
+السبب التاريخي المحتمل: migration سابق نفّذ `REVOKE ALL ON ALL TABLES IN SCHEMA public FROM authenticated` (غالباً أثناء إعادة هيكلة الأدوار) ولم تتم إعادة الـ GRANTS.
+
+هذا يفسّر **كل** الأعراض التي عانيت منها:
+- اختفاء شركات الشحن من واجهة الأدمن.
+- "اختفاء" ميزات بعد كل تعديل (لم تختفِ — لم تكن تعمل أصلاً).
+- كثرة أخطاء 403 / Permission denied في واجهات التاجر والشركة.
+- سلوك متذبذب: استعلامات بأعمدة محددة قد تنجح عبر مسار `anon` بينما `select=*` يفشل.
+
+## خطة الإصلاح (Migration واحد، بدون تعديل أي كود)
+
+### Stage 1 — إعادة منح صلاحيات Postgres الأساسية
+
+Migration جديد يُنفّذ:
+
+```sql
+-- منح authenticated الحقوق الأساسية على كل جداول schema public
+GRANT USAGE ON SCHEMA public TO authenticated, anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON ALL TABLES IN SCHEMA public
+  TO authenticated;
+
+-- anon يحصل على SELECT فقط (للجداول العامة كـ provinces/products النشطة)
+GRANT SELECT
+  ON ALL TABLES IN SCHEMA public
+  TO anon;
+
+-- صلاحيات على الـ sequences (مطلوبة للـ INSERT)
+GRANT USAGE, SELECT
+  ON ALL SEQUENCES IN SCHEMA public
+  TO authenticated;
+
+-- ضمان أن أي جدول جديد مستقبلاً يحصل على نفس الصلاحيات تلقائياً
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT ON TABLES TO anon;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO authenticated;
+```
+
+**ملاحظة أمان مهمة:** هذا لا يكسر الأمان. **سياسات RLS ستظل تعمل** وتُحدّد بالضبط أي صف يستطيع كل دور رؤيته/تعديله. الـ GRANT يفتح فقط "الباب الخارجي"، أما RLS فهي "الحارس" الذي يقرر من يمر فعلياً. كل سياسات `has_role(...)` و `auth.uid() = ...` ستظل تعمل كما هي.
+
+### Stage 2 — التحقق
+
+بعد تنفيذ الـ migration:
+1. أعد تحميل صفحة `/admin?tab=couriers` (Ctrl+F5).
+2. يجب أن ترى الشركات الأربع: `masarat`, `كرم لشحن`, `الوصول`, `عغفغب`.
+3. اختبر تبويبات الأدمن الأخرى (تجار، تسويات، إعدادات).
+4. سجّل خروجاً ودخل بحساب التاجر — يجب أن تختفي الأخطاء 403 من واجهة التاجر أيضاً.
+
+### Stage 3 — لا تغييرات على الكود
+
+لن أعدّل أي ملف TypeScript/React. المشكلة كلها في طبقة قاعدة البيانات. هذا أنظف وأأمن إصلاح ممكن.
+
+## ما لن أفعله في هذه الجولة
+
+- لن أحذف الملفات اليتيمة (`MerchantOrders.tsx` إلخ) — مرحلة منفصلة بعد التأكد أن كل شيء يعمل.
+- لن أربط `BarcodeScanner` — مرحلة منفصلة.
+- لن أُصلح بيانات الشركات بدون `vendor_id` — مرحلة منفصلة.
+- لن ألمس أي تصميم أو سلوك UI.
+
+نُركّز على **الإصلاح الجذري الواحد** الذي يُعيد كل الواجهات للعمل، ثم نقرر معاً ما التالي بناءً على ما يظهر فعلاً.
+
+## القسم التقني (للمراجعة)
+
+- الـ migration يستهدف فقط `schema public`. لا يلمس `auth/storage/realtime/supabase_functions/vault`.
+- يستخدم `ALTER DEFAULT PRIVILEGES` لمنع تكرار المشكلة عند إنشاء جداول مستقبلية.
+- لا تغيير على RLS، لا حذف/تعديل سياسات.
+- لا تغيير على دوال أو triggers.
+- متوافق مع نموذج Supabase القياسي (الإعداد الافتراضي يمنح authenticated/anon هذه الصلاحيات).
