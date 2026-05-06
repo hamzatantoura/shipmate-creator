@@ -780,37 +780,67 @@ export type Database = {
       }
       platform_settings: {
         Row: {
+          allow_international_phones: boolean
+          collection_fee_visible: boolean
           created_at: string
           default_collection_fee_pct: number
+          default_free_shipping_threshold: number
           default_platform_margin_flat: number
           default_platform_margin_pct: number
           default_return_fee: number
           id: string
+          min_payout_amount: number
+          platform_margin_visible: boolean
+          platform_whatsapp: string | null
+          product_max_images: number
+          public_couriers_visible: boolean
+          readiness_required_fields: Json
           return_cost_responsibility: Database["public"]["Enums"]["return_responsibility"]
           singleton: boolean
           updated_at: string
+          verification_mode: string
         }
         Insert: {
+          allow_international_phones?: boolean
+          collection_fee_visible?: boolean
           created_at?: string
           default_collection_fee_pct?: number
+          default_free_shipping_threshold?: number
           default_platform_margin_flat?: number
           default_platform_margin_pct?: number
           default_return_fee?: number
           id?: string
+          min_payout_amount?: number
+          platform_margin_visible?: boolean
+          platform_whatsapp?: string | null
+          product_max_images?: number
+          public_couriers_visible?: boolean
+          readiness_required_fields?: Json
           return_cost_responsibility?: Database["public"]["Enums"]["return_responsibility"]
           singleton?: boolean
           updated_at?: string
+          verification_mode?: string
         }
         Update: {
+          allow_international_phones?: boolean
+          collection_fee_visible?: boolean
           created_at?: string
           default_collection_fee_pct?: number
+          default_free_shipping_threshold?: number
           default_platform_margin_flat?: number
           default_platform_margin_pct?: number
           default_return_fee?: number
           id?: string
+          min_payout_amount?: number
+          platform_margin_visible?: boolean
+          platform_whatsapp?: string | null
+          product_max_images?: number
+          public_couriers_visible?: boolean
+          readiness_required_fields?: Json
           return_cost_responsibility?: Database["public"]["Enums"]["return_responsibility"]
           singleton?: boolean
           updated_at?: string
+          verification_mode?: string
         }
         Relationships: []
       }
