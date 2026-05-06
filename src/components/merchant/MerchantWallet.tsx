@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
+import { usePlatformSettings } from "@/hooks/use-platform-settings";
 
 const PAYOUT_METHODS = [
   { value: "shamcash", label: "ShamCash" },
@@ -38,6 +39,8 @@ interface PayoutReq {
 
 export default function MerchantWallet() {
   const { user } = useAuth();
+  const { settings: platformSettings } = usePlatformSettings();
+  const minPayout = platformSettings.min_payout_amount || 0;
   const [walletBalance, setWalletBalance] = useState(0); // legacy ledger balance (kept for payout cap)
   const [availableBalance, setAvailableBalance] = useState(0); // delivered orders
   const [pendingBalance, setPendingBalance] = useState(0); // processing/shipped/out_for_delivery
@@ -113,6 +116,7 @@ export default function MerchantWallet() {
     const amount = parseFloat(payoutAmount);
     if (!amount || amount <= 0) { toast.error("أدخل مبلغاً صحيحاً"); return; }
     if (amount > walletBalance) { toast.error("المبلغ يتجاوز الرصيد المتاح"); return; }
+    if (amount < minPayout) { toast.error(`الحد الأدنى للسحب ${minPayout.toLocaleString()} ل.س`); return; }
     if (!payoutMethod) { toast.error("اختر طريقة التسوية"); return; }
     setSubmitting(true);
     const { error } = await supabase.from("payout_requests").insert({
@@ -142,7 +146,8 @@ export default function MerchantWallet() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>المبلغ (ل.س)</Label>
-                  <Input type="number" min="1" max={walletBalance} value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} placeholder={`الحد الأقصى: ${walletBalance.toLocaleString()}`} />
+                  <Input type="number" min={minPayout} max={walletBalance} value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} placeholder={`الحد الأقصى: ${walletBalance.toLocaleString()}`} />
+                  <p className="text-[11px] text-muted-foreground">الحد الأدنى للسحب: {minPayout.toLocaleString()} ل.س</p>
                 </div>
                 <div className="space-y-2">
                   <Label>طريقة التسوية</Label>
