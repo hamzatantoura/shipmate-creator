@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import {
   Package, Truck, Store, Wallet, ShieldCheck, Zap, ArrowLeft,
-  BarChart3, Globe, Link2, Users, CreditCard, LayoutDashboard
+  BarChart3, Globe, Link2, Users, CreditCard, LayoutDashboard, Download
 } from "lucide-react";
 import heroIllustration from "@/assets/hero-illustration.png";
 import silaLogo from "@/assets/sila-logo.png";
@@ -44,6 +44,12 @@ export default function Landing() {
           <div className="flex items-center gap-3">
             <Link to="/track">
               <Button variant="ghost" size="sm" className="text-sm">تتبع شحنة</Button>
+            </Link>
+            <Link to="/install">
+              <Button variant="outline" size="sm" className="text-sm gap-1.5">
+                <Download className="h-4 w-4" />
+                حمّل التطبيق
+              </Button>
             </Link>
             <Link to="/login">
               <Button className="gap-2 glow-btn">

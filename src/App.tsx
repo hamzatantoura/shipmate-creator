@@ -28,6 +28,7 @@ import Storefront from "./pages/Storefront";
 import ProductPage from "./pages/ProductPage";
 import ReviewOrderPage from "./pages/ReviewOrderPage";
 import NotFound from "./pages/NotFound";
+import Install from "./pages/Install";
 import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/track" element={<TrackOrderPage />} />
           <Route path="/track-shipment" element={<TrackShipment />} />
           <Route path="/track-shipment/:trackingId" element={<TrackShipment />} />
+          <Route path="/install" element={<Install />} />
 
           {/* Public customer review page (no auth) */}
           <Route path="/review/:order_id" element={<ReviewOrderPage />} />
