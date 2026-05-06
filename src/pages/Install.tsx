@@ -36,9 +36,6 @@ export default function Install() {
             <Download className="h-10 w-10 text-primary" />
           </div>
           <h1 className="text-3xl md:text-4xl font-display font-bold mb-3">حمّل تطبيق صلة</h1>
-          <p className="text-muted-foreground max-w-xl mx-auto">
-            ثبّت منصة صلة على جهازك للوصول السريع كأنه تطبيق أصلي — يعمل دون اتصال ويفتح بضغطة واحدة من شاشتك الرئيسية.
-          </p>
         </div>
 
         {installed && (
