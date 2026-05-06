@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt, Settings } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
@@ -340,6 +340,9 @@ export default function AdminLogistics() {
             </TabsTrigger>
             <TabsTrigger value="audit" className="gap-1.5">
               <ScrollText className="h-3.5 w-3.5" /> سجل التدقيق
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <Settings className="h-3.5 w-3.5" /> إعدادات المنصة
             </TabsTrigger>
           </TabsList>
 
