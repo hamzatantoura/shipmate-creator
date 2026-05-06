@@ -523,6 +523,21 @@ export default function AdminLogistics() {
           <TabsContent value="settlements" forceMount className="mt-4 data-[state=inactive]:hidden">
             <CourierSettlementsPanel />
           </TabsContent>
+          <TabsContent value="settings" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <Card>
+              <CardContent className="p-6 space-y-4 text-center">
+                <Settings className="h-10 w-10 mx-auto text-primary" />
+                <h3 className="text-lg font-display font-bold text-foreground">لوحة إعدادات المنصة المركزية</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  من هنا تتحكم بنِسَب العمولة، ظهورها للتاجر، وضع التحقق، حدود الشحن المجاني،
+                  الحد الأدنى للسحب، رقم واتساب المنصة، والمزيد. كل قيمة هنا تُطبَّق فوراً على باقي الواجهات.
+                </p>
+                <Button asChild className="gap-1.5">
+                  <a href="/admin/settings"><Settings className="h-4 w-4" /> فتح لوحة الإعدادات</a>
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Payout detail dialog */}
