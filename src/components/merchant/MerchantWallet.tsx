@@ -146,7 +146,8 @@ export default function MerchantWallet() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>المبلغ (ل.س)</Label>
-                  <Input type="number" min="1" max={walletBalance} value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} placeholder={`الحد الأقصى: ${walletBalance.toLocaleString()}`} />
+                  <Input type="number" min={minPayout} max={walletBalance} value={payoutAmount} onChange={e => setPayoutAmount(e.target.value)} placeholder={`الحد الأقصى: ${walletBalance.toLocaleString()}`} />
+                  <p className="text-[11px] text-muted-foreground">الحد الأدنى للسحب: {minPayout.toLocaleString()} ل.س</p>
                 </div>
                 <div className="space-y-2">
                   <Label>طريقة التسوية</Label>
