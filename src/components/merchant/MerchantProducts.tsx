@@ -11,6 +11,7 @@ import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, 
 import { useAuth } from "@/hooks/use-auth";
 import { compressImage } from "@/lib/image-compress";
 import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
+import { usePlatformSettings } from "@/hooks/use-platform-settings";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
@@ -29,6 +30,8 @@ function generateSlug(name: string): string {
 
 export default function MerchantProducts() {
   const { user } = useAuth();
+  const platformSettings = usePlatformSettings();
+  const maxImages = platformSettings.product_max_images || 5;
   const [products, setProducts] = useState<Product[]>([]);
   const [productImages, setProductImages] = useState<Record<string, ProductImage[]>>({});
   const [open, setOpen] = useState(false);
@@ -235,8 +238,16 @@ export default function MerchantProducts() {
                 {!editingProduct && <ProductVariantsForm variants={variants} onChange={setVariants} />}
                 <div className="space-y-2">
                   <Label>{editingProduct ? "تغيير صورة المنتج (اختياري)" : "صور المنتج (يمكنك اختيار عدة صور)"}</Label>
-                  <Input type="file" accept="image/*" multiple={!editingProduct} onChange={e => setImageFiles(Array.from(e.target.files || []))} />
-                  {imageFiles.length > 0 && <p className="text-xs text-muted-foreground">{imageFiles.length} صورة محددة</p>}
+                  <Input type="file" accept="image/*" multiple={!editingProduct} onChange={e => {
+                    const files = Array.from(e.target.files || []);
+                    if (!editingProduct && files.length > maxImages) {
+                      toast.error(`الحد الأقصى ${maxImages} صور لكل منتج`);
+                      setImageFiles(files.slice(0, maxImages));
+                    } else {
+                      setImageFiles(files);
+                    }
+                  }} />
+                  {imageFiles.length > 0 && <p className="text-xs text-muted-foreground">{imageFiles.length} / {maxImages} صورة محددة</p>}
                 </div>
                 <Button type="submit" disabled={loading} className="w-full glow-btn">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : editingProduct ? <Pencil className="h-4 w-4 ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
