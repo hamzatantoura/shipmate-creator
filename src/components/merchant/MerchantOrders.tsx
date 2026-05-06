@@ -366,7 +366,12 @@ export default function MerchantOrders() {
                 {editPrice && (
                   <div className="text-sm space-y-1 p-3 bg-muted/50 rounded-lg">
                     <p>رسوم الشحن: <span className="font-bold">{confirmPricing.merchant_shipping_fee.toLocaleString()} ل.س</span></p>
-                    <p>بدل تحصيل (1%): <span className="font-bold">{confirmPricing.collection_fee.toLocaleString()} ل.س</span></p>
+                    {platformSettings.collection_fee_visible && (
+                      <p>بدل تحصيل ({platformSettings.default_collection_fee_pct}%): <span className="font-bold">{confirmPricing.collection_fee.toLocaleString()} ل.س</span></p>
+                    )}
+                    {platformSettings.platform_margin_visible && (
+                      <p>عمولة المنصة ({platformSettings.default_platform_margin_pct}%): <span className="font-bold">{confirmPricing.platform_margin.toLocaleString()} ل.س</span></p>
+                    )}
                     <div className="h-px bg-border my-1" />
                     <p className={`font-bold ${confirmPricing.net_to_merchant >= 0 ? 'text-primary' : 'text-destructive'}`}>
                       صافي الربح: {confirmPricing.net_to_merchant.toLocaleString()} ل.س

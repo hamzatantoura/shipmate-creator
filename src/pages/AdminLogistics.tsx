@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt, Settings } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
 import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
@@ -341,6 +341,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="audit" className="gap-1.5">
               <ScrollText className="h-3.5 w-3.5" /> سجل التدقيق
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <Settings className="h-3.5 w-3.5" /> إعدادات المنصة
+            </TabsTrigger>
           </TabsList>
 
           {/* Analytics dashboard tab */}
@@ -519,6 +522,21 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="settlements" forceMount className="mt-4 data-[state=inactive]:hidden">
             <CourierSettlementsPanel />
+          </TabsContent>
+          <TabsContent value="settings" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <Card>
+              <CardContent className="p-6 space-y-4 text-center">
+                <Settings className="h-10 w-10 mx-auto text-primary" />
+                <h3 className="text-lg font-display font-bold text-foreground">لوحة إعدادات المنصة المركزية</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  من هنا تتحكم بنِسَب العمولة، ظهورها للتاجر، وضع التحقق، حدود الشحن المجاني،
+                  الحد الأدنى للسحب، رقم واتساب المنصة، والمزيد. كل قيمة هنا تُطبَّق فوراً على باقي الواجهات.
+                </p>
+                <Button asChild className="gap-1.5">
+                  <a href="/admin/settings"><Settings className="h-4 w-4" /> فتح لوحة الإعدادات</a>
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
