@@ -691,13 +691,26 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
                 {pricing.merchant_shipping_fee > 0 ? `${pricing.merchant_shipping_fee.toLocaleString()} ل.س` : "غير محدد لهذه المنطقة"}
               </p>
             </div>
-            {codAmount > 0 && (
+            {platformSettings.platform_margin_visible && pricing.platform_margin > 0 && (
               <>
                 <div className="h-8 w-px bg-border" />
                 <div>
-                  <p className="text-sm text-muted-foreground">بدل تحصيل (1%)</p>
+                  <p className="text-sm text-muted-foreground">عمولة المنصة ({platformSettings.default_platform_margin_pct}%)</p>
+                  <p className="text-lg font-display font-bold text-foreground">{pricing.platform_margin.toLocaleString()} ل.س</p>
+                </div>
+              </>
+            )}
+            {codAmount > 0 && platformSettings.collection_fee_visible && (
+              <>
+                <div className="h-8 w-px bg-border" />
+                <div>
+                  <p className="text-sm text-muted-foreground">بدل تحصيل ({platformSettings.default_collection_fee_pct}%)</p>
                   <p className="text-lg font-display font-bold text-foreground">{pricing.collection_fee.toLocaleString()} ل.س</p>
                 </div>
+              </>
+            )}
+            {codAmount > 0 && (
+              <>
                 <div className="h-8 w-px bg-border" />
                 <div>
                   <p className="text-sm text-muted-foreground">صافي الربح</p>
