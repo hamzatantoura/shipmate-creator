@@ -30,7 +30,7 @@ function generateSlug(name: string): string {
 
 export default function MerchantProducts() {
   const { user } = useAuth();
-  const platformSettings = usePlatformSettings();
+  const { settings: platformSettings } = usePlatformSettings();
   const maxImages = platformSettings.product_max_images || 5;
   const [products, setProducts] = useState<Product[]>([]);
   const [productImages, setProductImages] = useState<Record<string, ProductImage[]>>({});
