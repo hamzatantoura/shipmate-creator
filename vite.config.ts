@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => ({
       manifest: false,
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/, /^\/api/],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === "navigate",
