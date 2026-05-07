@@ -94,7 +94,7 @@ export default function Landing() {
               </p>
               <div className="flex gap-3 flex-wrap">
                 <Link to="/signup">
-                  <Button size="lg" className="gap-2 text-base px-7 h-12 font-semibold glow-btn">
+                  <Button size="lg" className="gap-2 text-base px-7 h-12 font-semibold glow-btn pulse-glow">
                     ابدأ مجاناً
                     <ArrowLeft className="h-4 w-4" />
                   </Button>
