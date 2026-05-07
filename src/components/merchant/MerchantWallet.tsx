@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
+import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle, RotateCcw, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -46,6 +46,24 @@ interface RecentReturn {
   tracking: string | null;
 }
 
+interface PendingShipment {
+  id: string;
+  tracking: string;
+  status: string;
+  cod: number;
+  shipping: number;
+  collection: number;
+  net: number;
+}
+
+const SHIPMENT_STATUS_AR: Record<string, string> = {
+  pending: "بانتظار الاستلام",
+  processing: "قيد المعالجة",
+  picked_up: "تم الاستلام",
+  in_transit: "قيد النقل",
+  out_for_delivery: "قيد التوصيل",
+};
+
 export default function MerchantWallet() {
   const { user } = useAuth();
   const { settings: platformSettings } = usePlatformSettings();
@@ -61,20 +79,25 @@ export default function MerchantWallet() {
   const [submitting, setSubmitting] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
   const [recentReturns, setRecentReturns] = useState<RecentReturn[]>([]);
+  const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>([]);
+  const [pendingGross, setPendingGross] = useState(0);
+  const [pendingShipping, setPendingShipping] = useState(0);
+  const [pendingCollection, setPendingCollection] = useState(0);
+  const [expectedOpen, setExpectedOpen] = useState(false);
 
   const expectedBalance = availableBalance + pendingBalance;
 
   const fetchData = useCallback(async () => {
     if (!user) return;
 
-    const [walletRes, payoutRes, ordersRes] = await Promise.all([
+    const [walletRes, payoutRes, shipmentsRes] = await Promise.all([
       supabase.from("wallets").select("*").eq("merchant_id", user.id).single(),
       supabase.from("payout_requests").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false }),
       supabase
-        .from("orders")
-        .select("status, total_amount, final_sale_price, delivery_fee")
+        .from("shipments")
+        .select("id, tracking_number, status, cod_amount, merchant_shipping_fee, collection_fee")
         .eq("merchant_id", user.id)
-        .is("deleted_at", null),
+        .in("status", ["pending", "processing", "picked_up", "in_transit", "out_for_delivery"]),
     ]);
 
     if (walletRes.data) {
@@ -119,17 +142,28 @@ export default function MerchantWallet() {
       })));
     }
 
-    // Pending = orders not yet delivered (informational only, not part of available balance)
-    if (ordersRes.data) {
-      const PENDING = new Set(["processing", "shipped", "out_for_delivery"]);
-      let pend = 0;
-      for (const o of ordersRes.data as any[]) {
-        const amount = Number(o.final_sale_price ?? o.total_amount ?? 0);
-        const fee = Number(o.delivery_fee ?? 0);
-        const net = amount - fee;
-        if (PENDING.has(o.status)) pend += net;
+    // Pending = شحنات لم تُسلَّم بعد. الصافي المتوقع = COD − أجور الشحن − أجور خدمة الدفع
+    if (shipmentsRes.data) {
+      let gross = 0, ship = 0, col = 0, net = 0;
+      const list: PendingShipment[] = [];
+      for (const s of shipmentsRes.data as any[]) {
+        const cod = Number(s.cod_amount) || 0;
+        const shipping = Number(s.merchant_shipping_fee) || 0;
+        const collection = Number(s.collection_fee) || 0;
+        const n = cod - shipping - collection;
+        gross += cod; ship += shipping; col += collection; net += n;
+        list.push({
+          id: s.id,
+          tracking: s.tracking_number || ("SL-" + String(s.id).slice(0, 6).toUpperCase()),
+          status: s.status,
+          cod, shipping, collection, net: n,
+        });
       }
-      setPendingBalance(pend);
+      setPendingShipments(list);
+      setPendingGross(gross);
+      setPendingShipping(ship);
+      setPendingCollection(col);
+      setPendingBalance(net);
     }
   }, [user]);
 
@@ -232,19 +266,126 @@ export default function MerchantWallet() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border">
+        <Card
+          className="border-border hover:border-primary/40 transition-colors cursor-pointer group"
+          onClick={() => setExpectedOpen(true)}
+        >
           <CardContent className="p-5 flex items-center gap-3">
             <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
               <Wallet className="h-6 w-6 text-foreground" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">الرصيد المتوقع</p>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-muted-foreground">الرصيد المتوقع</p>
+                <Info className="h-3.5 w-3.5 text-primary group-hover:scale-110 transition-transform" />
+              </div>
               <p className="text-2xl font-display font-bold text-foreground">{expectedBalance.toLocaleString()} ل.س</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">المتاح + بانتظار التحويل</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">المتاح + صافي الشحنات بعد الخصومات — انقر للتفاصيل</p>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Expected balance breakdown dialog */}
+      <Dialog open={expectedOpen} onOpenChange={setExpectedOpen}>
+        <DialogContent dir="rtl" className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              تفاصيل الرصيد المتوقع
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            {/* Breakdown table */}
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-border">
+                    <td className="p-3 text-muted-foreground">الرصيد المتاح حالياً</td>
+                    <td className="p-3 text-left tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+                      +{availableBalance.toLocaleString("ar-SY")} ل.س
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border">
+                    <td className="p-3 text-muted-foreground">
+                      إجمالي قيمة الطلبات المنتظرة
+                      <span className="text-xs text-muted-foreground/70 mr-1">({pendingShipments.length} شحنة)</span>
+                    </td>
+                    <td className="p-3 text-left tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+                      +{pendingGross.toLocaleString("ar-SY")} ل.س
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border">
+                    <td className="p-3 text-muted-foreground">(−) أجور الشحن</td>
+                    <td className="p-3 text-left tabular-nums text-destructive">
+                      −{pendingShipping.toLocaleString("ar-SY")} ل.س
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border">
+                    <td className="p-3 text-muted-foreground">(−) أجور خدمة الدفع عند التسليم</td>
+                    <td className="p-3 text-left tabular-nums text-destructive">
+                      −{pendingCollection.toLocaleString("ar-SY")} ل.س
+                    </td>
+                  </tr>
+                  <tr className="bg-primary/5">
+                    <td className="p-3 font-display font-bold text-foreground">الصافي المتوقع</td>
+                    <td className="p-3 text-left tabular-nums font-display font-bold text-primary text-base">
+                      {expectedBalance.toLocaleString("ar-SY")} ل.س
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pending shipments details */}
+            {pendingShipments.length > 0 && (
+              <div>
+                <h4 className="font-display font-semibold text-sm text-foreground mb-2">تفصيل الشحنات المنتظرة</h4>
+                <div className="rounded-lg border border-border overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50">
+                      <tr className="text-muted-foreground">
+                        <th className="p-2 text-right font-medium">رقم التتبع</th>
+                        <th className="p-2 text-right font-medium">الحالة</th>
+                        <th className="p-2 text-left font-medium">قيمة الطلب</th>
+                        <th className="p-2 text-left font-medium">أجور الشحن</th>
+                        <th className="p-2 text-left font-medium">أجور الدفع</th>
+                        <th className="p-2 text-left font-medium">الصافي</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingShipments.map(s => (
+                        <tr key={s.id} className="border-t border-border">
+                          <td className="p-2 font-mono text-[11px]">{s.tracking}</td>
+                          <td className="p-2">
+                            <Badge variant="outline" className="text-[10px] bg-warning/10 text-warning border-warning/30">
+                              {SHIPMENT_STATUS_AR[s.status] || s.status}
+                            </Badge>
+                          </td>
+                          <td className="p-2 text-left tabular-nums">{s.cod.toLocaleString("ar-SY")}</td>
+                          <td className="p-2 text-left tabular-nums text-destructive">−{s.shipping.toLocaleString("ar-SY")}</td>
+                          <td className="p-2 text-left tabular-nums text-destructive">−{s.collection.toLocaleString("ar-SY")}</td>
+                          <td className="p-2 text-left tabular-nums font-bold text-primary">{s.net.toLocaleString("ar-SY")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>
+                هذه الأرقام لا تشمل المرتجعات. عند إرجاع أي شحنة يُخصم من رصيدك
+                <span className="font-semibold"> أجور الشحن + رسوم مرتجع </span>
+                حسب نسبة شركة الشحن المعتمدة.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Payouts */}
       {payouts.length > 0 && (
