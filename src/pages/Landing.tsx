@@ -35,25 +35,30 @@ export default function Landing() {
     <div className="min-h-screen bg-background" dir="rtl">
       {/* Nav */}
       <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src={silaLogo} alt="Sila" className="h-8 w-8" />
-            <span className="font-display font-bold text-xl text-primary tracking-tight">Sila</span>
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 shrink-0">
+            <img src={silaLogo} alt="Sila" className="h-7 w-7 sm:h-8 sm:w-8" />
+            <span className="font-display font-bold text-lg sm:text-xl text-primary tracking-tight">Sila</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link to="/track">
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            <Link to="/track" className="hidden sm:block">
               <Button variant="ghost" size="sm" className="text-sm">تتبع شحنة</Button>
             </Link>
-            <Link to="/install">
+            <Link to="/install" className="hidden md:block">
               <Button variant="outline" size="sm" className="text-sm gap-1.5">
                 <Download className="h-4 w-4" />
                 حمّل التطبيق
               </Button>
             </Link>
+            <Link to="/install" className="md:hidden">
+              <Button variant="outline" size="icon" className="h-9 w-9" aria-label="حمّل التطبيق">
+                <Download className="h-4 w-4" />
+              </Button>
+            </Link>
             <Link to="/login">
-              <Button className="gap-2 glow-btn">
-                <ArrowLeft className="h-4 w-4" />
-                سجّل دخولك
+              <Button size="sm" className="gap-1.5 glow-btn text-xs sm:text-sm px-3 sm:px-4">
+                <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span>سجّل دخولك</span>
               </Button>
             </Link>
           </div>
