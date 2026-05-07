@@ -43,7 +43,7 @@ export default function MerchantDashboard() {
     if (!user) return;
     setData((d) => ({ ...d, loading: true }));
 
-    const [walletRes, ordersRes, merchantRes] = await Promise.all([
+    const [walletRes, ordersRes, merchantRes, shipmentsRes] = await Promise.all([
       supabase.from("wallets").select("id").eq("merchant_id", user.id).maybeSingle(),
       supabase
         .from("orders")
@@ -55,6 +55,11 @@ export default function MerchantDashboard() {
         .select("verification_status")
         .eq("user_id", user.id)
         .maybeSingle(),
+      supabase
+        .from("shipments")
+        .select("id, status, cod_amount, merchant_shipping_fee, shipping_fee, carrier_fee, collection_fee, orders!shipments_order_id_fkey(id, status, shipment_id)")
+        .eq("merchant_id", user.id)
+        .in("status", ["pending", "processing", "picked_up", "received_by_courier", "at_warehouse", "in_transit", "out_for_delivery"]),
     ]);
 
     let availableBalance = 0;
@@ -69,13 +74,23 @@ export default function MerchantDashboard() {
     let newOrders = 0, pendingOrders = 0, deliveredOrders = 0, returnedOrders = 0;
     let pendingBalance = 0;
     for (const o of (ordersRes.data || []) as any[]) {
-      const amount = Number(o.final_sale_price ?? o.total_amount ?? 0);
-      const fee = Number(o.delivery_fee ?? 0);
-      const net = amount - fee;
       if (o.status === "new") newOrders++;
-      else if (PENDING_STATUSES.has(o.status)) { pendingOrders++; pendingBalance += net; }
+      else if (PENDING_STATUSES.has(o.status)) { pendingOrders++; }
       else if (o.status === "delivered") { deliveredOrders++; }
       else if (o.status === "returned") returnedOrders++;
+    }
+
+    // الرصيد المتوقع: نفس منطق صفحة المحفظة — شحنات نشطة، خصم أجور الشحن وبدل التحصيل، استبعاد اليتيمة/المكررة
+    const SETTLED = new Set(["delivered", "returned", "cancelled"]);
+    for (const s of (shipmentsRes.data || []) as any[]) {
+      const ord = Array.isArray(s.orders) ? s.orders[0] : s.orders;
+      if (!ord) continue;
+      if (SETTLED.has(ord.status)) continue;
+      if (ord.shipment_id && ord.shipment_id !== s.id) continue;
+      const cod = Number(s.cod_amount) || 0;
+      const shipping = Number(s.merchant_shipping_fee) || Number(s.shipping_fee) || Number(s.carrier_fee) || 0;
+      const collection = Number(s.collection_fee) || 0;
+      pendingBalance += cod - shipping - collection;
     }
 
     setData({
