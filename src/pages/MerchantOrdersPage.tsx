@@ -56,6 +56,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { printShippingLabel } from "@/lib/print-label";
 import { printBulkLabels, type BulkLabelData } from "@/lib/print-bulk";
+import { calculatePricing } from "@/lib/pricing-engine";
 import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
