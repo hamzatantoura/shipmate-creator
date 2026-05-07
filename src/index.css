@@ -79,4 +79,55 @@
   .glow-btn:hover {
     box-shadow: 0 6px 20px -3px hsl(217 91% 60% / 0.45);
   }
+
+  /* Premium feature card hover */
+  .feature-card {
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.35s ease,
+                border-color 0.35s ease;
+  }
+  .feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px -20px hsl(217 91% 60% / 0.25),
+                0 8px 16px -8px hsl(222 47% 11% / 0.08);
+  }
+  .feature-card .feature-icon {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background-color 0.3s ease;
+  }
+  .feature-card:hover .feature-icon {
+    transform: scale(1.1) rotate(-6deg);
+  }
+
+  /* Skeleton shimmer */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--muted));
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(0 0% 100% / 0.55),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
+  /* Pulsing CTA */
+  .pulse-glow {
+    animation: pulse-glow 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 4px 14px -3px hsl(217 91% 60% / 0.35); }
+    50% { box-shadow: 0 8px 28px -3px hsl(217 91% 60% / 0.55); }
+  }
 }
