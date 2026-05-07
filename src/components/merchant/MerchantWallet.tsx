@@ -60,6 +60,8 @@ const SHIPMENT_STATUS_AR: Record<string, string> = {
   pending: "بانتظار الاستلام",
   processing: "قيد المعالجة",
   picked_up: "تم الاستلام",
+  received_by_courier: "في عهدة المندوب",
+  at_warehouse: "في المستودع",
   in_transit: "قيد النقل",
   out_for_delivery: "قيد التوصيل",
 };
@@ -97,7 +99,7 @@ export default function MerchantWallet() {
         .from("shipments")
         .select("id, tracking_number, status, cod_amount, merchant_shipping_fee, shipping_fee, carrier_fee, collection_fee, order_id, orders!shipments_order_id_fkey(id, status, shipment_id)")
         .eq("merchant_id", user.id)
-        .in("status", ["pending", "processing", "picked_up", "in_transit", "out_for_delivery"]),
+        .in("status", ["pending", "processing", "picked_up", "received_by_courier", "at_warehouse", "in_transit", "out_for_delivery"]),
     ]);
 
     if (walletRes.data) {
