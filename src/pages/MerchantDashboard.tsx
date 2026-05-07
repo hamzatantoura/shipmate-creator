@@ -3,12 +3,13 @@ import MerchantLayout from "@/components/merchant/MerchantLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  Wallet, Clock, TrendingUp, ShoppingCart, RotateCcw, ShieldAlert,
+  Wallet, TrendingUp, ShoppingCart, RotateCcw, ShieldAlert,
   CheckCircle2, Truck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "react-router-dom";
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-SY").format(Math.round(n)) + " ل.س";
 
@@ -16,7 +17,6 @@ interface DashboardData {
   loading: boolean;
   availableBalance: number; // wallet ledger sum
   pendingBalance: number;   // orders processing/shipped/out_for_delivery — net
-  onHoldBalance: number;    // delivered orders not yet settled to wallet — net
   newOrders: number;
   pendingOrders: number;
   deliveredOrders: number;
@@ -32,7 +32,6 @@ export default function MerchantDashboard() {
     loading: true,
     availableBalance: 0,
     pendingBalance: 0,
-    onHoldBalance: 0,
     newOrders: 0,
     pendingOrders: 0,
     deliveredOrders: 0,
@@ -68,14 +67,14 @@ export default function MerchantDashboard() {
     }
 
     let newOrders = 0, pendingOrders = 0, deliveredOrders = 0, returnedOrders = 0;
-    let pendingBalance = 0, onHoldBalance = 0;
+    let pendingBalance = 0;
     for (const o of (ordersRes.data || []) as any[]) {
       const amount = Number(o.final_sale_price ?? o.total_amount ?? 0);
       const fee = Number(o.delivery_fee ?? 0);
       const net = amount - fee;
       if (o.status === "new") newOrders++;
       else if (PENDING_STATUSES.has(o.status)) { pendingOrders++; pendingBalance += net; }
-      else if (o.status === "delivered") { deliveredOrders++; onHoldBalance += net; }
+      else if (o.status === "delivered") { deliveredOrders++; }
       else if (o.status === "returned") returnedOrders++;
     }
 
@@ -83,7 +82,6 @@ export default function MerchantDashboard() {
       loading: false,
       availableBalance,
       pendingBalance,
-      onHoldBalance: Math.max(0, onHoldBalance - availableBalance), // approx unpaid delivered
       newOrders,
       pendingOrders,
       deliveredOrders,
@@ -134,36 +132,23 @@ export default function MerchantDashboard() {
           {/* 3-Tier Wallet */}
           <section>
             <h2 className="text-lg font-semibold text-foreground mb-3">المحفظة المالية</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border-r-4 border-r-emerald-500 bg-gradient-to-bl from-emerald-500/10 to-transparent">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">الرصيد المتاح</CardTitle>
-                    <div className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                      <Wallet className="h-4 w-4 text-emerald-500" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link to="/merchant/wallet" className="group">
+                <Card className="border-r-4 border-r-emerald-500 bg-gradient-to-bl from-emerald-500/10 to-transparent hover:shadow-lg hover:border-r-emerald-400 transition-all cursor-pointer h-full">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">الرصيد المتاح</CardTitle>
+                      <div className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <Wallet className="h-4 w-4 text-emerald-500" />
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-emerald-500">{fmt(data.availableBalance)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">من سجل المحفظة (دفتر الحسابات)</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-r-4 border-r-amber-500 bg-gradient-to-bl from-amber-500/10 to-transparent">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">بانتظار التحاسب</CardTitle>
-                    <div className="h-9 w-9 rounded-full bg-amber-500/20 flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-amber-500" />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-amber-500">{fmt(data.onHoldBalance)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">شحنات مُوصَّلة لم تُسوَّ بعد</p>
-                </CardContent>
-              </Card>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-emerald-500">{fmt(data.availableBalance)}</div>
+                    <p className="text-xs text-muted-foreground mt-1">اضغط لعرض سجل الحركات التفصيلي</p>
+                  </CardContent>
+                </Card>
+              </Link>
 
               <Card className="border-r-4 border-r-sky-500 bg-gradient-to-bl from-sky-500/10 to-transparent">
                 <CardHeader className="pb-2">
@@ -232,8 +217,8 @@ function DashboardSkeleton() {
     <div className="space-y-6">
       <section>
         <Skeleton className="h-5 w-32 mb-3 shimmer" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[0, 1, 2].map((i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[0, 1].map((i) => (
             <div key={i} className="rounded-lg border border-border bg-card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-4 w-24 shimmer" />
