@@ -730,6 +730,21 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
               <p>⚠️ لا يمكن إتمام هذا الطلب: تكلفة الشحن والتحصيل ({pricing.total_merchant_cost.toLocaleString()} ل.س) أكبر من قيمة التحصيل ({codAmount.toLocaleString()} ل.س)</p>
             </div>
           )}
+
+          {selectedCourier && pricing.merchant_shipping_fee > 0 && (() => {
+            const pct = selectedCourier.return_fee_percentage || 50;
+            const returnFee = Math.round(pricing.merchant_shipping_fee * pct / 100);
+            const total = pricing.merchant_shipping_fee + returnFee;
+            return (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+                <span className="font-semibold">في حال إرجاع الشحنة: </span>
+                يُخصم من محفظتك أجور الشحن ({pricing.merchant_shipping_fee.toLocaleString()} ل.س) +
+                رسوم مرتجع {pct}% ({returnFee.toLocaleString()} ل.س) =
+                <span className="font-bold mx-1">{total.toLocaleString()} ل.س</span>
+                (قد يظهر كرصيد سالب يُسوَّى لاحقاً).
+              </div>
+            );
+          })()}
         </div>
       )}
 
