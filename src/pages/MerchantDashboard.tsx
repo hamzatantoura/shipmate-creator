@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Wallet, Clock, TrendingUp, ShoppingCart, RotateCcw, ShieldAlert,
-  CheckCircle2, Truck, Loader2,
+  CheckCircle2, Truck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const fmt = (n: number) => new Intl.NumberFormat("ar-SY").format(Math.round(n)) + " ل.س";
 
@@ -119,9 +120,7 @@ export default function MerchantDashboard() {
   return (
     <MerchantLayout title="الرئيسية" subtitle={`مرحباً ${profile?.store_name || ""}`}>
       {data.loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           {isLocked && (
@@ -225,5 +224,41 @@ function StatCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <section>
+        <Skeleton className="h-5 w-32 mb-3 shimmer" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-24 shimmer" />
+                <Skeleton className="h-9 w-9 rounded-full shimmer" />
+              </div>
+              <Skeleton className="h-8 w-32 shimmer" />
+              <Skeleton className="h-3 w-40 shimmer" />
+            </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        <Skeleton className="h-5 w-40 mb-3 shimmer" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-5 flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-lg shimmer" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-3 w-20 shimmer" />
+                <Skeleton className="h-6 w-12 shimmer" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
