@@ -56,6 +56,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { printShippingLabel } from "@/lib/print-label";
 import { printBulkLabels, type BulkLabelData } from "@/lib/print-bulk";
+import { calculatePricing } from "@/lib/pricing-engine";
 import EditOrderDialog from "@/components/merchant/EditOrderDialog";
 import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -204,6 +205,39 @@ const createShipmentForOrder = async (
   const tracking = buildTrackingNumber(order.id);
   const cod = Number(order.final_sale_price ?? order.total_amount ?? 0);
   const fee = Number(deliveryFee || 0);
+
+  // Resolve collection_fee from courier settings (cod_fee_type/cod_fee_value)
+  // with fallback to platform_settings.default_collection_fee_pct.
+  let courierCodType: "fixed" | "percentage" | undefined;
+  let courierCodValue: number | undefined;
+  if (order.courier_id) {
+    const { data: c } = await supabase
+      .from("couriers_public" as any)
+      .select("cod_fee_type, cod_fee_value")
+      .eq("id", order.courier_id)
+      .maybeSingle();
+    if (c) {
+      courierCodType = ((c as any).cod_fee_type === "fixed" ? "fixed" : "percentage");
+      courierCodValue = Number((c as any).cod_fee_value) || 0;
+    }
+  }
+  const { data: ps } = await supabase
+    .from("platform_settings")
+    .select("default_collection_fee_pct, default_platform_margin_pct, default_platform_margin_flat")
+    .maybeSingle();
+
+  const pricing = calculatePricing({
+    carrier_fee: fee,
+    cod_amount: cod,
+    settings: {
+      platform_margin_pct: Number(ps?.default_platform_margin_pct) || 0,
+      platform_margin_flat: Number(ps?.default_platform_margin_flat) || 0,
+      default_collection_fee_pct: Number(ps?.default_collection_fee_pct) || 0,
+      courier_cod_fee_type: courierCodType,
+      courier_cod_fee_value: courierCodValue,
+    },
+  });
+
   const { data, error } = await supabase
     .from("shipments")
     .insert({
@@ -215,8 +249,11 @@ const createShipmentForOrder = async (
       city: mapCityToShipmentEnum(order.city) as any,
       detailed_address: order.detailed_address,
       cod_amount: cod,
-      collection_fee: fee,
-      shipping_fee: fee,
+      collection_fee: pricing.collection_fee,
+      shipping_fee: pricing.merchant_shipping_fee,
+      merchant_shipping_fee: pricing.merchant_shipping_fee,
+      carrier_fee: pricing.carrier_fee,
+      platform_margin: pricing.platform_margin,
       tracking_number: tracking,
       status: "pending",
     } as any)
