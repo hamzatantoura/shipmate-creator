@@ -95,7 +95,7 @@ export default function MerchantWallet() {
       supabase.from("payout_requests").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("shipments")
-        .select("id, tracking_number, status, cod_amount, merchant_shipping_fee, collection_fee")
+        .select("id, tracking_number, status, cod_amount, merchant_shipping_fee, shipping_fee, carrier_fee, collection_fee")
         .eq("merchant_id", user.id)
         .in("status", ["pending", "processing", "picked_up", "in_transit", "out_for_delivery"]),
     ]);
@@ -148,7 +148,12 @@ export default function MerchantWallet() {
       const list: PendingShipment[] = [];
       for (const s of shipmentsRes.data as any[]) {
         const cod = Number(s.cod_amount) || 0;
-        const shipping = Number(s.merchant_shipping_fee) || 0;
+        // Fallback chain: merchant_shipping_fee → shipping_fee → carrier_fee
+        const shipping =
+          Number(s.merchant_shipping_fee) ||
+          Number(s.shipping_fee) ||
+          Number(s.carrier_fee) ||
+          0;
         const collection = Number(s.collection_fee) || 0;
         const n = cod - shipping - collection;
         gross += cod; ship += shipping; col += collection; net += n;
