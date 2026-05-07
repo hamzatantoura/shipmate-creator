@@ -280,11 +280,7 @@ export default function WalletTransactionsLog({ merchantId, showAll, vendorId }:
                 )}
                 <Row label="التاريخ" value={new Date(detail.created_at).toLocaleString("ar-SY")} />
                 {detail.description && <Row label="الوصف" value={detail.description} />}
-                {detail.type === "return_fee" && (
-                  <p className="text-xs text-destructive bg-destructive/5 p-2 rounded border border-destructive/20">
-                    تم خصم رسوم إرجاع لطلب مرتجع. رسوم الإرجاع تُحدَّد من إعدادات شركة الشحن في لوحة الإدارة.
-                  </p>
-                )}
+                {/* removed return_fee notice */}
                 {detail.reference_id && (
                   <Button variant="outline" size="sm" className="w-full" asChild>
                     <a href={`/merchant/orders?focus=${detail.reference_id}`}>عرض الطلب الأصلي</a>
