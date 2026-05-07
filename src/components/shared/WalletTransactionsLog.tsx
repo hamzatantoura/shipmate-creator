@@ -48,33 +48,6 @@ export default function WalletTransactionsLog({ merchantId, showAll, vendorId }:
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "credit" | "debit" | "return_fee" | "cod_settlement">("all");
   const [detail, setDetail] = useState<WalletTx | null>(null);
-  const [detailTracking, setDetailTracking] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDetailTracking(null);
-    if (!detail?.reference_id) return;
-    let cancelled = false;
-    (async () => {
-      // Try as order id first → grab the linked shipment tracking number
-      const { data: order } = await supabase
-        .from("orders")
-        .select("shipments!orders_shipment_id_fkey(tracking_number)")
-        .eq("id", detail.reference_id)
-        .maybeSingle();
-      let tracking: string | null = (order as any)?.shipments?.tracking_number ?? null;
-      if (!tracking) {
-        // Fallback: reference_id might be a shipment id directly
-        const { data: ship } = await supabase
-          .from("shipments")
-          .select("tracking_number")
-          .eq("id", detail.reference_id)
-          .maybeSingle();
-        tracking = (ship as any)?.tracking_number ?? null;
-      }
-      if (!cancelled) setDetailTracking(tracking);
-    })();
-    return () => { cancelled = true; };
-  }, [detail?.reference_id]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -308,15 +281,11 @@ export default function WalletTransactionsLog({ merchantId, showAll, vendorId }:
                 <Row label="التاريخ" value={new Date(detail.created_at).toLocaleString("ar-SY")} />
                 {detail.description && <Row label="الوصف" value={detail.description} />}
                 {/* removed return_fee notice */}
-                {detailTracking ? (
+                {detail.reference_id && (
                   <Button variant="outline" size="sm" className="w-full" asChild>
-                    <a href={`/track-shipment/${detailTracking}`}>تتبّع الشحنة</a>
+                    <a href={`/merchant/orders?focus=${detail.reference_id}`}>عرض الطلب الأصلي</a>
                   </Button>
-                ) : detail.reference_id ? (
-                  <Button variant="outline" size="sm" className="w-full" disabled>
-                    لا توجد شحنة مرتبطة
-                  </Button>
-                ) : null}
+                )}
               </div>
             );
           })()}
