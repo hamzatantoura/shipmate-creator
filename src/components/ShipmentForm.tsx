@@ -49,6 +49,7 @@ interface CourierOption {
   cod_fee_value: number;
   cod_fee: number; // computed for current cod amount
   estimated_days: string | null;
+  return_fee_percentage: number;
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -295,7 +296,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
       const { data: couriersData } = await supabase
         .from("couriers_public" as any)
-        .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value")
+        .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value, return_fee_percentage")
         .in("id", courierIds)
         .eq("is_active", true);
       if (cancelled) return;
@@ -326,6 +327,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             cod_fee_value: feeVal,
             cod_fee: Math.round(codFee),
             estimated_days: r.estimated_days || null,
+            return_fee_percentage: Number(c.return_fee_percentage) || 50,
           };
         })
         .sort((a, b) => {
