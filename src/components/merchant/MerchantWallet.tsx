@@ -95,7 +95,7 @@ export default function MerchantWallet() {
       supabase.from("payout_requests").select("*").eq("merchant_id", user.id).order("created_at", { ascending: false }),
       supabase
         .from("shipments")
-        .select("id, tracking_number, status, cod_amount, merchant_shipping_fee, shipping_fee, carrier_fee, collection_fee")
+        .select("id, tracking_number, status, cod_amount, merchant_shipping_fee, shipping_fee, carrier_fee, collection_fee, order_id, orders!shipments_order_id_fkey(id, status, shipment_id)")
         .eq("merchant_id", user.id)
         .in("status", ["pending", "processing", "picked_up", "in_transit", "out_for_delivery"]),
     ]);
@@ -146,7 +146,13 @@ export default function MerchantWallet() {
     if (shipmentsRes.data) {
       let gross = 0, ship = 0, col = 0, net = 0;
       const list: PendingShipment[] = [];
+      const SETTLED = new Set(["delivered", "returned", "cancelled"]);
       for (const s of shipmentsRes.data as any[]) {
+        const ord = Array.isArray(s.orders) ? s.orders[0] : s.orders;
+        // استبعد الشحنات اليتيمة أو المكررة أو المرتبطة بطلب مُسوّى
+        if (!ord) continue;
+        if (SETTLED.has(ord.status)) continue;
+        if (ord.shipment_id && ord.shipment_id !== s.id) continue;
         const cod = Number(s.cod_amount) || 0;
         // fallback for legacy shipments where merchant_shipping_fee wasn't stored
         const shipping = Number(s.merchant_shipping_fee) || Number(s.shipping_fee) || Number(s.carrier_fee) || 0;
