@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -37,6 +37,15 @@ interface PayoutReq {
   created_at: string;
 }
 
+interface RecentReturn {
+  id: string;
+  amount: number;
+  reference_id: string | null;
+  created_at: string;
+  return_reason: string | null;
+  tracking: string | null;
+}
+
 export default function MerchantWallet() {
   const { user } = useAuth();
   const { settings: platformSettings } = usePlatformSettings();
@@ -51,6 +60,7 @@ export default function MerchantWallet() {
 
   const [submitting, setSubmitting] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
+  const [recentReturns, setRecentReturns] = useState<RecentReturn[]>([]);
 
   const expectedBalance = availableBalance + pendingBalance;
 
@@ -80,6 +90,34 @@ export default function MerchantWallet() {
     }
 
     if (payoutRes.data) setPayouts(payoutRes.data as PayoutReq[]);
+
+    // Recent return_fee transactions for this merchant's wallet
+    if (walletRes.data?.id) {
+      const { data: rTx } = await supabase
+        .from("wallet_transactions")
+        .select("id, amount, reference_id, created_at")
+        .eq("wallet_id", walletRes.data.id)
+        .eq("type", "return_fee")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const refIds = (rTx || []).map(r => r.reference_id).filter(Boolean) as string[];
+      let reasonsMap = new Map<string, { return_reason: string | null }>();
+      if (refIds.length > 0) {
+        const { data: ords } = await supabase
+          .from("orders")
+          .select("id, return_reason")
+          .in("id", refIds);
+        (ords || []).forEach(o => reasonsMap.set(o.id, { return_reason: o.return_reason }));
+      }
+      setRecentReturns((rTx || []).map(r => ({
+        id: r.id,
+        amount: Number(r.amount),
+        reference_id: r.reference_id,
+        created_at: r.created_at,
+        return_reason: r.reference_id ? reasonsMap.get(r.reference_id)?.return_reason ?? null : null,
+        tracking: r.reference_id ? "SL-" + r.reference_id.slice(0, 6).toUpperCase() : null,
+      })));
+    }
 
     // Pending = orders not yet delivered (informational only, not part of available balance)
     if (ordersRes.data) {
@@ -239,6 +277,38 @@ export default function MerchantWallet() {
           {receiptOpen && <img src={receiptOpen} alt="receipt" className="rounded-lg max-h-96 object-contain mx-auto" />}
         </DialogContent>
       </Dialog>
+
+      {/* Recent returns */}
+      {recentReturns.length > 0 && (
+        <>
+          <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-destructive" /> آخر المرتجعات
+          </h3>
+          <div className="space-y-2">
+            {recentReturns.map(r => (
+              <Card key={r.id} className="bg-destructive/5 border-destructive/30">
+                <CardContent className="p-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px]">
+                        خصم رسوم إرجاع
+                      </Badge>
+                      {r.tracking && <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{r.tracking}</span>}
+                    </div>
+                    {r.return_reason && (
+                      <p className="text-xs text-muted-foreground mt-1 truncate">السبب: {r.return_reason}</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(r.created_at).toLocaleDateString("ar-SY")}</p>
+                  </div>
+                  <p className="font-bold tabular-nums text-sm text-destructive shrink-0">
+                    {r.amount.toLocaleString("ar-SY")} ل.س
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Transaction History */}
       <h3 className="font-display font-semibold text-foreground">سجل الحركات</h3>
