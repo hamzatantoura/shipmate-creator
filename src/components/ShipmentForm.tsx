@@ -706,7 +706,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
               <>
                 <div className="h-8 w-px bg-border" />
                 <div>
-                  <p className="text-sm text-muted-foreground">بدل تحصيل ({platformSettings.default_collection_fee_pct}%)</p>
+                  <p className="text-sm text-muted-foreground">بدل تحصيل ({selectedCourier?.cod_fee_type === "fixed" ? `${(selectedCourier?.cod_fee_value || 0).toLocaleString()} ل.س` : `${selectedCourier?.cod_fee_value ?? platformSettings.default_collection_fee_pct}%`})</p>
                   <p className="text-lg font-display font-bold text-foreground">{pricing.collection_fee.toLocaleString()} ل.س</p>
                 </div>
               </>
