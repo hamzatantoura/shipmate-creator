@@ -300,7 +300,8 @@ export default function AdminLogistics() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
-          <TabsList>
+          <div className="w-full overflow-x-auto scrollbar-thin -mx-1 px-1">
+          <TabsList className="inline-flex w-max flex-nowrap">
             <TabsTrigger value="analytics" className="gap-1.5">
               <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
             </TabsTrigger>
@@ -345,6 +346,7 @@ export default function AdminLogistics() {
               <Settings className="h-3.5 w-3.5" /> إعدادات المنصة
             </TabsTrigger>
           </TabsList>
+          </div>
 
           {/* Analytics dashboard tab */}
           <TabsContent value="analytics" className="mt-4">
