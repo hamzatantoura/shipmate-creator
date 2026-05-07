@@ -11,13 +11,16 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TYPE_META: Record<string, { label: string; tone: string }> = {
+  top_up:              { label: "شحن رصيد",        tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20" },
   topup:               { label: "شحن رصيد",        tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20" },
-  shipping_fee:        { label: "أجرة الشحن",       tone: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
-  cod_settlement:      { label: "قيمة COD",         tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" },
-  commission:          { label: "عمولة / تحصيل",    tone: "bg-primary/10 text-primary border-primary/20" },
-  carrier_adjustment:  { label: "تعديل الناقل",     tone: "bg-muted text-muted-foreground border-border" },
-  return_fee:          { label: "رسوم إرجاع",       tone: "bg-destructive/10 text-destructive border-destructive/20" },
-  payout:              { label: "تسوية مالية",      tone: "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20" },
+  shipping_fee:        { label: "أجور شحن",         tone: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20" },
+  cod_settlement:      { label: "تحصيل قيمة طلب",   tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20" },
+  commission:          { label: "بدل تحصيل",        tone: "bg-primary/10 text-primary border-primary/20" },
+  carrier_adjustment:  { label: "تسوية محاسبية",    tone: "bg-muted text-muted-foreground border-border" },
+  return_fee:          { label: "رسوم مرتجع",       tone: "bg-destructive/10 text-destructive border-destructive/20" },
+  return_cost:         { label: "تكلفة مرتجع",      tone: "bg-destructive/10 text-destructive border-destructive/20" },
+  payout:              { label: "سحب أرباح",        tone: "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20" },
+  refund:              { label: "استرداد",          tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20" },
 };
 
 const silaCodeOf = (id?: string | null) => (id ? "SL-" + id.slice(0, 6).toUpperCase() : "—");
