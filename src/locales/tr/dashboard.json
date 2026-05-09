@@ -1,0 +1,6 @@
+{
+  "merchant": { "title": "Satıcı Paneli", "orders": "Siparişler", "products": "Ürünler", "wallet": "Cüzdan", "analytics": "Analitik", "settings": "Ayarlar" },
+  "courier": { "title": "Kurye Paneli", "assigned": "Atanan Gönderiler", "history": "Teslimat Geçmişi", "earnings": "Kazançlar", "wallet": "Cüzdan" },
+  "admin": { "title": "Yönetim Paneli", "districts": "Bölgeler", "branches": "Şubeler", "merchants": "Satıcılar", "couriers": "Kargo Şirketleri", "analytics": "Analitik", "settlements": "Mutabakatlar", "support": "Destek" },
+  "kpi": { "totalOrders": "Toplam Siparişler", "delivered": "Teslim Edildi", "pending": "Beklemede", "revenue": "Gelir", "balance": "Bakiye" }
+}

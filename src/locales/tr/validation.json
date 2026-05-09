@@ -1,0 +1,10 @@
+{
+  "required": "Bu alan zorunludur",
+  "email": "Geçersiz e-posta adresi",
+  "minLength": "En az {{count}} karakter",
+  "maxLength": "En fazla {{count}} karakter",
+  "passwordMismatch": "Şifreler eşleşmiyor",
+  "phone": "Geçersiz telefon numarası",
+  "number": "Sayı olmalıdır",
+  "positive": "Pozitif bir sayı olmalıdır"
+}

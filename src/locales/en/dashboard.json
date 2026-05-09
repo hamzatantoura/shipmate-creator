@@ -1,0 +1,6 @@
+{
+  "merchant": { "title": "Merchant Dashboard", "orders": "Orders", "products": "Products", "wallet": "Wallet", "analytics": "Analytics", "settings": "Settings" },
+  "courier": { "title": "Courier Dashboard", "assigned": "Assigned Shipments", "history": "Delivery History", "earnings": "Earnings", "wallet": "Wallet" },
+  "admin": { "title": "Admin Panel", "districts": "Districts", "branches": "Branches", "merchants": "Merchants", "couriers": "Carriers", "analytics": "Analytics", "settlements": "Settlements", "support": "Support" },
+  "kpi": { "totalOrders": "Total Orders", "delivered": "Delivered", "pending": "Pending", "revenue": "Revenue", "balance": "Balance" }
+}

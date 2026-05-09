@@ -1,0 +1,10 @@
+{
+  "app": { "name": "Sila", "tagline": "Akıllı kargo platformu" },
+  "actions": {
+    "save": "Kaydet", "cancel": "İptal", "delete": "Sil", "edit": "Düzenle",
+    "create": "Oluştur", "search": "Ara", "filter": "Filtrele", "submit": "Gönder",
+    "confirm": "Onayla", "back": "Geri", "next": "İleri", "loading": "Yükleniyor...", "retry": "Tekrar dene"
+  },
+  "status": { "success": "Başarılı", "error": "Bir hata oluştu", "empty": "Veri yok" },
+  "language": { "label": "Dil", "ar": "Arapça", "en": "İngilizce", "tr": "Türkçe" }
+}

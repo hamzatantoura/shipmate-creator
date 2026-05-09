@@ -1,0 +1,8 @@
+{
+  "nav": { "features": "Features", "pricing": "Pricing", "faq": "FAQ", "signIn": "Sign In", "getStarted": "Get Started" },
+  "hero": {
+    "headline": "Smart shipping platform for the Syrian market",
+    "subheadline": "Manage your store, shipments, and wallet from one place",
+    "cta": "Start free", "demo": "Watch demo"
+  }
+}

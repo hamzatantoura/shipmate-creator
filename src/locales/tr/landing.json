@@ -1,0 +1,8 @@
+{
+  "nav": { "features": "Özellikler", "pricing": "Fiyatlandırma", "faq": "SSS", "signIn": "Giriş Yap", "getStarted": "Başla" },
+  "hero": {
+    "headline": "Suriye pazarı için akıllı kargo platformu",
+    "subheadline": "Mağazanızı, gönderilerinizi ve cüzdanınızı tek yerden yönetin",
+    "cta": "Ücretsiz başla", "demo": "Demoyu izle"
+  }
+}
