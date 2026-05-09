@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 export interface VerificationState {
   verification_status: "pending_verification" | "pending_admin_approval" | "verified" | "rejected";

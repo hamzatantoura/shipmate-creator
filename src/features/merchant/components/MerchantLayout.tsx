@@ -1,11 +1,11 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
-import MerchantBottomNav from "@/components/merchant/MerchantBottomNav";
-import { useAuth } from "@/hooks/use-auth";
+import { MerchantSidebar } from "@/features/merchant/components/MerchantSidebar";
+import MerchantBottomNav from "@/features/merchant/components/MerchantBottomNav";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
-import NotificationBell from "@/components/NotificationBell";
+import NotificationBell from "@/shared/components/feedback/NotificationBell";
 
 interface Props {
   children: ReactNode;

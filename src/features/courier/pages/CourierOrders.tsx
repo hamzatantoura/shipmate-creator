@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,7 +30,7 @@ import {
   Camera, Zap, ArrowUp, ArrowDown, FileSpreadsheet, CalendarIcon, ChevronRight, ChevronLeft, ClipboardList,
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { printDailyManifest, type ManifestRow } from "@/lib/print-bulk";
+import { printDailyManifest, type ManifestRow } from "@/features/shipments/lib/print-bulk";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { DateRange } from "react-day-picker";
@@ -40,10 +40,10 @@ import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
 } from "recharts";
 import silaLogo from "@/assets/sila-logo.png";
-import BarcodeScanner from "@/components/vendor/BarcodeScanner";
-import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
-import CourierWalletPanel from "@/components/courier/CourierWalletPanel";
-import { getOrderStatusMeta } from "@/lib/order-status";
+import BarcodeScanner from "@/features/courier/components/BarcodeScanner";
+import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
+import CourierWalletPanel from "@/features/courier/components/CourierWalletPanel";
+import { getOrderStatusMeta } from "@/features/shipments/lib/order-status";
 
 interface CourierOrderRow {
   id: string;

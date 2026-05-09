@@ -1,9 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Shield, Search, Package, LogOut, Wallet, Receipt } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
-import NotificationBell from "@/components/NotificationBell";
+import NotificationBell from "@/shared/components/feedback/NotificationBell";
 
 export default function AppHeader() {
   const { pathname } = useLocation();

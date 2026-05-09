@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "react-router-dom";
 import { Download, Smartphone, Apple, Monitor, Share, Plus, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { usePWAInstall } from "@/hooks/use-pwa-install";
+import { usePWAInstall } from "@/shared/hooks/use-pwa-install";
 import silaLogo from "@/assets/sila-logo.png";
 import { toast } from "sonner";
 

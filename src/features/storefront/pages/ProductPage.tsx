@@ -43,9 +43,9 @@ interface MerchantShippingInfo {
   is_active: boolean;
 }
 
-import { isValidSyrianPhone } from "@/lib/syrian-phone";
-import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
-import ProductReviews from "@/components/ProductReviews";
+import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
+import ProductReviews from "@/features/storefront/components/ProductReviews";
 const validatePhone = isValidSyrianPhone;
 
 export default function ProductPage() {

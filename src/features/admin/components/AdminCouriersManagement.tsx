@@ -18,11 +18,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Truck, Trash2, DollarSign, Settings2, UserPlus, Copy, Check, Map as MapIcon, Package, Info, KeyRound, Loader2, Wallet as WalletIcon, Image as ImageIcon, ChevronDown, ChevronLeft, Search, AlertTriangle, ChevronRight, Building2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
-import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
-import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
-import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
-import CourierPricingTiers from "@/components/admin/CourierPricingTiers";
-import CourierBranchesPanel, { useCourierCoveredProvinces } from "@/components/admin/CourierBranchesPanel";
+import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
+import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/shared/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
+import CourierPricingTiers from "@/features/admin/components/CourierPricingTiers";
+import CourierBranchesPanel, { useCourierCoveredProvinces } from "@/features/admin/components/CourierBranchesPanel";
 
 interface Courier {
   id: string;

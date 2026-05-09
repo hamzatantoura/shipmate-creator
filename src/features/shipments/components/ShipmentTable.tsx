@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Printer, ChevronDown, ChevronUp, Clock, User, Shield, Truck as TruckIcon, PhoneCall, MessageCircle } from "lucide-react";
-import { generateShippingLabel } from "@/lib/shipping-label";
+import { generateShippingLabel } from "@/features/shipments/lib/shipping-label";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];

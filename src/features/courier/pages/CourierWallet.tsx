@@ -1,5 +1,5 @@
-import AppHeader from "@/components/AppHeader";
-import CourierWalletPanel from "@/components/courier/CourierWalletPanel";
+import AppHeader from "@/shared/components/layout/AppHeader";
+import CourierWalletPanel from "@/features/courier/components/CourierWalletPanel";
 
 export default function CourierWallet() {
   return (

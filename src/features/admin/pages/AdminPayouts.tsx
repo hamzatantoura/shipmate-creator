@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/dialog";
 import { CreditCard, Upload, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
-import AppHeader from "@/components/AppHeader";
-import SecureReceiptImage from "@/components/SecureReceiptImage";
+import AppHeader from "@/shared/components/layout/AppHeader";
+import SecureReceiptImage from "@/shared/components/inputs/SecureReceiptImage";
 
 interface PayoutRequest {
   id: string;

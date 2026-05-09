@@ -1,7 +1,7 @@
-import MerchantLayout from "@/components/merchant/MerchantLayout";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import MerchantShippingSettings from "@/components/merchant/MerchantShippingSettings";
-import MerchantKycCard from "@/components/merchant/MerchantKycCard";
+import MerchantLayout from "@/features/merchant/components/MerchantLayout";
+import ErrorBoundary from "@/shared/components/feedback/ErrorBoundary";
+import MerchantShippingSettings from "@/features/merchant/components/MerchantShippingSettings";
+import MerchantKycCard from "@/features/merchant/components/MerchantKycCard";
 
 export default function MerchantSettingsPage() {
   return (

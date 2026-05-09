@@ -12,17 +12,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt, Settings } from "lucide-react";
 import { toast } from "sonner";
-import AppHeader from "@/components/AppHeader";
-import AdminDistrictsManagement from "@/components/admin/AdminDistrictsManagement";
-import AdminMerchantApproval from "@/components/admin/AdminMerchantApproval";
-import AdminCouriersManagement from "@/components/admin/AdminCouriersManagement";
-import AdminBranchesManagement from "@/components/admin/AdminBranchesManagement";
-import AdminAnalyticsDashboard from "@/components/admin/AdminAnalyticsDashboard";
-import AdminWhatsappQueue from "@/components/admin/AdminWhatsappQueue";
-import AdminAuditLog from "@/components/admin/AdminAuditLog";
-import { CourierSettlementsPanel } from "@/pages/AdminSettlements";
-import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
-import SecureReceiptImage from "@/components/SecureReceiptImage";
+import AppHeader from "@/shared/components/layout/AppHeader";
+import AdminDistrictsManagement from "@/features/admin/components/AdminDistrictsManagement";
+import AdminMerchantApproval from "@/features/admin/components/AdminMerchantApproval";
+import AdminCouriersManagement from "@/features/admin/components/AdminCouriersManagement";
+import AdminBranchesManagement from "@/features/admin/components/AdminBranchesManagement";
+import AdminAnalyticsDashboard from "@/features/admin/components/AdminAnalyticsDashboard";
+import AdminWhatsappQueue from "@/features/admin/components/AdminWhatsappQueue";
+import AdminAuditLog from "@/features/admin/components/AdminAuditLog";
+import { CourierSettlementsPanel } from "@/features/admin/pages/AdminSettlements";
+import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
+import SecureReceiptImage from "@/shared/components/inputs/SecureReceiptImage";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];

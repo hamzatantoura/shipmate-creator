@@ -4,9 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Package, Truck, DollarSign, Search } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-import ShipmentForm from "@/components/ShipmentForm";
-import ShipmentTable from "@/components/ShipmentTable";
-import { useAuth } from "@/hooks/use-auth";
+import ShipmentForm from "@/features/shipments/components/ShipmentForm";
+import ShipmentTable from "@/features/shipments/components/ShipmentTable";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];

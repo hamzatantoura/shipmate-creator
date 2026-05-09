@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { SY_PHONE_PLACEHOLDER, sanitizeSyrianInput } from "@/lib/syrian-phone";
+import { SY_PHONE_PLACEHOLDER, sanitizeSyrianInput } from "@/shared/lib/syrian-phone";
 
 interface Props extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "type"> {
   value: string;

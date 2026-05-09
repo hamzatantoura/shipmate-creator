@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Pencil, MapPin, Phone, Building2, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import LocationPicker from "@/components/LocationPicker";
+import LocationPicker from "@/shared/components/inputs/LocationPicker";
 import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 

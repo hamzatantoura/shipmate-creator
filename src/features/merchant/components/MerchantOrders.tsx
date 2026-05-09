@@ -7,11 +7,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ShoppingCart, Truck, Loader2, Search, ShieldAlert, PhoneCall, MessageCircle, Printer, History } from "lucide-react";
-import { generateShippingLabel } from "@/lib/shipping-label";
+import { generateShippingLabel } from "@/features/shipments/lib/shipping-label";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/use-auth";
-import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
-import { usePlatformSettings } from "@/hooks/use-platform-settings";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { calculatePricing, isLossOrder } from "@/features/wallet/lib/pricing-engine";
+import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
 import type { Database } from "@/integrations/supabase/types";
 
 const STATUS_AR: Record<string, string> = {

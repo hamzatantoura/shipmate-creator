@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
-import StarRating from "@/components/StarRating";
+import StarRating from "@/shared/components/inputs/StarRating";
 
 type Ctx = {
   order_id: string;

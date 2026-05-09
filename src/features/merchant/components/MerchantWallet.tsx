@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle, RotateCcw, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/use-auth";
-import WalletTransactionsLog from "@/components/shared/WalletTransactionsLog";
-import { usePlatformSettings } from "@/hooks/use-platform-settings";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
+import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
 
 const PAYOUT_METHODS = [
   { value: "shamcash", label: "ShamCash" },

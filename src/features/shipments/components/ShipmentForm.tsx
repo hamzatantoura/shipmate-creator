@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { calculatePricing, isLossOrder } from "@/lib/pricing-engine";
-import { usePlatformSettings } from "@/hooks/use-platform-settings";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { calculatePricing, isLossOrder } from "@/features/wallet/lib/pricing-engine";
+import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
 
 interface District {
   id: string;
@@ -71,8 +71,8 @@ interface ShipmentFormProps {
   };
 }
 
-import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/lib/syrian-phone";
-import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+import { isValidSyrianPhone, SY_PHONE_PLACEHOLDER } from "@/shared/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
 const validatePhone = isValidSyrianPhone;
 
 const CITY_MAP: Record<string, "Damascus" | "Aleppo" | "Homs" | "Lattakia" | "Hama" | "Tartous"> = {

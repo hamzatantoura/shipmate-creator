@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
-import MerchantLayout from "@/components/merchant/MerchantLayout";
+import MerchantLayout from "@/features/merchant/components/MerchantLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Wallet, TrendingUp, ShoppingCart, RotateCcw, ShieldAlert,
   CheckCircle2, Truck,
 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";

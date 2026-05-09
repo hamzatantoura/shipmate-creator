@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Pencil, MapPin, Phone, Building2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import LocationPicker from "@/components/LocationPicker";
+import LocationPicker from "@/shared/components/inputs/LocationPicker";
 
 interface Branch {
   id: string;

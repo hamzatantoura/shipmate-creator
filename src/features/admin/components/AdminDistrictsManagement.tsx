@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronLeft, Plus, Edit2, Trash2, Upload, Download, MapPin, Building2, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import LocationPicker from "@/components/LocationPicker";
+import LocationPicker from "@/shared/components/inputs/LocationPicker";
 
 interface District {
   id: string;

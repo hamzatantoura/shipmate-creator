@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, MapPin, User } from "lucide-react";
-import { getOrderStatusMeta } from "@/lib/order-status";
+import { getOrderStatusMeta } from "@/features/shipments/lib/order-status";
 
 interface HistoryEntry {
   id: string;

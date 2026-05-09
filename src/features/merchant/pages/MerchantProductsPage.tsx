@@ -1,7 +1,7 @@
-import MerchantLayout from "@/components/merchant/MerchantLayout";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import MerchantProducts from "@/components/merchant/MerchantProducts";
-import MerchantVerificationGate from "@/components/merchant/MerchantVerificationGate";
+import MerchantLayout from "@/features/merchant/components/MerchantLayout";
+import ErrorBoundary from "@/shared/components/feedback/ErrorBoundary";
+import MerchantProducts from "@/features/merchant/components/MerchantProducts";
+import MerchantVerificationGate from "@/features/merchant/components/MerchantVerificationGate";
 
 export default function MerchantProductsPage() {
   return (

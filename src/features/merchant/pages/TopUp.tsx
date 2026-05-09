@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowRight, Loader2, Smartphone, Upload, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
-import AppHeader from "@/components/AppHeader";
-import { useAuth } from "@/hooks/use-auth";
+import AppHeader from "@/shared/components/layout/AppHeader";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 const METHODS = [
   { value: "shamcash", label: "ShamCash", icon: CreditCard, desc: "الدفع عبر تطبيق شام كاش" },

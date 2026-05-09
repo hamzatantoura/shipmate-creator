@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { MessageSquare } from "lucide-react";
-import StarRating from "@/components/StarRating";
+import StarRating from "@/shared/components/inputs/StarRating";
 
 interface Props {
   productId: string;

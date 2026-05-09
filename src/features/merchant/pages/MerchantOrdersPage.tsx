@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
-import StarRating from "@/components/StarRating";
-import { isValidSyrianPhone } from "@/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
+import StarRating from "@/shared/components/inputs/StarRating";
+import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
+import { MerchantSidebar } from "@/features/merchant/components/MerchantSidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -50,19 +50,19 @@ import { Plus, Printer, Trash2, Package, Lock, Info, Send, Radar, MapPin, Buildi
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { printShippingLabel } from "@/lib/print-label";
-import { printBulkLabels, type BulkLabelData } from "@/lib/print-bulk";
-import { calculatePricing } from "@/lib/pricing-engine";
-import EditOrderDialog from "@/components/merchant/EditOrderDialog";
-import ShipmentTrackingTimeline from "@/components/merchant/ShipmentTrackingTimeline";
+import { printShippingLabel } from "@/features/shipments/lib/print-label";
+import { printBulkLabels, type BulkLabelData } from "@/features/shipments/lib/print-bulk";
+import { calculatePricing } from "@/features/wallet/lib/pricing-engine";
+import EditOrderDialog from "@/features/merchant/components/EditOrderDialog";
+import ShipmentTrackingTimeline from "@/features/merchant/components/ShipmentTrackingTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getOrderStatusMeta } from "@/lib/order-status";
-import { isOrderLocked } from "@/lib/order-locking";
-import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/lib/print-validation";
+import { getOrderStatusMeta } from "@/features/shipments/lib/order-status";
+import { isOrderLocked } from "@/features/shipments/lib/order-locking";
+import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/features/shipments/lib/print-validation";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 

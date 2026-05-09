@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ImageOff, Loader2 } from "lucide-react";
-import { getSignedReceiptUrl } from "@/lib/storage-helpers";
+import { getSignedReceiptUrl } from "@/shared/lib/storage-helpers";
 
 interface SecureReceiptImageProps {
   /** Raw storage path or legacy public URL stored on the row */

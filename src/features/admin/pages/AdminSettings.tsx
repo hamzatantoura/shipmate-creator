@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import AppHeader from "@/components/AppHeader";
+import AppHeader from "@/shared/components/layout/AppHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Settings, Loader2, Save, DollarSign, ShieldCheck, Truck, Globe } from "lucide-react";
 import { toast } from "sonner";
-import { invalidatePlatformSettings } from "@/hooks/use-platform-settings";
+import { invalidatePlatformSettings } from "@/shared/hooks/use-platform-settings";
 
 type Resp = "merchant" | "platform" | "carrier";
 type VerifMode = "beta" | "production";

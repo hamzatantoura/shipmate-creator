@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { compressImage } from "@/lib/image-compress";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { compressImage } from "@/shared/lib/image-compress";
 import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
-import { usePlatformSettings } from "@/hooks/use-platform-settings";
+import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;

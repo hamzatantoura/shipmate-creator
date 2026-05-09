@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Truck, Store } from "lucide-react";
-import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
-import { isValidSyrianPhone } from "@/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
+import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
 
 const CITIES = ["دمشق", "حلب", "حمص", "حماة", "اللاذقية", "طرطوس", "ريف دمشق", "دير الزور", "الرقة", "الحسكة", "درعا", "السويداء", "إدلب", "القنيطرة"];
 

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { MerchantSidebar } from "@/components/merchant/MerchantSidebar";
+import { MerchantSidebar } from "@/features/merchant/components/MerchantSidebar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Archive, RotateCcw, ChevronRight, ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { getOrderStatusMeta } from "@/lib/order-status";
+import { getOrderStatusMeta } from "@/features/shipments/lib/order-status";
 
 interface ArchivedOrderRow {
   id: string;

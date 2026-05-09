@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { useAuth, type UserRole } from "@/hooks/use-auth";
+import { useAuth, type UserRole } from "@/features/auth/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import {
   AlertDialog,

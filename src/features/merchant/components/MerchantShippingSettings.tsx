@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,8 @@ import { toast } from "sonner";
 
 type ShippingPolicy = "customer_pays" | "free_all" | "free_above";
 
-import { isValidSyrianPhone } from "@/lib/syrian-phone";
-import { SyrianPhoneInput } from "@/components/SyrianPhoneInput";
+import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
+import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
 const isValidPhone = isValidSyrianPhone;
 
 export default function MerchantShippingSettings() {
