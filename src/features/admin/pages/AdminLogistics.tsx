@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt, Settings } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt, Settings, LifeBuoy, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/shared/components/layout/AppHeader";
 import AdminDistrictsManagement from "@/features/admin/components/AdminDistrictsManagement";
@@ -20,6 +20,8 @@ import AdminBranchesManagement from "@/features/admin/components/AdminBranchesMa
 import AdminAnalyticsDashboard from "@/features/admin/components/AdminAnalyticsDashboard";
 import AdminWhatsappQueue from "@/features/admin/components/AdminWhatsappQueue";
 import AdminAuditLog from "@/features/admin/components/AdminAuditLog";
+import AdminSupportTickets from "@/features/admin/components/AdminSupportTickets";
+import AdminRoleManagement from "@/features/admin/components/AdminRoleManagement";
 import { CourierSettlementsPanel } from "@/features/admin/pages/AdminSettlements";
 import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
 import SecureReceiptImage from "@/shared/components/inputs/SecureReceiptImage";
@@ -98,7 +100,7 @@ export default function AdminLogistics() {
 
   // Persisted active tab — stays put across re-renders and page refreshes
   const TAB_STORAGE_KEY = "admin-active-tab";
-  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "settlements", "districts", "merchants", "couriers", "branches", "transactions", "whatsapp", "audit"];
+  const VALID_TABS = ["analytics", "shipments", "topups", "payouts", "settlements", "districts", "merchants", "couriers", "branches", "transactions", "whatsapp", "audit", "tickets", "roles", "settings"];
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === "undefined") return "analytics";
@@ -342,6 +344,12 @@ export default function AdminLogistics() {
             <TabsTrigger value="audit" className="gap-1.5">
               <ScrollText className="h-3.5 w-3.5" /> سجل التدقيق
             </TabsTrigger>
+            <TabsTrigger value="tickets" className="gap-1.5">
+              <LifeBuoy className="h-3.5 w-3.5" /> تذاكر الدعم
+            </TabsTrigger>
+            <TabsTrigger value="roles" className="gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" /> إدارة الأدوار
+            </TabsTrigger>
             <TabsTrigger value="settings" className="gap-1.5">
               <Settings className="h-3.5 w-3.5" /> إعدادات المنصة
             </TabsTrigger>
@@ -521,6 +529,12 @@ export default function AdminLogistics() {
           </TabsContent>
           <TabsContent value="audit" forceMount className="mt-4 data-[state=inactive]:hidden">
             <AdminAuditLog />
+          </TabsContent>
+          <TabsContent value="tickets" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <AdminSupportTickets />
+          </TabsContent>
+          <TabsContent value="roles" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <AdminRoleManagement />
           </TabsContent>
           <TabsContent value="settlements" forceMount className="mt-4 data-[state=inactive]:hidden">
             <CourierSettlementsPanel />
