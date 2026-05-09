@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle, RotateCcw, Info } from "lucide-react";
+import { Wallet, ArrowDownCircle, CreditCard, Image as ImageIcon, Clock, CheckCircle2, AlertTriangle, RotateCcw, Info, FileDown, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
+import WalletAnalyticsChart from "@/features/wallet/components/WalletAnalyticsChart";
+import { downloadWalletStatement, downloadPayoutInvoice } from "@/features/wallet/lib/wallet-statement";
 import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
 
 const PAYOUT_METHODS = [
@@ -79,6 +81,7 @@ export default function MerchantWallet() {
   const [payoutMethod, setPayoutMethod] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
+  const [statementBusy, setStatementBusy] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState<string | null>(null);
   const [recentReturns, setRecentReturns] = useState<RecentReturn[]>([]);
   const [pendingShipments, setPendingShipments] = useState<PendingShipment[]>([]);
@@ -211,11 +214,44 @@ export default function MerchantWallet() {
     setSubmitting(false);
   };
 
+  const handleDownloadStatement = async () => {
+    if (!user || statementBusy) return;
+    setStatementBusy(true);
+    try {
+      const count = await downloadWalletStatement(user.id);
+      if (count === 0) toast.info("لا توجد حركات لتصديرها");
+      else toast.success(`تم تنزيل كشف الحساب (${count} حركة)`);
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر تنزيل الكشف");
+    } finally {
+      setStatementBusy(false);
+    }
+  };
+
+  const handleDownloadInvoice = async (payoutId: string) => {
+    try {
+      await downloadPayoutInvoice(payoutId);
+      toast.success("تم تنزيل كشف التسوية");
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر تنزيل الكشف");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="font-display font-semibold text-lg text-foreground">المحفظة</h2>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleDownloadStatement}
+            disabled={statementBusy}
+            title="تنزيل كشف حساب CSV لكل حركات المحفظة"
+          >
+            <FileDown className="h-4 w-4" />
+            {statementBusy ? "جاري التحضير..." : "كشف الحساب"}
+          </Button>
           <Dialog open={payoutOpen} onOpenChange={setPayoutOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2" disabled={walletBalance <= 0}>
@@ -396,6 +432,9 @@ export default function MerchantWallet() {
         </DialogContent>
       </Dialog>
 
+      {/* Financial Analytics Chart */}
+      {user && <WalletAnalyticsChart merchantId={user.id} />}
+
       {/* Payouts */}
       {payouts.length > 0 && (
         <>
@@ -410,6 +449,14 @@ export default function MerchantWallet() {
                     <p className="text-[10px] text-muted-foreground">{new Date(p.created_at).toLocaleDateString("ar")}</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDownloadInvoice(p.id)}
+                      title="تنزيل كشف التسوية"
+                    >
+                      <FileText className="h-4 w-4 text-primary" />
+                    </Button>
                     {p.receipt_url && <Button variant="ghost" size="icon" onClick={() => setReceiptOpen(p.receipt_url)}><ImageIcon className="h-4 w-4 text-primary" /></Button>}
                     <Badge variant="outline" className={p.status === "completed" ? "bg-primary/20 text-primary border-primary/30" : "bg-muted text-muted-foreground border-border"}>
                       {PAYOUT_STATUS_AR[p.status] || p.status}
