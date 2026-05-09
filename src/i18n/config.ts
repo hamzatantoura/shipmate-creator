@@ -20,7 +20,7 @@ import trAuth from "@/locales/tr/auth.json";
 import trValidation from "@/locales/tr/validation.json";
 import trLanding from "@/locales/tr/landing.json";
 
-export const SUPPORTED_LANGUAGES = ["ar", "en", "tr"] as const;
+export const SUPPORTED_LANGUAGES = ["ar"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 export const RTL_LANGUAGES: SupportedLanguage[] = ["ar"];
@@ -32,8 +32,6 @@ export const LANGUAGE_META: Record<
   { label: string; nativeLabel: string; flag: string; dir: "rtl" | "ltr"; locale: string }
 > = {
   ar: { label: "Arabic", nativeLabel: "العربية", flag: "🇸🇾", dir: "rtl", locale: "ar-SY" },
-  en: { label: "English", nativeLabel: "English", flag: "🇬🇧", dir: "ltr", locale: "en-US" },
-  tr: { label: "Turkish", nativeLabel: "Türkçe", flag: "🇹🇷", dir: "ltr", locale: "tr-TR" },
 };
 
 export const resources = {
@@ -70,15 +68,16 @@ if (!i18n.isInitialized) {
     .use(initReactI18next)
     .init({
       resources,
+      lng: "ar",
       fallbackLng: "ar",
       supportedLngs: SUPPORTED_LANGUAGES as unknown as string[],
       ns: ["common", "dashboard", "auth", "validation", "landing"],
       defaultNS: "common",
       interpolation: { escapeValue: false },
       detection: {
-        order: ["localStorage", "navigator", "htmlTag"],
+        order: [],
         lookupLocalStorage: LANGUAGE_STORAGE_KEY,
-        caches: ["localStorage"],
+        caches: [],
       },
       returnNull: false,
     });
