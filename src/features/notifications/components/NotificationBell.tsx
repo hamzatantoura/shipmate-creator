@@ -102,13 +102,12 @@ export default function NotificationBell() {
         </PopoverContent>
       </Popover>
 
-      {/* Full notification center, controlled via custom trigger above */}
-      {centerOpen && (
-        <NotificationCenter
-          defaultOpen
-          trigger={<button hidden aria-hidden />}
-        />
-      )}
+      {/* Full notification center — controlled by the bell */}
+      <NotificationCenter
+        open={centerOpen}
+        onOpenChange={setCenterOpen}
+        trigger={<span hidden aria-hidden />}
+      />
     </>
   );
 }
