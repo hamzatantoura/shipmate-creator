@@ -1,0 +1,24 @@
+{
+  "topup": {
+    "title": "شحن الرصيد",
+    "amountLabel": "المبلغ (ل.س)",
+    "amountPlaceholder": "أدخل المبلغ",
+    "methodLabel": "طريقة الدفع",
+    "referenceLabel": "رقم المرجع / رقم العملية",
+    "referencePlaceholder": "أدخل رقم العملية أو المرجع",
+    "receiptLabel": "صورة وصل التحويل",
+    "submit": "إرسال طلب شحن الرصيد",
+    "success": "تم إرسال طلب شحن الرصيد! سيتم مراجعته قريباً.",
+    "methods": {
+      "shamcash": { "label": "ShamCash", "desc": "الدفع عبر تطبيق شام كاش" },
+      "syriatel": { "label": "سيرياتيل كاش", "desc": "التحويل عبر سيرياتيل كاش" },
+      "manual": { "label": "حوالة يدوية", "desc": "تحويل بنكي مع رفع صورة الإيصال" }
+    },
+    "errors": {
+      "selectMethod": "اختر طريقة الدفع",
+      "uploadReceipt": "يرجى رفع صورة وصل التحويل",
+      "mustLogin": "يجب تسجيل الدخول",
+      "uploadFailed": "فشل رفع الإيصال"
+    }
+  }
+}
