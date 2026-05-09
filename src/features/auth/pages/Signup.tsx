@@ -12,7 +12,6 @@ import { Loader2, Truck, Store } from "lucide-react";
 import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
 import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
 import { useLanguage } from "@/i18n/use-language";
-import LanguageSwitcher from "@/shared/components/i18n/LanguageSwitcher";
 
 const CITIES = ["دمشق", "حلب", "حمص", "حماة", "اللاذقية", "طرطوس", "ريف دمشق", "دير الزور", "الرقة", "الحسكة", "درعا", "السويداء", "إدلب", "القنيطرة"];
 
@@ -64,7 +63,6 @@ export default function Signup() {
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_hsl(217_33%_16%)_0%,_hsl(222_47%_11%)_70%)]" />
       </div>
-      <div className="absolute top-4 end-4 z-20"><LanguageSwitcher variant="outline" /></div>
       <Card className="w-full max-w-lg border-border bg-card/80 backdrop-blur-sm relative z-10">
         <CardHeader className="text-center space-y-3">
           <div className="mx-auto w-14 h-14 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
