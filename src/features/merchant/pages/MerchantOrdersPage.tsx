@@ -1101,20 +1101,26 @@ export default function MerchantOrdersPage() {
           </header>
 
           <main className="flex-1 p-4 md:p-6 space-y-6 max-w-7xl w-full mx-auto">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <h1 className="text-2xl font-display font-bold text-foreground">الطلبات</h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  إدارة طلبات الزبائن وطباعة البوالص
-                </p>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h1 className="text-2xl font-display font-bold text-foreground">الطلبات</h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    إدارة طلبات الزبائن وطباعة البوالص
+                  </p>
+                </div>
               </div>
+              <MerchantOrdersToolbar
+                search={searchInput}
+                onSearchChange={setSearchInput}
+                status={statusFilter}
+                onStatusChange={setStatusFilter}
+                totalCount={totalCount}
+                onCreate={() => setCreateOpen(true)}
+                onExport={handleExportCsv}
+                exporting={exporting}
+              />
               <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) resetForm(); }}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    إضافة طلب جديد
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
                   <DialogHeader>
                     <DialogTitle>إضافة طلب جديد</DialogTitle>
