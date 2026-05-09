@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ShoppingCart, Package, Loader2, MapPin, Share2, Check, AlertCircle, MessageCircle } from "lucide-react";
+import { Seo } from "@/shared/seo/Seo";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
@@ -235,6 +236,7 @@ export default function ProductPage() {
   if (!product) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">المنتج غير موجود</div>;
   if (merchantBlocked) return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
+      <Seo title="المتجر غير متاح | صلة" description="هذا المتجر لم يكمل عملية التحقق بعد." index={false} />
       <Card className="max-w-md w-full border-border">
         <CardContent className="py-12 text-center space-y-4">
           <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
@@ -301,15 +303,63 @@ export default function ProductPage() {
   // ===== Product + Order Form =====
   const allImages = product.image_url ? [product.image_url, ...images.filter(i => i.image_url !== product.image_url).map(i => i.image_url)] : images.map(i => i.image_url);
 
+  const storeName = shippingInfo.store_name || "متجر";
+  const seoTitle = `${product.name} - ${Number(product.price).toLocaleString()} ل.س | ${storeName}`;
+  const rawDesc = product.description?.replace(/\s+/g, " ").trim();
+  const seoDesc = rawDesc
+    ? rawDesc.slice(0, 160)
+    : `اطلب ${product.name} من ${storeName} بسعر ${Number(product.price).toLocaleString()} ل.س مع توصيل سريع عبر صلة.`;
+  const productUrl = typeof window !== "undefined" ? window.location.href : `https://sila-sy.com/product/${product.slug || product.id}`;
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    ...(product.description ? { description: product.description } : {}),
+    ...(allImages.length ? { image: allImages.filter(Boolean) } : {}),
+    sku: product.id,
+    brand: { "@type": "Brand", name: storeName },
+    offers: {
+      "@type": "Offer",
+      url: productUrl,
+      priceCurrency: "SYP",
+      price: product.price,
+      availability: "https://schema.org/InStock",
+      seller: { "@type": "Organization", name: storeName },
+    },
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "صلة", item: window.location.origin + "/" },
+      { "@type": "ListItem", position: 2, name: storeName, item: `${window.location.origin}/store/${product.merchant_id}` },
+      { "@type": "ListItem", position: 3, name: product.name, item: productUrl },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      <Seo
+        title={seoTitle}
+        description={seoDesc}
+        image={mainImage || allImages[0] || undefined}
+        type="product"
+        jsonLd={[productJsonLd, breadcrumbJsonLd]}
+      />
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-8">
           {/* Product Images */}
           <div className="space-y-3">
             <div className="aspect-square bg-muted/30 rounded-xl overflow-hidden border border-border">
               {mainImage ? (
-                <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
+                <img
+                  src={mainImage}
+                  alt={product.name}
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Package className="h-16 w-16 text-muted-foreground/30" />
@@ -321,7 +371,7 @@ export default function ProductPage() {
                 {allImages.map((img, i) => (
                   <button key={i} onClick={() => setMainImage(img)}
                     className={`h-16 w-16 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${mainImage === img ? 'border-primary' : 'border-border'}`}>
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={img} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
