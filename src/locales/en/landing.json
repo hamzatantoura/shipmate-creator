@@ -1,8 +1,113 @@
 {
-  "nav": { "features": "Features", "pricing": "Pricing", "faq": "FAQ", "signIn": "Sign In", "getStarted": "Get Started" },
+  "nav": {
+    "features": "Features",
+    "workflow": "How it works",
+    "pricing": "Pricing",
+    "faq": "FAQ",
+    "signIn": "Sign in",
+    "getStarted": "Get started",
+    "trackShipment": "Track shipment",
+    "downloadApp": "App",
+    "menu": "Menu"
+  },
   "hero": {
-    "headline": "Smart shipping platform for the Syrian market",
-    "subheadline": "Manage your store, shipments, and wallet from one place",
-    "cta": "Start free", "demo": "Watch demo"
+    "badge": "Integrated logistics platform for the Syrian market",
+    "title1": "Commerce & shipping",
+    "title2": "smart and fast",
+    "subtitle": "Sila is the unified infrastructure for merchants and shipping companies in Syria — launch your store, manage orders, and collect earnings from a single, professional dashboard.",
+    "ctaPrimary": "Start free",
+    "ctaSecondary": "Track shipment",
+    "note": "No credit card required • 2-minute setup"
+  },
+  "trustedBy": {
+    "title": "Trusted by merchants and carriers across Syria",
+    "stats": [
+      { "value": "+500", "label": "Active merchants" },
+      { "value": "+50K", "label": "Monthly shipments" },
+      { "value": "98%", "label": "Successful delivery rate" },
+      { "value": "14", "label": "Provinces covered" }
+    ]
+  },
+  "features": {
+    "eyebrow": "Features",
+    "title": "Everything your logistics business needs in one platform",
+    "subtitle": "A professional toolkit built for Syrian merchants and shipping companies — without the complexity.",
+    "items": [
+      { "title": "Real-time shipment tracking", "desc": "Follow every shipment from pickup to delivery with live updates and a clear visual map." },
+      { "title": "Wallet & COD collection", "desc": "Full wallet management, automatic cash-on-delivery reconciliation, and clean financial statements." },
+      { "title": "Merchant dashboards", "desc": "A polished interface to manage orders, products, and inventory from anywhere." },
+      { "title": "Carrier management", "desc": "Connect multiple carriers, compare rates, and auto-assign orders by region." },
+      { "title": "Smart analytics", "desc": "Sales reports, regional performance, return rates, and visual operational KPIs." },
+      { "title": "Instant notifications", "desc": "Real-time alerts for every event: new order, status change, or wallet deposit." }
+    ]
+  },
+  "dashboardPreview": {
+    "eyebrow": "Dashboard",
+    "title": "Full control of your business from one screen",
+    "subtitle": "A modern dashboard inspired by the best SaaS platforms, designed to give you complete visibility and faster decisions.",
+    "points": [
+      "Professional UI inspired by Stripe and Linear",
+      "Real-time analytics, interactive charts, and exportable reports",
+      "Light and dark modes, fully responsive on mobile",
+      "Multi-role access: merchant, carrier, courier, admin"
+    ]
+  },
+  "workflow": {
+    "eyebrow": "How it works",
+    "title": "From order to payout in four steps",
+    "subtitle": "A seamless flow between your store, the carrier, and the customer — with zero manual work.",
+    "steps": [
+      { "num": "01", "title": "Order", "desc": "The order arrives from your store to Sila instantly." },
+      { "num": "02", "title": "Smart routing", "desc": "We automatically pick the best carrier for the job." },
+      { "num": "03", "title": "Tracking", "desc": "Follow every step in real time from your dashboard." },
+      { "num": "04", "title": "Payout", "desc": "Earnings are transferred to your wallet automatically." }
+    ]
+  },
+  "testimonials": {
+    "eyebrow": "Customer stories",
+    "title": "Merchants trust Sila every day",
+    "items": [
+      { "name": "Mohammad Al-Ali", "role": "Electronics store owner", "text": "Sila saves us hours every day on shipment management. The interface is smooth and support is incredibly fast.", "initials": "MA" },
+      { "name": "Reem Al-Hassan", "role": "Apparel store", "text": "The best thing about Sila is wallet transparency and fast settlement. I now know my profits in real time.", "initials": "RH" },
+      { "name": "Ahmad Kanaan", "role": "Shipping company", "text": "Easy integration, more orders, and accurate reports. Sila is a serious platform for the Syrian market.", "initials": "AK" }
+    ]
+  },
+  "pricing": {
+    "eyebrow": "Pricing",
+    "title": "Transparent plans that grow with you",
+    "subtitle": "Start free and scale when you need to — no complicated contracts.",
+    "popular": "Most popular",
+    "perMonth": "/ month",
+    "tiers": [
+      { "name": "Starter", "price": "Free", "desc": "For new merchants who want to get started immediately.", "features": ["Up to 50 orders / month", "One online store", "Basic shipment tracking", "Email support"], "cta": "Start free" },
+      { "name": "Growth", "price": "$9.9", "desc": "For active merchants who need deeper tools.", "features": ["Unlimited orders", "Multi-carrier integration", "Advanced analytics", "Real-time notifications", "Priority support"], "cta": "Try 14 days free", "highlight": true },
+      { "name": "Enterprise", "price": "Custom", "desc": "Tailored solutions for shipping companies and large enterprises.", "features": ["Full API access", "Multi-branch management", "SLA agreement", "Dedicated account manager"], "cta": "Contact us" }
+    ]
+  },
+  "faq": {
+    "eyebrow": "FAQ",
+    "title": "Everything you need to know about Sila",
+    "items": [
+      { "q": "Is Sila suitable for new merchants?", "a": "Yes. Sila is designed as an easy starting point for new merchants, with a free plan that lets you start with no commitment." },
+      { "q": "How is cash-on-delivery (COD) collected?", "a": "The carrier collects the cash, and the amount is then automatically reconciled into your wallet on a transparent settlement cycle." },
+      { "q": "Can I connect more than one shipping company?", "a": "Absolutely. You can connect multiple carriers and route each order to a different one based on region, price, or service." },
+      { "q": "Is there a long-term contract?", "a": "No. Subscribe monthly and cancel anytime, with no hidden fees or restrictive terms." },
+      { "q": "Which provinces are currently covered?", "a": "We cover 14 provinces through our network of certified shipping partners, and we keep expanding." }
+    ]
+  },
+  "ctaBanner": {
+    "title": "Start running your logistics today",
+    "subtitle": "Join hundreds of merchants and shipping companies who rely on Sila to accelerate their growth.",
+    "cta": "Create your account for free"
+  },
+  "footer": {
+    "tagline": "Unified infrastructure for digital commerce and shipping in Syria — built with care for business owners.",
+    "product": "Product",
+    "account": "Account",
+    "createAccount": "Create account",
+    "signIn": "Sign in",
+    "downloadApp": "Download app",
+    "rights": "All rights reserved",
+    "location": "Damascus, Syria"
   }
 }
