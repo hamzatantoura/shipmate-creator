@@ -8,7 +8,7 @@ import silaLogo from "@/assets/sila-logo.png";
 import NotificationBell from "@/shared/components/feedback/NotificationBell";
 import { useLanguage } from "@/i18n/use-language";
 import { useTranslation } from "react-i18next";
-import LanguageSwitcher from "@/shared/components/i18n/LanguageSwitcher";
+import { useEffect } from "react";
 
 interface Props {
   children: ReactNode;
@@ -18,8 +18,9 @@ interface Props {
 
 export default function MerchantLayout({ children, title, subtitle }: Props) {
   const { profile, signOut } = useAuth();
-  const { isRtl, meta } = useLanguage();
+  const { isRtl, meta, change, language } = useLanguage();
   const { t } = useTranslation("dashboard");
+  useEffect(() => { if (language !== "ar") change("ar"); }, [language, change]);
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background" dir={meta.dir}>
@@ -37,7 +38,6 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
             </div>
             <div className="flex items-center gap-3">
               <NotificationBell />
-              <LanguageSwitcher compact />
               {profile?.store_name && (
                 <span className="text-xs text-muted-foreground hidden md:inline">
                   {profile.store_name}

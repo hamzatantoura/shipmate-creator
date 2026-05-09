@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2, Truck, Mail, ArrowRight, ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/i18n/use-language";
-import LanguageSwitcher from "@/shared/components/i18n/LanguageSwitcher";
 
 export default function ForgotPassword() {
   const { t } = useTranslation("auth");
@@ -51,7 +50,6 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4" dir={meta.dir}>
-      <div className="absolute top-4 end-4 z-20"><LanguageSwitcher variant="outline" /></div>
       <Card className="w-full max-w-md border-border bg-card/80 backdrop-blur-sm relative z-10">
         <CardHeader className="text-center space-y-3">
           <div className="mx-auto w-14 h-14 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
