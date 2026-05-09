@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import MerchantLayout from "@/features/merchant/components/MerchantLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +15,7 @@ import { DashboardData, PENDING_STATUSES } from "@/features/merchant/components/
 
 export default function MerchantDashboard() {
   const { user, profile } = useAuth();
+  const { t, i18n } = useTranslation("dashboard");
   const [data, setData] = useState<DashboardData>({
     loading: true,
     availableBalance: 0,
@@ -126,7 +128,8 @@ export default function MerchantDashboard() {
     }
     const revenueSeries = Array.from(seriesMap.entries()).map(([date, v]) => {
       const d = new Date(date);
-      const label = d.toLocaleDateString("ar-SY", { day: "numeric", month: "short" });
+      const locale = i18n.language === "en" ? "en-US" : "ar-SY";
+      const label = d.toLocaleDateString(locale, { day: "numeric", month: "short" });
       return { date, label, revenue: v.revenue, orders: v.orders };
     });
     const deliveryRate = attempted30d ? (delivered30d / attempted30d) * 100 : 0;
@@ -180,17 +183,15 @@ export default function MerchantDashboard() {
   }, [user, fetchAll]);
 
   const isLocked = data.verificationStatus !== null && data.verificationStatus !== "verified";
-  const lockMessage =
-    data.verificationStatus === "pending_verification"
-      ? "أكمل بيانات متجرك من الإعدادات لتفعيل استقبال الطلبات."
-      : data.verificationStatus === "pending_admin_approval"
-      ? "تم استلام بياناتك وهي بانتظار اعتماد الإدارة."
-      : data.verificationStatus === "rejected"
-      ? "تم رفض الطلب — يرجى تحديث البيانات والمحاولة مجدداً."
-      : "حسابك قيد المراجعة.";
+  const lockKey =
+    data.verificationStatus === "pending_verification" ? "merchant.locked.pending_verification"
+    : data.verificationStatus === "pending_admin_approval" ? "merchant.locked.pending_admin_approval"
+    : data.verificationStatus === "rejected" ? "merchant.locked.rejected"
+    : "merchant.locked.default";
+  const lockMessage = t(lockKey);
 
   return (
-    <MerchantLayout title="الرئيسية" subtitle={`مرحباً ${profile?.store_name || ""}`}>
+    <MerchantLayout title={t("merchant.home")} subtitle={t("merchant.homeSubtitle", { name: profile?.store_name || "" })}>
       {data.loading ? (
         <DashboardSkeleton />
       ) : (
@@ -198,7 +199,7 @@ export default function MerchantDashboard() {
           {isLocked && (
             <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
               <ShieldAlert className="h-5 w-5" />
-              <AlertTitle className="font-bold">الحساب غير مفعّل بعد</AlertTitle>
+              <AlertTitle className="font-bold">{t("merchant.lockedTitle")}</AlertTitle>
               <AlertDescription>{lockMessage}</AlertDescription>
             </Alert>
           )}
