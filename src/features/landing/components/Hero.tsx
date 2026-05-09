@@ -33,9 +33,9 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className={`text-center ${isRtl ? "lg:text-left" : "lg:text-right"} order-2 lg:order-2`}
+            className={`text-center ${isRtl ? "lg:text-right" : "lg:text-left"} order-2 lg:order-2`}
           >
-            <div className={`flex items-center gap-3 mb-5 justify-center ${isRtl ? "lg:justify-end" : "lg:justify-end"}`}>
+            <div className={`flex items-center gap-3 mb-5 justify-center ${isRtl ? "lg:justify-start" : "lg:justify-start"}`}>
               <img src={silaLogo} alt="Sila" className="h-12 w-12 rounded-xl" />
               <span className="font-display font-bold text-2xl text-primary">Sila — صلة</span>
             </div>
@@ -50,10 +50,10 @@ export function Hero() {
                 {t("hero.title2")}
               </span>
             </h1>
-            <p className={`mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto ${isRtl ? "lg:ml-0 lg:mr-auto" : "lg:mr-0 lg:ml-auto"}`}>
+            <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0">
               {t("hero.subtitle")}
             </p>
-            <div className={`mt-7 flex flex-wrap gap-3 justify-center ${isRtl ? "lg:justify-end" : "lg:justify-end"}`}>
+            <div className={`mt-7 flex flex-wrap gap-3 justify-center ${isRtl ? "lg:justify-start" : "lg:justify-start"}`}>
               <Link to="/signup">
                 <Button size="lg" className="gap-2 h-12 px-7 font-semibold glow-btn text-base">
                   {t("hero.ctaPrimary")} <Arrow className="h-4 w-4" />
