@@ -33,7 +33,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className={`text-center ${isRtl ? "lg:text-right" : "lg:text-left"} order-2 lg:order-2`}
+            className={`text-center ${isRtl ? "lg:text-right" : "lg:text-left"} order-2 lg:order-1`}
           >
             <div className={`flex items-center gap-3 mb-5 justify-center ${isRtl ? "lg:justify-start" : "lg:justify-start"}`}>
               <img src={silaLogo} alt="Sila" className="h-12 w-12 rounded-xl" />
@@ -73,7 +73,7 @@ export function Hero() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
-            className="order-1 lg:order-1 relative"
+            className="order-1 lg:order-2 relative"
           >
             <div className="absolute -inset-6 bg-gradient-to-tr from-primary/25 via-info/15 to-transparent rounded-[2rem] blur-3xl opacity-60" aria-hidden />
             <img
