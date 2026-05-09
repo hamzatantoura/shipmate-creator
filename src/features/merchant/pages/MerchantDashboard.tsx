@@ -1,30 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
 import MerchantLayout from "@/features/merchant/components/MerchantLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Wallet, TrendingUp, ShoppingCart, RotateCcw, ShieldAlert,
-  CheckCircle2, Truck,
-} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShieldAlert } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "react-router-dom";
-
-const fmt = (n: number) => new Intl.NumberFormat("ar-SY").format(Math.round(n)) + " ل.س";
-
-interface DashboardData {
-  loading: boolean;
-  availableBalance: number; // wallet ledger sum
-  pendingBalance: number;   // orders processing/shipped/out_for_delivery — net
-  newOrders: number;
-  pendingOrders: number;
-  deliveredOrders: number;
-  returnedOrders: number;
-  verificationStatus: string | null;
-}
-
-const PENDING_STATUSES = new Set(["processing", "shipped", "out_for_delivery"]);
+import KpiCards from "@/features/merchant/components/dashboard/KpiCards";
+import RevenueChart from "@/features/merchant/components/dashboard/RevenueChart";
+import RecentOrders from "@/features/merchant/components/dashboard/RecentOrders";
+import WalletOverview from "@/features/merchant/components/dashboard/WalletOverview";
+import DeliveryStatusSummary from "@/features/merchant/components/dashboard/DeliveryStatusSummary";
+import { DashboardData, PENDING_STATUSES } from "@/features/merchant/components/dashboard/types";
 
 export default function MerchantDashboard() {
   const { user, profile } = useAuth();
@@ -36,6 +22,13 @@ export default function MerchantDashboard() {
     pendingOrders: 0,
     deliveredOrders: 0,
     returnedOrders: 0,
+    totalOrders30d: 0,
+    revenue30d: 0,
+    revenuePrev30d: 0,
+    deliveryRate: 0,
+    avgOrderValue: 0,
+    recentOrders: [],
+    revenueSeries: [],
     verificationStatus: null,
   });
 
@@ -43,13 +36,27 @@ export default function MerchantDashboard() {
     if (!user) return;
     setData((d) => ({ ...d, loading: true }));
 
-    const [walletRes, ordersRes, merchantRes, shipmentsRes] = await Promise.all([
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 86400_000).toISOString();
+    const [walletRes, ordersRes, recentRes, analyticsRes, merchantRes, shipmentsRes] = await Promise.all([
       supabase.from("wallets").select("id").eq("merchant_id", user.id).maybeSingle(),
       supabase
         .from("orders")
         .select("status, total_amount, final_sale_price, delivery_fee")
         .eq("merchant_id", user.id)
         .is("deleted_at", null),
+      supabase
+        .from("orders")
+        .select("id, status, total_amount, final_sale_price, delivery_fee, receiver_name, city, created_at")
+        .eq("merchant_id", user.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(6),
+      supabase
+        .from("orders")
+        .select("status, total_amount, final_sale_price, created_at")
+        .eq("merchant_id", user.id)
+        .is("deleted_at", null)
+        .gte("created_at", sixtyDaysAgo),
       supabase
         .from("merchants")
         .select("verification_status")
@@ -80,6 +87,51 @@ export default function MerchantDashboard() {
       else if (o.status === "returned") returnedOrders++;
     }
 
+    // 30/60-day analytics
+    const now = Date.now();
+    const day = 86400_000;
+    const analyticsRows = (analyticsRes.data || []) as any[];
+    let revenue30d = 0, revenuePrev30d = 0, totalOrders30d = 0;
+    let delivered30d = 0, attempted30d = 0;
+    const seriesMap = new Map<string, { revenue: number; orders: number }>();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now - i * day);
+      const key = d.toISOString().slice(0, 10);
+      seriesMap.set(key, { revenue: 0, orders: 0 });
+    }
+    for (const o of analyticsRows) {
+      const t = new Date(o.created_at).getTime();
+      const ageDays = (now - t) / day;
+      const amount = Number(o.final_sale_price) || Number(o.total_amount) || 0;
+      if (ageDays <= 30) {
+        totalOrders30d++;
+        if (o.status === "delivered") {
+          revenue30d += amount;
+          delivered30d++;
+        }
+        if (["delivered", "returned", "cancelled"].includes(o.status)) attempted30d++;
+      } else if (ageDays <= 60) {
+        if (o.status === "delivered") revenuePrev30d += amount;
+      }
+      if (ageDays <= 14) {
+        const key = new Date(o.created_at).toISOString().slice(0, 10);
+        const bucket = seriesMap.get(key);
+        if (bucket && o.status === "delivered") {
+          bucket.revenue += amount;
+          bucket.orders += 1;
+        } else if (bucket) {
+          bucket.orders += 1;
+        }
+      }
+    }
+    const revenueSeries = Array.from(seriesMap.entries()).map(([date, v]) => {
+      const d = new Date(date);
+      const label = d.toLocaleDateString("ar-SY", { day: "numeric", month: "short" });
+      return { date, label, revenue: v.revenue, orders: v.orders };
+    });
+    const deliveryRate = attempted30d ? (delivered30d / attempted30d) * 100 : 0;
+    const avgOrderValue = delivered30d ? revenue30d / delivered30d : 0;
+
     // الرصيد المتوقع: نفس منطق صفحة المحفظة — شحنات نشطة، خصم أجور الشحن وبدل التحصيل، استبعاد اليتيمة/المكررة
     const SETTLED = new Set(["delivered", "returned", "cancelled"]);
     for (const s of (shipmentsRes.data || []) as any[]) {
@@ -101,6 +153,13 @@ export default function MerchantDashboard() {
       pendingOrders,
       deliveredOrders,
       returnedOrders,
+      totalOrders30d,
+      revenue30d,
+      revenuePrev30d,
+      deliveryRate,
+      avgOrderValue,
+      recentOrders: (recentRes.data || []) as any[],
+      revenueSeries,
       verificationStatus: (merchantRes.data as any)?.verification_status ?? null,
     });
   }, [user]);
@@ -135,7 +194,7 @@ export default function MerchantDashboard() {
       {data.loading ? (
         <DashboardSkeleton />
       ) : (
-        <>
+        <div className="space-y-5 md:space-y-6">
           {isLocked && (
             <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
               <ShieldAlert className="h-5 w-5" />
@@ -144,121 +203,57 @@ export default function MerchantDashboard() {
             </Alert>
           )}
 
-          {/* 3-Tier Wallet */}
-          <section>
-            <h2 className="text-lg font-semibold text-foreground mb-3">المحفظة المالية</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Link to="/merchant/wallet" className="group">
-                <Card className="border-r-4 border-r-emerald-500 bg-gradient-to-bl from-emerald-500/10 to-transparent hover:shadow-lg hover:border-r-emerald-400 transition-all cursor-pointer h-full">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">الرصيد المتاح</CardTitle>
-                      <div className="h-9 w-9 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <Wallet className="h-4 w-4 text-emerald-500" />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-emerald-500">{fmt(data.availableBalance)}</div>
-                    <p className="text-xs text-muted-foreground mt-1">اضغط لعرض سجل الحركات التفصيلي</p>
-                  </CardContent>
-                </Card>
-              </Link>
+          <KpiCards
+            revenue30d={data.revenue30d}
+            revenuePrev30d={data.revenuePrev30d}
+            totalOrders30d={data.totalOrders30d}
+            avgOrderValue={data.avgOrderValue}
+            deliveryRate={data.deliveryRate}
+          />
 
-              <Card className="border-r-4 border-r-sky-500 bg-gradient-to-bl from-sky-500/10 to-transparent">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">الرصيد المتوقع</CardTitle>
-                    <div className="h-9 w-9 rounded-full bg-sky-500/20 flex items-center justify-center">
-                      <TrendingUp className="h-4 w-4 text-sky-500" />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-sky-500">{fmt(data.pendingBalance)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">طلبات قيد المعالجة/التوصيل</p>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
+          <WalletOverview available={data.availableBalance} pending={data.pendingBalance} />
 
-          {/* Order stats */}
-          <section>
-            <h2 className="text-lg font-semibold text-foreground mb-3">إحصائيات الطلبات</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard icon={ShoppingCart} label="طلبات جديدة" value={data.newOrders} tone="primary" />
-              <StatCard icon={Truck} label="قيد التوصيل" value={data.pendingOrders} tone="sky" />
-              <StatCard icon={CheckCircle2} label="تم التوصيل" value={data.deliveredOrders} tone="emerald" />
-              <StatCard icon={RotateCcw} label="مرتجعات" value={data.returnedOrders} tone="destructive" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="lg:col-span-2">
+              <RevenueChart data={data.revenueSeries} />
             </div>
-          </section>
-        </>
+            <DeliveryStatusSummary
+              newOrders={data.newOrders}
+              pendingOrders={data.pendingOrders}
+              deliveredOrders={data.deliveredOrders}
+              returnedOrders={data.returnedOrders}
+            />
+          </div>
+
+          <RecentOrders orders={data.recentOrders} />
+        </div>
       )}
     </MerchantLayout>
   );
 }
 
-function StatCard({
-  icon: Icon, label, value, tone,
-}: {
-  icon: typeof ShoppingCart;
-  label: string;
-  value: number;
-  tone: "primary" | "sky" | "emerald" | "destructive";
-}) {
-  const toneClass = {
-    primary: "bg-primary/15 text-primary",
-    sky: "bg-sky-500/15 text-sky-500",
-    emerald: "bg-emerald-500/15 text-emerald-500",
-    destructive: "bg-destructive/15 text-destructive",
-  }[tone];
-  return (
-    <Card>
-      <CardContent className="pt-6 flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${toneClass}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold text-foreground">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
-      <section>
-        <Skeleton className="h-5 w-32 mb-3 shimmer" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[0, 1].map((i) => (
-            <div key={i} className="rounded-lg border border-border bg-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-4 w-24 shimmer" />
-                <Skeleton className="h-9 w-9 rounded-full shimmer" />
-              </div>
-              <Skeleton className="h-8 w-32 shimmer" />
-              <Skeleton className="h-3 w-40 shimmer" />
-            </div>
-          ))}
-        </div>
-      </section>
-      <section>
-        <Skeleton className="h-5 w-40 mb-3 shimmer" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="rounded-lg border border-border bg-card p-5 flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-lg shimmer" />
-              <div className="space-y-2 flex-1">
-                <Skeleton className="h-3 w-20 shimmer" />
-                <Skeleton className="h-6 w-12 shimmer" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="rounded-lg border border-border bg-card p-5 space-y-3">
+            <Skeleton className="h-3 w-20 shimmer" />
+            <Skeleton className="h-7 w-24 shimmer" />
+            <Skeleton className="h-3 w-28 shimmer" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[0, 1].map((i) => (
+          <Skeleton key={i} className="h-32 shimmer" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Skeleton className="lg:col-span-2 h-72 shimmer" />
+        <Skeleton className="h-72 shimmer" />
+      </div>
+      <Skeleton className="h-64 shimmer" />
     </div>
   );
 }
