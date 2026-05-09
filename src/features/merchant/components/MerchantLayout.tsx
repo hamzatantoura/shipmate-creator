@@ -7,7 +7,6 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 import NotificationBell from "@/shared/components/feedback/NotificationBell";
 import { useLanguage } from "@/i18n/use-language";
-import LanguageSwitcher from "@/shared/components/i18n/LanguageSwitcher";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -36,7 +35,6 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
               </Link>
             </div>
             <div className="flex items-center gap-3">
-              <LanguageSwitcher compact />
               <NotificationBell />
               {profile?.store_name && (
                 <span className="text-xs text-muted-foreground hidden md:inline">
