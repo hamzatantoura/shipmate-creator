@@ -17,7 +17,6 @@ export function LandingNav() {
   const NAV = [
     { href: "#features", label: t("nav.features") },
     { href: "#workflow", label: t("nav.workflow") },
-    { href: "#pricing", label: t("nav.pricing") },
     { href: "#faq", label: t("nav.faq") },
   ];
 

@@ -5,7 +5,6 @@ import { Features } from "@/features/landing/components/Features";
 import { DashboardPreviewSection } from "@/features/landing/components/DashboardPreviewSection";
 import { Workflow } from "@/features/landing/components/Workflow";
 import { Testimonials } from "@/features/landing/components/Testimonials";
-import { Pricing } from "@/features/landing/components/Pricing";
 import { Faq } from "@/features/landing/components/Faq";
 import { CtaBanner } from "@/features/landing/components/CtaBanner";
 import { LandingFooter } from "@/features/landing/components/LandingFooter";
@@ -38,7 +37,6 @@ export default function Landing() {
         <DashboardPreviewSection />
         <Workflow />
         <Testimonials />
-        <Pricing />
         <Faq />
         <CtaBanner />
       </main>
