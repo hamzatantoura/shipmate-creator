@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Menu, X } from "lucide-react";
 import silaLogo from "@/assets/sila-logo.png";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { LanguageSwitcher } from "@/shared/components/i18n/LanguageSwitcher";
 
 const NAV = [
   { href: "#features", label: "المزايا" },
@@ -31,6 +32,7 @@ export function LandingNav() {
         </nav>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          <LanguageSwitcher compact />
           <Link to="/track" className="hidden sm:block">
             <Button variant="ghost" size="sm">تتبع شحنة</Button>
           </Link>
