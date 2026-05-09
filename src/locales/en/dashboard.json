@@ -1,6 +1,100 @@
 {
-  "merchant": { "title": "Merchant Dashboard", "home": "Home", "orders": "Orders", "archive": "Archive", "store": "Store", "products": "Products", "wallet": "Wallet", "analytics": "Analytics", "settings": "Settings", "signOut": "Sign out", "welcome": "Welcome" },
-  "courier": { "title": "Courier Dashboard", "assigned": "Assigned Shipments", "history": "Delivery History", "earnings": "Earnings", "wallet": "Wallet" },
-  "admin": { "title": "Admin Panel", "districts": "Districts", "branches": "Branches", "merchants": "Merchants", "couriers": "Carriers", "analytics": "Analytics", "settlements": "Settlements", "support": "Support" },
-  "kpi": { "totalOrders": "Total Orders", "delivered": "Delivered", "pending": "Pending", "revenue": "Revenue", "balance": "Balance" }
+  "merchant": {
+    "title": "Merchant Dashboard",
+    "home": "Home",
+    "orders": "Orders",
+    "archive": "Archive",
+    "store": "Store",
+    "products": "Products",
+    "wallet": "Wallet",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "signOut": "Sign out",
+    "welcome": "Welcome",
+    "homeSubtitle": "Welcome {{name}}",
+    "lockedTitle": "Account not yet activated",
+    "locked": {
+      "pending_verification": "Complete your store details from Settings to start accepting orders.",
+      "pending_admin_approval": "Your details were received and are awaiting admin approval.",
+      "rejected": "Your request was rejected — please update your details and try again.",
+      "default": "Your account is under review."
+    }
+  },
+  "courier": {
+    "title": "Courier Dashboard",
+    "assigned": "Assigned Shipments",
+    "history": "Delivery History",
+    "earnings": "Earnings",
+    "wallet": "Wallet"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "districts": "Districts",
+    "branches": "Branches",
+    "merchants": "Merchants",
+    "couriers": "Carriers",
+    "analytics": "Analytics",
+    "settlements": "Settlements",
+    "support": "Support"
+  },
+  "kpi": {
+    "totalOrders": "Total Orders",
+    "delivered": "Delivered",
+    "pending": "Pending",
+    "revenue": "Revenue",
+    "balance": "Balance",
+    "revenue30d": "Revenue (30d)",
+    "avgOrderValue": "Avg. order value",
+    "deliveryRate": "Delivery success rate",
+    "vsLastMonth": "vs. last month"
+  },
+  "wallet": {
+    "available": "Available balance",
+    "availableDesc": "Available to withdraw — reflects actual transactions ledger",
+    "expected": "Pending balance",
+    "expectedDesc": "From orders in processing and delivery after fees",
+    "open": "Wallet"
+  },
+  "recentOrders": {
+    "title": "Recent Orders",
+    "viewAll": "View all",
+    "empty": "No recent orders"
+  },
+  "deliveryStatus": {
+    "title": "Delivery status summary",
+    "new": "New",
+    "inDelivery": "In delivery",
+    "delivered": "Delivered",
+    "returned": "Returned"
+  },
+  "revenueChart": {
+    "title": "Revenue analytics",
+    "subtitle": "Last 14 days",
+    "total": "Total",
+    "revenue": "Revenue",
+    "orders": "Orders"
+  },
+  "orderStatus": {
+    "new": "New",
+    "processing": "Processing",
+    "shipped": "Shipped",
+    "out_for_delivery": "Out for delivery",
+    "delivered": "Delivered",
+    "returned": "Returned",
+    "cancelled": "Cancelled",
+    "pending": "Pending",
+    "picked_up": "Picked up",
+    "received_by_courier": "Received by courier",
+    "at_warehouse": "At warehouse",
+    "in_transit": "In transit"
+  },
+  "time": {
+    "now": "Now",
+    "minutes": "{{n}}m ago",
+    "hours": "{{n}}h ago",
+    "days": "{{n}}d ago"
+  },
+  "common": {
+    "currency": "SYP"
+  }
 }

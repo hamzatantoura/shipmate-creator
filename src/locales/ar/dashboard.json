@@ -10,7 +10,15 @@
     "analytics": "التحليلات",
     "settings": "الإعدادات",
     "signOut": "تسجيل الخروج",
-    "welcome": "مرحباً"
+    "welcome": "مرحباً",
+    "homeSubtitle": "مرحباً {{name}}",
+    "lockedTitle": "الحساب غير مفعّل بعد",
+    "locked": {
+      "pending_verification": "أكمل بيانات متجرك من الإعدادات لتفعيل استقبال الطلبات.",
+      "pending_admin_approval": "تم استلام بياناتك وهي بانتظار اعتماد الإدارة.",
+      "rejected": "تم رفض الطلب — يرجى تحديث البيانات والمحاولة مجدداً.",
+      "default": "حسابك قيد المراجعة."
+    }
   },
   "courier": {
     "title": "لوحة المندوب",
@@ -34,6 +42,59 @@
     "delivered": "تم التسليم",
     "pending": "قيد الانتظار",
     "revenue": "الإيرادات",
-    "balance": "الرصيد"
+    "balance": "الرصيد",
+    "revenue30d": "الإيرادات (30 يوم)",
+    "avgOrderValue": "متوسط قيمة الطلب",
+    "deliveryRate": "نسبة التوصيل الناجح",
+    "vsLastMonth": "مقارنة بالشهر السابق"
+  },
+  "wallet": {
+    "available": "الرصيد المتاح",
+    "availableDesc": "متاح للسحب — يعكس سجل المعاملات الفعلي",
+    "expected": "الرصيد المتوقع",
+    "expectedDesc": "من طلبات قيد المعالجة والتوصيل بعد خصم الرسوم",
+    "open": "المحفظة"
+  },
+  "recentOrders": {
+    "title": "آخر الطلبات",
+    "viewAll": "عرض الكل",
+    "empty": "لا توجد طلبات حديثة"
+  },
+  "deliveryStatus": {
+    "title": "ملخص حالات التوصيل",
+    "new": "جديدة",
+    "inDelivery": "قيد التوصيل",
+    "delivered": "تم التوصيل",
+    "returned": "مرتجعة"
+  },
+  "revenueChart": {
+    "title": "تحليلات الإيرادات",
+    "subtitle": "آخر 14 يوماً",
+    "total": "المجموع",
+    "revenue": "الإيرادات",
+    "orders": "الطلبات"
+  },
+  "orderStatus": {
+    "new": "جديد",
+    "processing": "قيد المعالجة",
+    "shipped": "تم الشحن",
+    "out_for_delivery": "خارج للتوصيل",
+    "delivered": "تم التوصيل",
+    "returned": "مرتجع",
+    "cancelled": "ملغي",
+    "pending": "قيد الانتظار",
+    "picked_up": "تم الاستلام",
+    "received_by_courier": "استلمته شركة الشحن",
+    "at_warehouse": "في المستودع",
+    "in_transit": "في الطريق"
+  },
+  "time": {
+    "now": "الآن",
+    "minutes": "منذ {{n}} د",
+    "hours": "منذ {{n}} س",
+    "days": "منذ {{n}} ي"
+  },
+  "common": {
+    "currency": "ل.س"
   }
 }
