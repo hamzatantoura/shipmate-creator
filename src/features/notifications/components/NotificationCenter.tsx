@@ -16,11 +16,18 @@ import { categorizeNotification, type NotificationCategory } from "../lib/types"
 
 interface Props {
   trigger?: React.ReactNode;
-  defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function NotificationCenter({ trigger, defaultOpen }: Props) {
-  const [open, setOpen] = useState(!!defaultOpen);
+export function NotificationCenter({ trigger, open: controlledOpen, onOpenChange }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (!isControlled) setInternalOpen(v);
+    onOpenChange?.(v);
+  };
   const { notifications, unreadCount, isLoading, markAllRead, markOneRead } = useNotifications();
   const { supported, permission, request } = usePushNotifications();
   const [tab, setTab] = useState<"all" | "unread" | NotificationCategory>("all");
