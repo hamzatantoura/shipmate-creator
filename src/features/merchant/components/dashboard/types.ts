@@ -1,3 +1,5 @@
+import i18n from "@/i18n/config";
+
 export interface DashboardOrder {
   id: string;
   status: string;
@@ -33,6 +35,7 @@ export const PENDING_STATUSES = new Set([
   "out_for_delivery",
 ]);
 
+/** @deprecated use t(`orderStatus.${status}`) from dashboard namespace */
 export const STATUS_LABELS: Record<string, string> = {
   new: "جديد",
   processing: "قيد المعالجة",
@@ -43,7 +46,11 @@ export const STATUS_LABELS: Record<string, string> = {
   cancelled: "ملغي",
 };
 
-export const fmtSYP = (n: number) =>
-  new Intl.NumberFormat("ar-SY").format(Math.round(n)) + " ل.س";
+const localeFor = () => (i18n.language === "en" ? "en-US" : "ar-SY");
+const currencyFor = () =>
+  i18n.exists("dashboard:common.currency") ? i18n.t("dashboard:common.currency") : "SYP";
 
-export const fmtNum = (n: number) => new Intl.NumberFormat("ar-SY").format(n);
+export const fmtSYP = (n: number) =>
+  `${new Intl.NumberFormat(localeFor()).format(Math.round(n))} ${currencyFor()}`;
+
+export const fmtNum = (n: number) => new Intl.NumberFormat(localeFor()).format(n);
