@@ -63,6 +63,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getOrderStatusMeta } from "@/features/shipments/lib/order-status";
 import { isOrderLocked } from "@/features/shipments/lib/order-locking";
 import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/features/shipments/lib/print-validation";
+import MerchantOrdersToolbar from "@/features/merchant/components/orders/MerchantOrdersToolbar";
+import { exportOrdersToCsv } from "@/features/merchant/components/orders/export-csv";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
@@ -302,6 +304,20 @@ export default function MerchantOrdersPage() {
   const PAGE_SIZE = 20;
   const [createOpen, setCreateOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Search + status filter
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [search, statusFilter]);
   const [printConfirmId, setPrintConfirmId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
   const [trackingOrder, setTrackingOrder] = useState<OrderRow | null>(null);
@@ -390,21 +406,37 @@ export default function MerchantOrdersPage() {
   // Single query with joins — no N+1. districts(name) added so we don't depend
   // on the client-side allDistricts lookup for area names.
   const ordersQuery = useQuery({
-    queryKey: ["merchant-orders", user?.id, page],
+    queryKey: ["merchant-orders", user?.id, page, search, statusFilter],
     enabled: !!user?.id,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
     queryFn: async () => {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, error, count } = await supabase
+      let q = supabase
         .from("orders")
         .select(
           "id, receiver_name, phone_number, city, detailed_address, district_id, courier_id, assigned_branch_id, status, total_amount, final_sale_price, shipment_id, created_at, label_printed_at, notes, return_reason, courier:couriers_public!orders_courier_id_fkey(name, logo_url), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
           { count: "exact" }
         )
         .eq("merchant_id", user!.id)
-        .is("deleted_at", null)
+        .is("deleted_at", null);
+      if (statusFilter && statusFilter !== "all") {
+        q = q.eq("status", statusFilter);
+      }
+      if (search) {
+        // Search by name, phone, or sila code prefix (first 6 chars of id, lowercase)
+        const cleaned = search.toLowerCase().replace(/^sl-/, "").trim();
+        const orParts: string[] = [
+          `receiver_name.ilike.%${search}%`,
+          `phone_number.ilike.%${search}%`,
+        ];
+        if (cleaned && /^[a-f0-9]{1,12}$/i.test(cleaned)) {
+          orParts.push(`id::text.ilike.${cleaned}%`);
+        }
+        q = q.or(orParts.join(","));
+      }
+      const { data, error, count } = await q
         .order("created_at", { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -417,6 +449,46 @@ export default function MerchantOrdersPage() {
   const loading = ordersQuery.isLoading;
   const fetchOrders = () =>
     queryClient.invalidateQueries({ queryKey: ["merchant-orders", user?.id] });
+
+  const handleExportCsv = useCallback(async () => {
+    if (!user?.id || exporting) return;
+    setExporting(true);
+    try {
+      let q = supabase
+        .from("orders")
+        .select(
+          "id, receiver_name, phone_number, city, detailed_address, status, total_amount, final_sale_price, created_at, courier:couriers_public!orders_courier_id_fkey(name), shipments!orders_shipment_id_fkey(tracking_number), districts(name)",
+        )
+        .eq("merchant_id", user.id)
+        .is("deleted_at", null);
+      if (statusFilter && statusFilter !== "all") q = q.eq("status", statusFilter);
+      if (search) {
+        const cleaned = search.toLowerCase().replace(/^sl-/, "").trim();
+        const orParts: string[] = [
+          `receiver_name.ilike.%${search}%`,
+          `phone_number.ilike.%${search}%`,
+        ];
+        if (cleaned && /^[a-f0-9]{1,12}$/i.test(cleaned)) {
+          orParts.push(`id::text.ilike.${cleaned}%`);
+        }
+        q = q.or(orParts.join(","));
+      }
+      const { data, error } = await q
+        .order("created_at", { ascending: false })
+        .limit(5000);
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.error("لا توجد طلبات للتصدير");
+        return;
+      }
+      exportOrdersToCsv(data as any, "merchant-orders");
+      toast.success(`تم تصدير ${data.length} طلب`);
+    } catch (e: any) {
+      toast.error(e?.message || "تعذر تصدير الطلبات");
+    } finally {
+      setExporting(false);
+    }
+  }, [user?.id, exporting, statusFilter, search]);
 
   const patchOrderInCache = useCallback((orderId: string, patch: Partial<OrderRow>) => {
     queryClient.setQueriesData<{ rows: OrderRow[]; total: number } | undefined>(
