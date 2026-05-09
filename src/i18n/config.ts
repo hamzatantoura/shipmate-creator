@@ -7,12 +7,14 @@ import arDashboard from "@/locales/ar/dashboard.json";
 import arAuth from "@/locales/ar/auth.json";
 import arValidation from "@/locales/ar/validation.json";
 import arLanding from "@/locales/ar/landing.json";
+import arMerchant from "@/locales/ar/merchant.json";
 
 import enCommon from "@/locales/en/common.json";
 import enDashboard from "@/locales/en/dashboard.json";
 import enAuth from "@/locales/en/auth.json";
 import enValidation from "@/locales/en/validation.json";
 import enLanding from "@/locales/en/landing.json";
+import enMerchant from "@/locales/en/merchant.json";
 
 import trCommon from "@/locales/tr/common.json";
 import trDashboard from "@/locales/tr/dashboard.json";
@@ -42,6 +44,7 @@ export const resources = {
     auth: arAuth,
     validation: arValidation,
     landing: arLanding,
+    merchant: arMerchant,
   },
   en: {
     common: enCommon,
@@ -49,6 +52,7 @@ export const resources = {
     auth: enAuth,
     validation: enValidation,
     landing: enLanding,
+    merchant: enMerchant,
   },
   tr: {
     common: trCommon,
@@ -72,7 +76,7 @@ if (!i18n.isInitialized) {
       lng: "ar",
       fallbackLng: "ar",
       supportedLngs: SUPPORTED_LANGUAGES as unknown as string[],
-      ns: ["common", "dashboard", "auth", "validation", "landing"],
+      ns: ["common", "dashboard", "auth", "validation", "landing", "merchant"],
       defaultNS: "common",
       interpolation: { escapeValue: false },
       detection: {
