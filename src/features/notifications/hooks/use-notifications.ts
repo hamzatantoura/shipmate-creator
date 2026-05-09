@@ -39,8 +39,11 @@ export function useNotifications() {
   // Realtime subscription — also surfaces a toast for new arrivals.
   useEffect(() => {
     if (!user?.id) return;
+    // Unique channel name per mount avoids "cannot add postgres_changes
+    // callbacks after subscribe" when StrictMode/HMR reuses a stale channel.
+    const channelName = `notifications-${user.id}-${Math.random().toString(36).slice(2, 8)}`;
     const channel = supabase
-      .channel(`notifications-${user.id}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {

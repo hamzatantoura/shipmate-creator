@@ -4,6 +4,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== i18n: language-aware typography =====
+ * Arabic uses Readex Pro (optimized line-height & letter-spacing).
+ * Latin scripts (en/tr) use Inter for cleaner Latin glyphs.
+ * The data attributes are set in src/i18n/use-language.ts.
+ */
+html[data-lang="ar"] body {
+  font-family: 'Readex Pro', system-ui, sans-serif;
+  letter-spacing: 0;
+}
+html[data-lang="en"] body,
+html[data-lang="tr"] body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* RTL-safe gap helpers: flip horizontal margin utilities that hard-code
+ * left/right when direction is RTL. Tailwind logical utilities (ms-*, me-*)
+ * already handle this; this is a defensive fallback for legacy classes. */
+html[dir="rtl"] .rtl-flip { transform: scaleX(-1); }
+
 @layer base {
   :root {
     --background: 0 0% 99%;

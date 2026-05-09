@@ -4,8 +4,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { AuthProvider } from "@/features/auth/hooks/use-auth";
+import "@/i18n/config";
+import { useLanguage } from "@/i18n/use-language";
 
 const queryClient = new QueryClient();
+
+/**
+ * Applies <html lang/dir> based on the persisted i18n language.
+ * Rendered once near the top of the tree.
+ */
+function I18nDirectionSync({ children }: { children: ReactNode }) {
+  useLanguage();
+  return <>{children}</>;
+}
 
 /**
  * App-wide providers. Composes data, auth, tooltips, and toast layers
@@ -18,7 +29,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          {children}
+          <I18nDirectionSync>{children}</I18nDirectionSync>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
