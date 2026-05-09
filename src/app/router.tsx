@@ -22,6 +22,7 @@ import MerchantSettingsPage from "@/features/merchant/pages/MerchantSettingsPage
 import TopUp from "@/features/merchant/pages/TopUp";
 
 // Courier feature
+import CourierDashboard from "@/features/courier/pages/CourierDashboard";
 import CourierOrders from "@/features/courier/pages/CourierOrders";
 import CourierWallet from "@/features/courier/pages/CourierWallet";
 
@@ -70,6 +71,8 @@ export function AppRouter() {
         <Route path="/topup" element={<AuthGuard allowedRoles={["merchant"]}><TopUp /></AuthGuard>} />
 
         {/* Courier (vendor role) */}
+        <Route path="/courier" element={<AuthGuard allowedRoles={["vendor"]}><CourierDashboard /></AuthGuard>} />
+        <Route path="/courier/dashboard" element={<AuthGuard allowedRoles={["vendor"]}><CourierDashboard /></AuthGuard>} />
         <Route path="/courier/orders" element={<AuthGuard allowedRoles={["vendor"]}><CourierOrders /></AuthGuard>} />
         <Route path="/courier/wallet" element={<AuthGuard allowedRoles={["vendor"]}><CourierWallet /></AuthGuard>} />
 
