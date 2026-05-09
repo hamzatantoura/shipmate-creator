@@ -1,11 +1,16 @@
 {
   "merchant": {
     "title": "لوحة التاجر",
+    "home": "الرئيسية",
     "orders": "الطلبات",
+    "archive": "الأرشيف",
+    "store": "المتجر",
     "products": "المنتجات",
     "wallet": "المحفظة",
     "analytics": "التحليلات",
-    "settings": "الإعدادات"
+    "settings": "الإعدادات",
+    "signOut": "تسجيل الخروج",
+    "welcome": "مرحباً"
   },
   "courier": {
     "title": "لوحة المندوب",
