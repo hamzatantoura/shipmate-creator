@@ -12,7 +12,7 @@ export function EtaBanner({ status, lastUpdate }: Props) {
       eta.done ? "bg-primary/10 border-primary/30" : "bg-info/10 border-info/30"
     }`}>
       <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
-        eta.done ? "bg-primary text-primary-foreground" : "bg-info text-info-foreground"
+        eta.done ? "bg-primary text-primary-foreground" : "bg-info text-white"
       }`}>
         <Icon className="h-5 w-5" />
       </div>
