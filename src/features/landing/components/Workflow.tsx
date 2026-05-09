@@ -1,27 +1,30 @@
 import { motion } from "framer-motion";
 import { ShoppingBag, Sparkles, Navigation, Wallet } from "lucide-react";
-import { WORKFLOW } from "../data/content";
+import { useTranslation } from "react-i18next";
 
 const ICONS = [ShoppingBag, Sparkles, Navigation, Wallet];
 
+interface Step { num: string; title: string; desc: string; }
+
 export function Workflow() {
+  const { t } = useTranslation("landing");
+  const steps = t("workflow.steps", { returnObjects: true }) as Step[];
+
   return (
     <section id="workflow" className="py-20 sm:py-28 bg-muted/30 border-y border-border/60">
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center max-w-2xl mx-auto mb-14">
-          <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold mb-3">آلية العمل</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-primary font-semibold mb-3">{t("workflow.eyebrow")}</p>
           <h2 className="font-display font-bold text-3xl sm:text-4xl text-foreground tracking-tight">
-            من الطلب إلى التحصيل في أربع خطوات
+            {t("workflow.title")}
           </h2>
-          <p className="mt-4 text-muted-foreground text-base sm:text-lg">
-            تدفق سلس بين متجرك، شركة الشحن، والعميل — بدون تدخل يدوي.
-          </p>
+          <p className="mt-4 text-muted-foreground text-base sm:text-lg">{t("workflow.subtitle")}</p>
         </div>
 
         <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div className="hidden lg:block absolute top-9 right-[12.5%] left-[12.5%] h-px bg-gradient-to-l from-transparent via-primary/30 to-transparent" aria-hidden />
-          {WORKFLOW.map((step, i) => {
-            const Icon = ICONS[i];
+          {steps.map((step, i) => {
+            const Icon = ICONS[i] ?? ShoppingBag;
             return (
               <motion.div
                 key={step.num}
