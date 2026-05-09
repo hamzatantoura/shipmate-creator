@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Store, Package, ShieldAlert } from "lucide-react";
+import { Seo } from "@/shared/seo/Seo";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
@@ -51,6 +52,8 @@ export default function Storefront() {
 
   if (merchantBlocked) {
     return (
+      <>
+        <Seo title="المتجر غير متاح | صلة" description="هذا المتجر لم يكمل عملية التحقق بعد أو غير مفعّل." index={false} />
       <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
         <Card className="max-w-md w-full border-border">
           <CardContent className="py-12 text-center space-y-4">
@@ -60,11 +63,44 @@ export default function Storefront() {
           </CardContent>
         </Card>
       </div>
+      </>
     );
   }
 
+  const storeName = merchant?.store_name || "متجر";
+  const seoTitle = `${storeName} | صلة`;
+  const seoDesc = `تسوّق منتجات ${storeName}${merchant?.city ? ` في ${merchant.city}` : ""} مع شحن سريع وموثوق عبر منصة صلة.`;
+  const firstImage = products.find((p) => p.image_url)?.image_url || undefined;
+  const storeUrl = typeof window !== "undefined" ? window.location.href : `https://sila-sy.com/store/${merchantId}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    name: storeName,
+    url: storeUrl,
+    ...(merchant?.city ? { address: { "@type": "PostalAddress", addressLocality: merchant.city, addressCountry: "SY" } } : {}),
+    ...(firstImage ? { image: firstImage } : {}),
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: storeName,
+      itemListElement: products.slice(0, 24).map((p, i) => ({
+        "@type": "Offer",
+        position: i + 1,
+        itemOffered: { "@type": "Product", name: p.name, url: `${window.location.origin}/product/${p.slug || p.id}` },
+        price: p.price,
+        priceCurrency: "SYP",
+      })),
+    },
+  };
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
+      <Seo
+        title={seoTitle}
+        description={seoDesc}
+        image={firstImage}
+        type="website"
+        jsonLd={jsonLd}
+      />
       <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -83,12 +119,19 @@ export default function Storefront() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map(p => (
+            {products.map((p, idx) => (
               <Link key={p.id} to={`/product/${p.slug || p.id}`}>
                 <Card className="border-border hover:border-primary/30 transition-all overflow-hidden group cursor-pointer h-full">
                   <div className="aspect-square bg-muted/30 flex items-center justify-center overflow-hidden">
                     {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img
+                        src={p.image_url}
+                        alt={p.name}
+                        loading={idx < 4 ? "eager" : "lazy"}
+                        decoding="async"
+                        fetchPriority={idx === 0 ? "high" : "auto"}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
                     ) : (
                       <Package className="h-10 w-10 text-muted-foreground/30" />
                     )}
