@@ -75,7 +75,7 @@ export function Hero() {
             <img
               src={heroIllustration}
               alt={t("hero.title1")}
-              className="relative w-full max-w-md mx-auto drop-shadow-2xl"
+              className="relative w-full max-w-xl mx-auto drop-shadow-2xl"
               loading="eager"
             />
           </motion.div>
