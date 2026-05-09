@@ -1,0 +1,34 @@
+{
+  "merchant": {
+    "title": "لوحة التاجر",
+    "orders": "الطلبات",
+    "products": "المنتجات",
+    "wallet": "المحفظة",
+    "analytics": "التحليلات",
+    "settings": "الإعدادات"
+  },
+  "courier": {
+    "title": "لوحة المندوب",
+    "assigned": "الشحنات المُسندة",
+    "history": "سجل التسليمات",
+    "earnings": "الأرباح",
+    "wallet": "المحفظة"
+  },
+  "admin": {
+    "title": "لوحة الإدارة",
+    "districts": "المناطق",
+    "branches": "الفروع",
+    "merchants": "التجار",
+    "couriers": "شركات الشحن",
+    "analytics": "التحليلات",
+    "settlements": "التسويات",
+    "support": "الدعم"
+  },
+  "kpi": {
+    "totalOrders": "إجمالي الطلبات",
+    "delivered": "تم التسليم",
+    "pending": "قيد الانتظار",
+    "revenue": "الإيرادات",
+    "balance": "الرصيد"
+  }
+}
