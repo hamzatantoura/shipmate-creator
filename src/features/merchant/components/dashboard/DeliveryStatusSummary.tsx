@@ -1,33 +1,25 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, Clock, RotateCcw, ShoppingCart, Truck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { fmtNum } from "./types";
 
-interface Props {
-  newOrders: number;
-  pendingOrders: number;
-  deliveredOrders: number;
-  returnedOrders: number;
-}
+interface Props { newOrders: number; pendingOrders: number; deliveredOrders: number; returnedOrders: number; }
 
-export default function DeliveryStatusSummary({
-  newOrders,
-  pendingOrders,
-  deliveredOrders,
-  returnedOrders,
-}: Props) {
+export default function DeliveryStatusSummary({ newOrders, pendingOrders, deliveredOrders, returnedOrders }: Props) {
+  const { t } = useTranslation("dashboard");
   const total = newOrders + pendingOrders + deliveredOrders + returnedOrders;
   const items = [
-    { label: "جديدة", value: newOrders, icon: ShoppingCart, color: "text-primary", bar: "bg-primary" },
-    { label: "قيد التوصيل", value: pendingOrders, icon: Truck, color: "text-sky-600", bar: "bg-sky-500" },
-    { label: "تم التوصيل", value: deliveredOrders, icon: CheckCircle2, color: "text-emerald-600", bar: "bg-emerald-500" },
-    { label: "مرتجعة", value: returnedOrders, icon: RotateCcw, color: "text-destructive", bar: "bg-destructive" },
+    { label: t("deliveryStatus.new"), value: newOrders, icon: ShoppingCart, color: "text-primary", bar: "bg-primary" },
+    { label: t("deliveryStatus.inDelivery"), value: pendingOrders, icon: Truck, color: "text-sky-600", bar: "bg-sky-500" },
+    { label: t("deliveryStatus.delivered"), value: deliveredOrders, icon: CheckCircle2, color: "text-emerald-600", bar: "bg-emerald-500" },
+    { label: t("deliveryStatus.returned"), value: returnedOrders, icon: RotateCcw, color: "text-destructive", bar: "bg-destructive" },
   ];
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
-          ملخص حالات التوصيل
+          {t("deliveryStatus.title")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -42,16 +34,11 @@ export default function DeliveryStatusSummary({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
-                  <span className="text-foreground font-semibold tabular-nums">
-                    {fmtNum(it.value)}
-                  </span>
+                  <span className="text-foreground font-semibold tabular-nums">{fmtNum(it.value)}</span>
                 </div>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${it.bar}`}
-                  style={{ width: `${pct}%` }}
-                />
+                <div className={`h-full rounded-full transition-all ${it.bar}`} style={{ width: `${pct}%` }} />
               </div>
             </div>
           );

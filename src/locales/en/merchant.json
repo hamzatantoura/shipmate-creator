@@ -1,0 +1,24 @@
+{
+  "topup": {
+    "title": "Top Up Balance",
+    "amountLabel": "Amount (SYP)",
+    "amountPlaceholder": "Enter amount",
+    "methodLabel": "Payment method",
+    "referenceLabel": "Reference / transaction number",
+    "referencePlaceholder": "Enter transaction or reference number",
+    "receiptLabel": "Transfer receipt image",
+    "submit": "Send top-up request",
+    "success": "Top-up request sent! It will be reviewed shortly.",
+    "methods": {
+      "shamcash": { "label": "ShamCash", "desc": "Pay via ShamCash app" },
+      "syriatel": { "label": "Syriatel Cash", "desc": "Transfer via Syriatel Cash" },
+      "manual": { "label": "Manual transfer", "desc": "Bank transfer with receipt upload" }
+    },
+    "errors": {
+      "selectMethod": "Choose a payment method",
+      "uploadReceipt": "Please upload a transfer receipt",
+      "mustLogin": "You must be signed in",
+      "uploadFailed": "Failed to upload receipt"
+    }
+  }
+}
