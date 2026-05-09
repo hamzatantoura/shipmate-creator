@@ -1,3 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /merchant
+Disallow: /courier
+Disallow: /vendor
+
 User-agent: Googlebot
 Allow: /
 
@@ -10,5 +17,5 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-User-agent: *
-Allow: /
+Sitemap: https://sila-sy.com/sitemap.xml
+Sitemap: https://qhdhjzyduwzqutmialgp.supabase.co/functions/v1/sitemap-xml
