@@ -4,11 +4,14 @@ import { ShoppingBag, Shield, Search, Package, LogOut, Wallet, Receipt } from "l
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 import NotificationBell from "@/shared/components/feedback/NotificationBell";
-import LanguageSwitcher from "@/shared/components/i18n/LanguageSwitcher";
+import { useEffect } from "react";
+import { useLanguage } from "@/i18n/use-language";
 
 export default function AppHeader() {
   const { pathname } = useLocation();
   const { user, role, profile, signOut } = useAuth();
+  const { language, change } = useLanguage();
+  useEffect(() => { if (language !== "ar") change("ar"); }, [language, change]);
 
   const NAV_ITEMS = role === "admin"
     ? [
@@ -50,7 +53,6 @@ export default function AppHeader() {
           {user && (
             <div className="flex items-center gap-2 mr-2 border-r border-border pr-2">
               <NotificationBell />
-              <LanguageSwitcher compact />
               {profile?.store_name && (
                 <span className="text-xs text-muted-foreground hidden md:inline">{profile.store_name}</span>
               )}
