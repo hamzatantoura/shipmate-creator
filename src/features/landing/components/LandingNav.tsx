@@ -5,15 +5,16 @@ import silaLogo from "@/assets/sila-logo.png";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { LanguageSwitcher } from "@/shared/components/i18n/LanguageSwitcher";
-
-const NAV = [
-  { href: "#features", label: "المزايا" },
-  { href: "#workflow", label: "آلية العمل" },
-  { href: "#pricing", label: "الأسعار" },
-  { href: "#faq", label: "الأسئلة" },
-];
+import { useTranslation } from "react-i18next";
 
 export function LandingNav() {
+  const { t } = useTranslation("landing");
+  const NAV = [
+    { href: "#features", label: t("nav.features") },
+    { href: "#workflow", label: t("nav.features") },
+    { href: "#pricing", label: t("nav.pricing") },
+    { href: "#faq", label: t("nav.faq") },
+  ];
   const [open, setOpen] = useState(false);
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
