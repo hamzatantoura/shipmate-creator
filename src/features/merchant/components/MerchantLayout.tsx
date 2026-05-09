@@ -6,6 +6,9 @@ import MerchantBottomNav from "@/features/merchant/components/MerchantBottomNav"
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import silaLogo from "@/assets/sila-logo.png";
 import NotificationBell from "@/shared/components/feedback/NotificationBell";
+import { useLanguage } from "@/i18n/use-language";
+import LanguageSwitcher from "@/shared/components/i18n/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   children: ReactNode;
@@ -15,9 +18,11 @@ interface Props {
 
 export default function MerchantLayout({ children, title, subtitle }: Props) {
   const { profile, signOut } = useAuth();
+  const { isRtl, meta } = useLanguage();
+  const { t } = useTranslation("dashboard");
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background" dir="rtl">
+      <div className="min-h-screen flex w-full bg-background" dir={meta.dir}>
         <MerchantSidebar />
         <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-10">
@@ -25,10 +30,13 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
               <SidebarTrigger />
               <Link to="/merchant" className="flex items-center gap-2">
                 <img src={silaLogo} alt="Sila" className="h-7 w-7" />
-                <span className="font-display font-bold text-lg text-primary">صلة</span>
+                <span className="font-display font-bold text-lg text-primary">
+                  {isRtl ? "صلة" : "Sila"}
+                </span>
               </Link>
             </div>
             <div className="flex items-center gap-3">
+              <LanguageSwitcher compact />
               <NotificationBell />
               {profile?.store_name && (
                 <span className="text-xs text-muted-foreground hidden md:inline">
@@ -39,7 +47,7 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
                 onClick={signOut}
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
-                خروج
+                {t("merchant.signOut")}
               </button>
             </div>
           </header>
