@@ -33,9 +33,9 @@ export function useLanguage() {
 
   const change = useCallback(
     (lng: SupportedLanguage) => {
-      i18n.changeLanguage(lng);
+      i18n.changeLanguage("ar");
       try {
-        localStorage.setItem(LANGUAGE_STORAGE_KEY, lng);
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
       } catch {
         /* no-op */
       }
