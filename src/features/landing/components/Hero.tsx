@@ -35,10 +35,6 @@ export function Hero() {
             transition={{ duration: 0.6 }}
             className={`text-center ${isRtl ? "lg:text-right" : "lg:text-left"} order-2 lg:order-1`}
           >
-            <div className={`flex items-center gap-3 mb-5 justify-center ${isRtl ? "lg:justify-start" : "lg:justify-start"}`}>
-              <img src={silaLogo} alt="Sila" className="h-12 w-12 rounded-xl" />
-              <span className="font-display font-bold text-2xl text-primary">Sila — صلة</span>
-            </div>
             <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium px-3.5 py-1.5 mb-5 border border-primary/20">
               <Sparkles className="h-3.5 w-3.5" />
               {t("hero.badge")}
