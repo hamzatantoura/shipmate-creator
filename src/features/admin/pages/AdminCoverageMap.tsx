@@ -81,36 +81,40 @@ export default function AdminCoverageMap() {
         </div>
 
         <Card>
-          <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-            <div className="space-y-1.5">
-              <Label className="text-xs">شركة الشحن</Label>
-              <Select value={courierFilter} onValueChange={setCourierFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل</SelectItem>
-                  {couriers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">شركة الشحن</Label>
+                <Select value={courierFilter} onValueChange={setCourierFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    {couriers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">المحافظة</Label>
+                <Select value={provinceFilter} onValueChange={setProvinceFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">الكل</SelectItem>
+                    {provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">المحافظة</Label>
-              <Select value={provinceFilter} onValueChange={setProvinceFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل</SelectItem>
-                  {provinces.map(p => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch id="active" checked={activeOnly} onCheckedChange={setActiveOnly} />
-              <Label htmlFor="active" className="text-sm">النشطة فقط</Label>
-            </div>
-            <div className="flex flex-wrap gap-2 justify-end">
-              <Badge variant="outline" className="bg-primary/10 border-primary/30 text-primary">
-                {filtered.length} فرع
-              </Badge>
-              <Badge variant="outline">{coveredProvinces} محافظة</Badge>
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/40">
+                <Switch id="active" checked={activeOnly} onCheckedChange={setActiveOnly} />
+                <Label htmlFor="active" className="text-sm cursor-pointer">النشطة فقط</Label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="bg-primary/10 border-primary/30 text-primary">
+                  {filtered.length} فرع
+                </Badge>
+                <Badge variant="outline">{coveredProvinces} محافظة</Badge>
+              </div>
             </div>
           </CardContent>
         </Card>
