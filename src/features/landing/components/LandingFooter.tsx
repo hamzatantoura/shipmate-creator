@@ -25,7 +25,6 @@ export function LandingFooter() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="#features" className="hover:text-primary transition-colors">{t("nav.features")}</a></li>
               <li><a href="#workflow" className="hover:text-primary transition-colors">{t("nav.workflow")}</a></li>
-              <li><a href="#pricing" className="hover:text-primary transition-colors">{t("nav.pricing")}</a></li>
               <li><Link to="/track" className="hover:text-primary transition-colors">{t("nav.trackShipment")}</Link></li>
             </ul>
           </div>
