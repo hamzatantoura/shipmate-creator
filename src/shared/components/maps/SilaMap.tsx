@@ -87,7 +87,10 @@ export function SilaMap({
   className = "",
 }: SilaMapProps) {
   return (
-    <div className={`rounded-xl overflow-hidden border border-border shadow-lg ${className}`} style={{ height }}>
+    <div
+      className={`relative rounded-xl overflow-hidden border border-border shadow-lg ${className}`}
+      style={{ height, isolation: "isolate", zIndex: 0 }}
+    >
       <MapContainer center={center} zoom={zoom} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
