@@ -780,6 +780,35 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
+
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="max-w-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> تحديد موقع العميل</DialogTitle>
+          </DialogHeader>
+          <LocationPicker
+            lat={pickerDraft.lat}
+            lng={pickerDraft.lng}
+            onChange={(lat, lng) => setPickerDraft({ lat, lng })}
+          />
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="ghost" onClick={() => setPickerOpen(false)}>إلغاء</Button>
+            <Button
+              type="button"
+              disabled={pickerDraft.lat == null || pickerDraft.lng == null}
+              onClick={() => {
+                if (pickerDraft.lat != null && pickerDraft.lng != null) {
+                  setCustomerCoords({ lat: pickerDraft.lat, lng: pickerDraft.lng });
+                }
+                setPickerOpen(false);
+              }}
+              className="gap-1.5"
+            >
+              <Check className="h-4 w-4" /> تأكيد الموقع
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }
