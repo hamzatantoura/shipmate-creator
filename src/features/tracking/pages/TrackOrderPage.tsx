@@ -136,13 +136,13 @@ export default function TrackOrderPage() {
             <Package className="h-7 w-7 text-primary-foreground" />
           </div>
           <h2 className="text-2xl font-display font-bold text-foreground">تتبع طلبك</h2>
-          <p className="text-muted-foreground text-sm">أدخل رمز صلة (Sila Code) المكوّن من 6 أحرف لمعرفة حالة طلبك</p>
+          <p className="text-muted-foreground text-sm">أدخل رمز صلة (Sila Code) المختصر أو الكامل (مثل SL-XXXXXX أو SL-XXXXXX-XXXX)</p>
         </div>
 
         {/* Search */}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
-            placeholder="SL-1A2B3C"
+            placeholder="SL-EE9864 أو SL-EE9864-SRNI"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             className="flex-1 font-mono text-center tracking-wider uppercase"
