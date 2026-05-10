@@ -41,7 +41,7 @@ export default function ResetPassword() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4" dir={meta.dir}>
+      <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
         <Card className="w-full max-w-md border-primary/30 bg-card text-center relative z-10">
           <CardContent className="py-12 space-y-4">
             <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -57,7 +57,7 @@ export default function ResetPassword() {
 
   if (!isRecovery) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4" dir={meta.dir}>
+      <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
         <Card className="w-full max-w-md border-destructive/30 bg-card text-center relative z-10">
           <CardContent className="py-12 space-y-4">
             <Lock className="h-10 w-10 text-destructive mx-auto" />
@@ -73,7 +73,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4" dir={meta.dir}>
+    <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
       <Card className="w-full max-w-md border-border bg-card/80 backdrop-blur-sm relative z-10">
         <CardHeader className="text-center space-y-3">
           <div className="mx-auto w-14 h-14 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
