@@ -30,6 +30,8 @@ import CourierWallet from "@/features/courier/pages/CourierWallet";
 import AdminLogistics from "@/features/admin/pages/AdminLogistics";
 import AdminSettlements from "@/features/admin/pages/AdminSettlements";
 import AdminSettings from "@/features/admin/pages/AdminSettings";
+import AdminCoverageMap from "@/features/admin/pages/AdminCoverageMap";
+import AdminDistrictsMap from "@/features/admin/pages/AdminDistrictsMap";
 
 // Storefront & tracking
 import Storefront from "@/features/storefront/pages/Storefront";
@@ -84,6 +86,8 @@ export function AppRouter() {
         <Route path="/admin/merchants" element={<Navigate to="/admin?tab=merchants" replace />} />
         <Route path="/admin/settlements" element={<AuthGuard allowedRoles={["admin"]}><AdminSettlements /></AuthGuard>} />
         <Route path="/admin/settings" element={<AuthGuard allowedRoles={["admin"]}><AdminSettings /></AuthGuard>} />
+        <Route path="/admin/coverage-map" element={<AuthGuard allowedRoles={["admin"]}><AdminCoverageMap /></AuthGuard>} />
+        <Route path="/admin/districts-map" element={<AuthGuard allowedRoles={["admin"]}><AdminDistrictsMap /></AuthGuard>} />
 
         {/* Legacy redirects */}
         <Route path="/dashboard" element={<Navigate to="/login" replace />} />
