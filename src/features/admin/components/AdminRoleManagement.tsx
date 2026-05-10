@@ -14,8 +14,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ShieldCheck, Search, Loader2 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { ShieldCheck, Search, Loader2, UserPlus, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { supabase as sb } from "@/integrations/supabase/client";
 
 type AppRole = "admin" | "vendor" | "merchant";
 
@@ -49,6 +54,9 @@ export default function AdminRoleManagement() {
   const [filter, setFilter] = useState<string>("all");
   const [confirm, setConfirm] = useState<{ user: UserRow; nextRole: AppRole } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "", confirm: "", full_name: "", phone: "" });
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -99,6 +107,40 @@ export default function AdminRoleManagement() {
     merchant: users.filter((u) => u.primary_role === "merchant").length,
   }), [users]);
 
+  const createAdmin = async () => {
+    const email = form.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("البريد الإلكتروني غير صالح");
+      return;
+    }
+    if (form.password.length < 6) {
+      toast.error("كلمة المرور 6 أحرف على الأقل");
+      return;
+    }
+    if (form.password !== form.confirm) {
+      toast.error("كلمتا المرور غير متطابقتين");
+      return;
+    }
+    setCreating(true);
+    const { data, error } = await sb.functions.invoke("create-admin-account", {
+      body: {
+        email,
+        password: form.password,
+        full_name: form.full_name.trim(),
+        phone: form.phone.trim(),
+      },
+    });
+    setCreating(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.error || error?.message || "تعذّر إنشاء الحساب");
+      return;
+    }
+    toast.success("تم إنشاء حساب المدير بنجاح");
+    setCreateOpen(false);
+    setForm({ email: "", password: "", confirm: "", full_name: "", phone: "" });
+    fetchUsers();
+  };
+
   const changeRole = async () => {
     if (!confirm) return;
     setSaving(true);
@@ -128,6 +170,13 @@ export default function AdminRoleManagement() {
 
   return (
     <div className="space-y-4" dir="rtl">
+      <div className="flex justify-end">
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <UserPlus className="h-4 w-4" />
+          إنشاء حساب مدير جديد
+        </Button>
+      </div>
+
       <div className="grid grid-cols-3 gap-3">
         {(["admin", "vendor", "merchant"] as AppRole[]).map((r) => (
           <Card key={r}>
@@ -230,6 +279,76 @@ export default function AdminRoleManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={createOpen} onOpenChange={(o) => !creating && setCreateOpen(o)}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              إنشاء حساب مدير جديد
+            </DialogTitle>
+            <DialogDescription>
+              <div className="flex items-start gap-2 mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>حساب المدير يملك صلاحيات كاملة على المنصة. تأكد من هوية الشخص قبل إنشاء الحساب.</span>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div>
+              <Label>الاسم الكامل</Label>
+              <Input
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                placeholder="مثال: أحمد محمد"
+              />
+            </div>
+            <div>
+              <Label>البريد الإلكتروني *</Label>
+              <Input
+                type="email"
+                dir="ltr"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="admin@example.com"
+              />
+            </div>
+            <div>
+              <Label>رقم الهاتف</Label>
+              <Input
+                dir="ltr"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="+963..."
+              />
+            </div>
+            <div>
+              <Label>كلمة المرور * (6 أحرف على الأقل)</Label>
+              <Input
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>تأكيد كلمة المرور *</Label>
+              <Input
+                type="password"
+                value={form.confirm}
+                onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>إلغاء</Button>
+            <Button onClick={createAdmin} disabled={creating}>
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "إنشاء الحساب"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
