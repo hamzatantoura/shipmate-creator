@@ -87,9 +87,16 @@ Deno.serve(async (req) => {
 
     const newEmail = `${username}${EMAIL_DOMAIN}`;
 
-    // Ensure target email isn't already taken by a different user
-    const { data: existing } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const taken = existing?.users?.find(u => (u.email || "").toLowerCase() === newEmail && u.id !== vendor_id);
+    // Ensure target email isn't already taken by a different user.
+    // Paginate fully — listUsers caps at 1000/page, so iterate until exhausted.
+    let taken: { id: string } | undefined;
+    for (let page = 1; page <= 50; page++) {
+      const { data: existing, error: listErr } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (listErr) break;
+      const users = existing?.users ?? [];
+      taken = users.find(u => (u.email || "").toLowerCase() === newEmail && u.id !== vendor_id);
+      if (taken || users.length < 1000) break;
+    }
     if (taken) {
       return new Response(JSON.stringify({ error: "اسم المستخدم مستخدم مسبقاً" }), {
         status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },

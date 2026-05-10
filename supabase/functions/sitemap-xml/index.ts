@@ -103,9 +103,10 @@ Deno.serve(async (req) => {
       },
     });
   } catch (e) {
-    return new Response(`<!-- error: ${(e as Error).message} -->`, {
-      status: 500,
-      headers: { ...corsHeaders, "content-type": "application/xml" },
-    });
+    console.error("sitemap-xml error", e);
+    return new Response(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>`,
+      { status: 500, headers: { ...corsHeaders, "content-type": "application/xml" } },
+    );
   }
 });
