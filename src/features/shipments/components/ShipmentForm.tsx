@@ -14,6 +14,7 @@ import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight, Cros
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/features/wallet/lib/pricing-engine";
 import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
+import { generateSilaCode } from "@/features/shipments/lib/sila-code";
 
 interface District {
   id: string;
@@ -387,7 +388,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     if (lossOrder) { toast.error("لا يمكن إتمام الطلب: تكلفة الشحن والتحصيل أكبر من قيمة الطلب"); return; }
 
     setLoading(true);
-    const tracking = `SIL-${Date.now().toString(36).toUpperCase()}`;
+    const tracking = generateSilaCode();
     const provinceAr = selectedProvince.province_ar;
     const cityEnum = CITY_MAP[selectedProvince.province] || "Damascus";
 
