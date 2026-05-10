@@ -26,7 +26,7 @@ export function CoverageMapSection() {
         .not("lat", "is", null)
         .not("lng", "is", null);
       const { data: co } = await supabase
-        .from("public_couriers")
+        .from("couriers_public")
         .select("id, name");
       setBranches((br || []) as BranchRow[]);
       setCourierNames(Object.fromEntries((co || []).map((c: any) => [c.id, c.name])));
