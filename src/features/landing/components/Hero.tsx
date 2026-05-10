@@ -27,13 +27,13 @@ export function Hero() {
       <div className="absolute inset-x-0 -top-40 h-[480px] bg-gradient-to-b from-primary/15 via-info/10 to-transparent blur-3xl" aria-hidden />
 
       <div className="max-w-6xl mx-auto px-4 pt-16 md:pt-24 pb-16 md:pb-24 relative">
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
+        <div className="grid md:grid-cols-2 gap-10 md:gap-12 items-center">
           {/* Text */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className={`text-center ${isRtl ? "lg:text-right" : "lg:text-left"} order-2 lg:order-1`}
+            className={`text-center ${isRtl ? "md:text-right" : "md:text-left"} order-2 md:order-1`}
           >
             <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium px-3.5 py-1.5 mb-5 border border-primary/20">
               <Sparkles className="h-3.5 w-3.5" />
@@ -49,7 +49,7 @@ export function Hero() {
             <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0">
               {t("hero.subtitle")}
             </p>
-            <div className={`mt-7 flex flex-wrap gap-3 justify-center ${isRtl ? "lg:justify-start" : "lg:justify-start"}`}>
+            <div className="mt-7 flex flex-wrap gap-3 justify-center md:justify-start">
               <Link to="/signup">
                 <Button size="lg" className="gap-2 h-12 px-7 font-semibold glow-btn text-base">
                   {t("hero.ctaPrimary")} <Arrow className="h-4 w-4" />
@@ -69,7 +69,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="order-1 lg:order-2 relative"
+            className="order-1 md:order-2 relative"
           >
             <div className="absolute -inset-6 bg-gradient-to-tr from-primary/25 via-info/15 to-transparent rounded-[2rem] blur-3xl opacity-60" aria-hidden />
             <img
