@@ -77,9 +77,9 @@ export default function AdminDistrictsMap() {
     if (!pendingId || !pendingCoords) return;
     setSaving(true);
     const { error } = await supabase.rpc("set_district_coords" as any, {
-      _district_id: pendingId,
-      _lat: pendingCoords.lat,
-      _lng: pendingCoords.lng,
+      p_district_id: pendingId,
+      p_lat: pendingCoords.lat,
+      p_lng: pendingCoords.lng,
     });
     setSaving(false);
     if (error) { toast.error("فشل الحفظ: " + error.message); return; }
