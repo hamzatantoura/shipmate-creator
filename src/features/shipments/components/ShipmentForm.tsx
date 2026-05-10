@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import LocationPicker from "@/shared/components/inputs/LocationPicker";
 import { toast } from "sonner";
-import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight } from "lucide-react";
+import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight, Crosshair, Check } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/features/wallet/lib/pricing-engine";
 import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
@@ -109,6 +111,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     cod_amount: prefill?.cod_amount || "",
     notes: "",
   });
+  const [customerCoords, setCustomerCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerDraft, setPickerDraft] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
 
   useEffect(() => {
     supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee,lat,lng").eq("is_active", true)
@@ -401,6 +406,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       net_amount: codAmount - selectedCourier.fee - courierCodFee,
       notes: form.notes.trim() || null,
       status: "new",
+      customer_lat: customerCoords?.lat ?? null,
+      customer_lng: customerCoords?.lng ?? null,
     } as any).select().single();
 
     if (orderErr) { toast.error(orderErr.message); setLoading(false); return; }
