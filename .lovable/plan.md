@@ -1,85 +1,45 @@
-# خطة: إضافة 4 خرائط للنظام
 
-البنية التحتية موجودة (Leaflet + react-leaflet مثبتان فعلاً في `LocationPicker`). كل الإضافات **جديدة** ولن تعدّل سلوك الصفحات الحالية — فقط نضيف مكونات/صفحات جديدة وأزرار للوصول إليها.
+# إضافة وظيفة إنشاء حساب مدير
 
----
+## الوضع الحالي
+- صفحة `/admin?tab=roles` تعرض جميع المستخدمين وتسمح فقط بـ **ترقية مستخدم موجود** إلى مدير.
+- لا يوجد طريقة لإنشاء حساب مدير **جديد** من داخل التطبيق (فقط شركات الشحن لها edge function `create-courier-account`).
 
-## ١. مكوّن مشترك: `SilaMap`
-ملف جديد: `src/shared/components/maps/SilaMap.tsx`
+## ما سأبنيه
 
-غلاف موحّد فوق Leaflet — يضمن نفس الستايل (dark navy + orange tokens)، تحميل CSS مرة واحدة، إصلاح أيقونة Marker.
-يدعم: مركز/زوم، markers متعددة بأيقونات ملوّنة، نقر على marker، حدود تلقائية (`fitBounds`).
+### 1. زر "إنشاء حساب مدير جديد" في أعلى صفحة إدارة الأدوار
+- يفتح Dialog يحوي:
+  - الاسم الكامل
+  - البريد الإلكتروني (سيُستخدم لتسجيل الدخول)
+  - رقم الهاتف (اختياري)
+  - كلمة المرور (6 أحرف على الأقل)
+  - تأكيد كلمة المرور
+- زر "إنشاء" يستدعي edge function آمنة.
 
-لن يلمس `LocationPicker` الموجود.
+### 2. Edge Function جديدة: `create-admin-account`
+على غرار `create-courier-account` لكن:
+- تتحقق أن المُستدعي **مدير حالي** (عبر `user_roles`).
+- ترفض إذا كان المستخدم الجديد بريده مسجل مسبقاً.
+- تنشئ المستخدم بـ `email_confirm: true` (لا حاجة لتأكيد بريد).
+- تعيّن دور `admin` في كل من `profiles.role` و `user_roles`.
+- تسجّل العملية في `system_audit_logs` للمساءلة.
 
----
+### 3. حماية إضافية
+- Edge function تعيد رسائل خطأ واضحة بالعربية.
+- Dialog يعرض تنبيهاً: "حساب المدير يملك صلاحيات كاملة على المنصة، تأكد من هوية الشخص قبل الإنشاء".
+- بعد الإنشاء بنجاح: toast + تحديث جدول المستخدمين تلقائياً.
 
-## ٢. خريطة فروع شركات الشحن (Admin)
-صفحة جديدة: `src/features/admin/pages/AdminCoverageMap.tsx`
-- تجلب `courier_branches` (lat/lng + courier name + province) و `couriers` للفلترة.
-- markers برتقالية لكل فرع، popup فيه اسم الشركة + الفرع + الهاتف.
-- فلتر علوي: شركة الشحن / المحافظة / النشط فقط.
-- إحصائية: عدد الفروع، عدد المحافظات المغطاة.
+## الملفات المتأثرة
+- جديد: `supabase/functions/create-admin-account/index.ts`
+- تعديل: `src/features/admin/components/AdminRoleManagement.tsx` (إضافة الزر + Dialog)
 
-إضافة route جديد `/admin/coverage-map` + بند في `MerchantSidebar` (قسم admin) — **لا حذف لأي بند موجود**.
+## الخيارات المتاحة (اختر واحداً قبل التنفيذ)
 
----
+**أ. الطريقة الموصى بها** — Dialog لإنشاء مدير جديد بحساب مستقل (كما هو موضح أعلاه).
 
-## ٣. خريطة اختيار عنوان العميل عند إنشاء الطلب (Merchant)
-- نضيف زر "📍 تحديد على الخريطة" داخل `ShipmentForm`/`EditOrderDialog` يفتح Dialog فيه `LocationPicker` (موجود).
-- عند الحفظ: نخزّن `customer_lat` / `customer_lng` في `orders` (الأعمدة موجودة فعلاً).
-- اختياري بالكامل — لو ما ضغط الزر ينحفظ الطلب بدون إحداثيات تماماً مثل الآن.
+**ب. أبسط** — الاكتفاء بزر "دعوة عبر البريد": يرسل دعوة، والمستخدم يُكمل التسجيل بنفسه ثم يُمنح الدور تلقائياً.
 
----
+**ج. الأكثر مرونة** — كلاهما (إنشاء مباشر + دعوة).
 
-## ٤. خريطة تتبع الطلب (Public Tracking)
-- تعديل غير مكسور في `TrackOrderPage`: أسفل التايملاين الحالي نضيف بطاقة "موقع التسليم".
-- يعرض: `customer_lat/lng` للعميل + إحداثيات `courier_branches` للفرع المعيّن (`assigned_branch_id`).
-- لو الإحداثيات مفقودة → البطاقة لا تظهر (graceful fallback).
+> ملاحظة: لا يمكن حذف حساب مدير من داخل التطبيق حالياً (لأسباب أمنية في Supabase Auth)، يمكن فقط تخفيض دوره إلى تاجر/شركة شحن من نفس الصفحة.
 
----
-
-## ٥. خريطة "تغطية الأحياء" (Admin) — إثراء بيانات
-صفحة جديدة: `src/features/admin/pages/AdminDistrictsMap.tsx`
-- خريطة لسوريا + markers لكل حي عنده lat/lng.
-- الأحياء بدون إحداثيات تظهر في قائمة جانبية: ضغطة على الحي → ضغطة على الخريطة → استدعاء RPC `set_district_coords` → تحديث لحظي.
-- يحل مشكلة "حلب فقط فيها إحداثيات".
-
-route جديد `/admin/districts-map` + بند في sidebar admin.
-
----
-
-## ٦. خريطة Demo في Landing (تسويق)
-مكوّن جديد: `src/features/landing/components/CoverageMapSection.tsx`
-- يُضاف **بعد** `Workflow` في `Landing.tsx` (إضافة سطر واحد، لا تعديل لأي قسم).
-- يعرض: `ALEPPO_MERCHANTS` (تجار) + فروع شركات الشحن في حلب من DB.
-- بدون تفاعل مع DB للزوار — read-only public select على `courier_branches` (السياسة موجودة لـ active=true).
-
----
-
-## ضمانات عدم كسر الصفحات الحالية
-- لا تعديل على: `client.ts`, `types.ts`, schema قاعدة البيانات (الأعمدة المطلوبة موجودة كلها: `orders.customer_lat/lng`, `districts.lat/lng`, `courier_branches.lat/lng`, `orders.assigned_branch_id`).
-- لا تعديل على RLS — كل البيانات تُقرأ ضمن السياسات الحالية.
-- `LocationPicker` يُستخدم كما هو دون تعديل.
-- كل مكوّن جديد lazy-loaded عبر `React.lazy` في الراوتر للحفاظ على bundle size.
-
----
-
-## التفاصيل التقنية (للمراجعة)
-- لا حاجة لـ migration — كل الأعمدة الجغرافية موجودة.
-- لا حاجة لمكتبات جديدة (`leaflet` و `react-leaflet` مثبتة).
-- مركز سوريا الافتراضي: `[34.8, 38.9]` zoom 7.
-- ستايل tile: OpenStreetMap (مجاني، بدون API key).
-- أيقونات Marker مخصصة بـ DivIcon لاستخدام لون `--primary` (orange #FF8C00).
-
----
-
-## ترتيب التنفيذ
-1. `SilaMap` المشترك
-2. خريطة Landing (سهلة، بدون auth)
-3. خريطة Admin Coverage (فروع)
-4. خريطة Admin Districts (إثراء lat/lng)
-5. تكامل LocationPicker في ShipmentForm
-6. خريطة Tracking
-
-تقريباً 6 ملفات جديدة + تعديلات صغيرة في `router.tsx`, `MerchantSidebar`, `Landing.tsx`, `ShipmentForm`, `TrackOrderPage`.
