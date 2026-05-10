@@ -4,6 +4,7 @@ import { TrustedBy } from "@/features/landing/components/TrustedBy";
 import { Features } from "@/features/landing/components/Features";
 import { DashboardPreviewSection } from "@/features/landing/components/DashboardPreviewSection";
 import { Workflow } from "@/features/landing/components/Workflow";
+import { CoverageMapSection } from "@/features/landing/components/CoverageMapSection";
 import { Testimonials } from "@/features/landing/components/Testimonials";
 import { Faq } from "@/features/landing/components/Faq";
 import { CtaBanner } from "@/features/landing/components/CtaBanner";
@@ -36,6 +37,7 @@ export default function Landing() {
         <Features />
         <DashboardPreviewSection />
         <Workflow />
+        <CoverageMapSection />
         <Testimonials />
         <Faq />
         <CtaBanner />

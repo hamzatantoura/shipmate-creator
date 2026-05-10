@@ -1,182 +1,85 @@
+# خطة: إضافة 4 خرائط للنظام
 
-## الهدف
-
-تحويل بنية Sila الحالية (تنظيم حسب نوع الملف) إلى بنية **Feature-First** احترافية مستوحاة من معايير SaaS الكبرى، مع الحفاظ التام على:
-- جميع المسارات (`/merchant/*`, `/courier/*`, `/admin/*`, إلخ)
-- منطق العمل (محرك التسعير، المحفظة، تسلسل حالات الطلبات)
-- مخطط قاعدة البيانات وسياسات RLS
-
-## ⚠️ ملاحظة مهمة قبل التنفيذ
-
-هذا تغيير كبير على ~80 ملف. سيُنفَّذ على **3 مراحل منفصلة** كل واحدة قابلة للحفظ والمراجعة:
-
-| المرحلة | النطاق | الحجم |
-|---|---|---|
-| **1** | بنية المجلدات + نقل الملفات + تحديث الاستيرادات | كبيرة (تغيير مسارات) |
-| **2** | استخراج المكونات المشتركة + توحيد الـ hooks | متوسطة |
-| **3** | إدارة الحالة (React Query layer) + types موحدة | متوسطة |
-
-ستحفظ نقطة استرجاع قبل كل مرحلة. **الخطة الحالية تغطي المرحلة 1 فقط** — وبعد إتمامها تظهر المراحل التالية كخطط مستقلة.
+البنية التحتية موجودة (Leaflet + react-leaflet مثبتان فعلاً في `LocationPicker`). كل الإضافات **جديدة** ولن تعدّل سلوك الصفحات الحالية — فقط نضيف مكونات/صفحات جديدة وأزرار للوصول إليها.
 
 ---
 
-## المرحلة 1: البنية الجديدة (Feature-First Architecture)
+## ١. مكوّن مشترك: `SilaMap`
+ملف جديد: `src/shared/components/maps/SilaMap.tsx`
 
-### البنية المستهدفة
+غلاف موحّد فوق Leaflet — يضمن نفس الستايل (dark navy + orange tokens)، تحميل CSS مرة واحدة، إصلاح أيقونة Marker.
+يدعم: مركز/زوم، markers متعددة بأيقونات ملوّنة، نقر على marker، حدود تلقائية (`fitBounds`).
 
-```text
-src/
-├── app/                          # نقطة الدخول والتوجيه
-│   ├── App.tsx                   # (المنقول من src/App.tsx)
-│   ├── router.tsx                # تعريف Routes منفصل
-│   └── providers.tsx             # QueryClient + Auth + Tooltip + Toaster
-│
-├── features/                     # كل وحدة عمل في مجلدها
-│   ├── auth/
-│   │   ├── pages/                # Login, Signup, ForgotPassword, ResetPassword
-│   │   ├── components/           # AuthForm, AuthGuard
-│   │   ├── hooks/                # use-auth.tsx
-│   │   └── index.ts              # public API للـ feature
-│   │
-│   ├── merchant/
-│   │   ├── pages/                # Dashboard, Orders, Archive, Wallet, Products, Settings, TopUp
-│   │   ├── components/           # MerchantSidebar, MerchantBottomNav, MerchantLayout, MerchantOrders, MerchantProducts, MerchantWallet, KycCard, VerificationGate, ShippingSettings, EditOrderDialog, ShipmentTrackingTimeline, StoreReadinessBanner
-│   │   ├── hooks/                # use-merchant-id, use-merchant-verification
-│   │   └── index.ts
-│   │
-│   ├── courier/                  # (الـ vendor role)
-│   │   ├── pages/                # CourierOrders, CourierWallet
-│   │   ├── components/           # CourierWalletPanel, BarcodeScanner
-│   │   └── index.ts
-│   │
-│   ├── admin/
-│   │   ├── pages/                # AdminLogistics, AdminSettlements, AdminSettings, AdminPayouts
-│   │   ├── components/           # AnalyticsDashboard, AuditLog, BranchesManagement, CouriersManagement, DistrictsManagement, MerchantApproval, WhatsappQueue, CourierBranchesPanel, CourierPricingTiers
-│   │   └── index.ts
-│   │
-│   ├── shipments/                # منطق الشحنات المشترك بين merchant/courier
-│   │   ├── components/           # ShipmentForm, ShipmentTable
-│   │   ├── lib/                  # order-locking, order-status, print-label, print-bulk, print-validation, shipping-label
-│   │   └── index.ts
-│   │
-│   ├── storefront/               # المتجر العام
-│   │   ├── pages/                # Storefront, ProductPage, ReviewOrderPage
-│   │   └── index.ts
-│   │
-│   ├── tracking/
-│   │   ├── pages/                # TrackOrderPage, TrackShipment
-│   │   └── index.ts
-│   │
-│   └── wallet/                   # محرك المحفظة المشترك
-│       ├── components/           # WalletTransactionsLog
-│       ├── lib/                  # pricing-engine
-│       └── index.ts
-│
-├── shared/                       # أدوات مستخدمة عبر features
-│   ├── components/
-│   │   ├── ui/                   # shadcn (كما هو)
-│   │   ├── layout/               # AppHeader
-│   │   ├── feedback/             # ErrorBoundary, NotificationBell
-│   │   └── inputs/               # LocationPicker, SyrianPhoneInput, StarRating, SecureReceiptImage
-│   ├── hooks/                    # use-mobile, use-toast, use-platform-settings, use-pwa-install, use-realtime-notifications
-│   ├── lib/                      # utils, syrian-phone, image-compress, offline-sync, storage-helpers
-│   └── types/                    # (فارغ الآن — يُملأ في المرحلة 3)
-│
-├── integrations/
-│   └── supabase/                 # كما هو (auto-generated، ممنوع المساس)
-│
-├── assets/
-├── data/
-├── test/
-├── index.css
-├── main.tsx                      # يستورد من app/App
-└── vite-env.d.ts
-```
-
-### قواعد البنية
-
-1. **Public API لكل feature**: كل feature يصدّر فقط ما يحتاجه الخارج عبر `index.ts`. مثال:
-   ```ts
-   // features/merchant/index.ts
-   export { default as MerchantDashboard } from "./pages/MerchantDashboard";
-   export { default as MerchantLayout } from "./components/MerchantLayout";
-   ```
-2. **لا استيراد عرضي بين features**: لو احتاج merchant مكوناً من courier، يُنقل المكون إلى `shared/` أو إلى feature ثالث (مثل `shipments`).
-3. **`shared/` للأدوات المشتركة فقط** — لا يحتوي منطق عمل.
-4. **alias مختصرة في tsconfig**:
-   ```json
-   "@app/*": ["./src/app/*"],
-   "@features/*": ["./src/features/*"],
-   "@shared/*": ["./src/shared/*"],
-   "@/*": ["./src/*"]   // يبقى للتوافق
-   ```
-
-### ما سيتغير فعلياً
-
-| الملف القديم | الملف الجديد |
-|---|---|
-| `src/App.tsx` | `src/app/App.tsx` (مع استخراج Router و Providers) |
-| `src/pages/Login.tsx` | `src/features/auth/pages/Login.tsx` |
-| `src/pages/Merchant*.tsx` (7 ملفات) | `src/features/merchant/pages/*.tsx` |
-| `src/components/merchant/*` | `src/features/merchant/components/*` |
-| `src/components/admin/*` | `src/features/admin/components/*` |
-| `src/components/courier/*` + `src/components/vendor/*` | `src/features/courier/components/*` |
-| `src/components/AuthGuard.tsx`, `AuthForm.tsx` | `src/features/auth/components/*` |
-| `src/hooks/use-auth.tsx` | `src/features/auth/hooks/use-auth.tsx` |
-| `src/hooks/use-merchant-*.ts` | `src/features/merchant/hooks/*` |
-| `src/lib/order-*.ts`, `print-*.ts`, `shipping-label.ts` | `src/features/shipments/lib/*` |
-| `src/lib/pricing-engine.ts` | `src/features/wallet/lib/*` |
-| `src/components/ShipmentForm.tsx`, `ShipmentTable.tsx` | `src/features/shipments/components/*` |
-| `src/components/AppHeader.tsx` | `src/shared/components/layout/AppHeader.tsx` |
-| `src/components/ErrorBoundary.tsx`, `NotificationBell.tsx` | `src/shared/components/feedback/*` |
-| `src/components/LocationPicker.tsx`, `SyrianPhoneInput.tsx`, `StarRating.tsx`, `SecureReceiptImage.tsx` | `src/shared/components/inputs/*` |
-
-### ما لن يتغير (مضمون)
-
-- ✅ كل المسارات في `App.tsx` تبقى بنفس الـ paths
-- ✅ ملفات `src/integrations/supabase/*` ممنوع المساس بها
-- ✅ `src/components/ui/*` (shadcn) تبقى في مكانها — مجرد رابط alias جديد
-- ✅ قاعدة البيانات وكل migrations
-- ✅ منطق الأعمال داخل كل ملف يبقى حرفياً نفسه
-- ✅ ملفات الاختبار `src/test/*`
-
-### خطوات التنفيذ في المرحلة 1
-
-1. إنشاء بنية المجلدات الجديدة (فارغة).
-2. تحديث `tsconfig.app.json` بـ aliases الجديدة (مع إبقاء `@/*` للتوافق).
-3. نقل الملفات بالمجموعات (auth → merchant → admin → courier → shipments → storefront → tracking → wallet → shared).
-4. تحديث `import` داخل كل ملف منقول ليستخدم alias الجديدة.
-5. إنشاء `index.ts` لكل feature.
-6. استخراج `Router` و `Providers` من `App.tsx` إلى ملفات منفصلة.
-7. تحديث `main.tsx` ليستورد من `@app/App`.
-8. التحقق من عدم كسر أي شيء: تشغيل البناء + تصفح كل دور (merchant/courier/admin) للتأكد.
-
-### المخاطر والتخفيف
-
-- **خطر كسر استيرادات**: التخفيف عبر تنفيذ متسلسل بمجموعات صغيرة، وفحص بعد كل مجموعة.
-- **خطر تضارب أسماء**: الأسماء الحالية فريدة، لا تضارب متوقع.
-- **عمل غير ضروري**: لن نُعيد تسمية المكونات — فقط النقل.
+لن يلمس `LocationPicker` الموجود.
 
 ---
 
-## نظرة على المرحلتين 2 و 3 (للسياق فقط، تُنفَّذ لاحقاً)
+## ٢. خريطة فروع شركات الشحن (Admin)
+صفحة جديدة: `src/features/admin/pages/AdminCoverageMap.tsx`
+- تجلب `courier_branches` (lat/lng + courier name + province) و `couriers` للفلترة.
+- markers برتقالية لكل فرع، popup فيه اسم الشركة + الفرع + الهاتف.
+- فلتر علوي: شركة الشحن / المحافظة / النشط فقط.
+- إحصائية: عدد الفروع، عدد المحافظات المغطاة.
 
-### المرحلة 2: المكونات المشتركة وتوحيد الـ hooks
-- استخراج `<DataTable>` عام بدل تكرار جداول الطلبات/الشحنات.
-- استخراج `<PageHeader>` و `<EmptyState>` و `<StatCard>`.
-- توحيد أنماط النماذج عبر `<FormField>` wrapper مع zod.
-- توحيد use-supabase-query hook عام.
-
-### المرحلة 3: طبقة إدارة الحالة و Types
-- نقل كل استدعاءات Supabase إلى `features/*/api/*.ts` (data layer).
-- بناء React Query hooks لكل feature (`useMerchantOrders`, `useCourierShipments`, إلخ).
-- ملف `shared/types/` يصدّر types مشتقة من Supabase types مع types الأعمال (مثل `OrderStatus`, `ShipmentWithRelations`).
-- إضافة optimistic updates للعمليات الشائعة.
+إضافة route جديد `/admin/coverage-map` + بند في `MerchantSidebar` (قسم admin) — **لا حذف لأي بند موجود**.
 
 ---
 
-## ما أحتاج تأكيدك عليه قبل الـ Implement
+## ٣. خريطة اختيار عنوان العميل عند إنشاء الطلب (Merchant)
+- نضيف زر "📍 تحديد على الخريطة" داخل `ShipmentForm`/`EditOrderDialog` يفتح Dialog فيه `LocationPicker` (موجود).
+- عند الحفظ: نخزّن `customer_lat` / `customer_lng` في `orders` (الأعمدة موجودة فعلاً).
+- اختياري بالكامل — لو ما ضغط الزر ينحفظ الطلب بدون إحداثيات تماماً مثل الآن.
 
-1. **هل توافق على بنية Feature-First المقترحة؟** أم تفضل بنية مختلفة (مثل Domain-Driven بطبقات)؟
-2. **هل توافق على البدء بالمرحلة 1 فقط** (نقل ملفات بدون تعديل منطق)؟
-3. **هل تريد إبقاء alias `@/*` القديم** للتوافق العكسي خلال الانتقال؟ (موصى به)
+---
+
+## ٤. خريطة تتبع الطلب (Public Tracking)
+- تعديل غير مكسور في `TrackOrderPage`: أسفل التايملاين الحالي نضيف بطاقة "موقع التسليم".
+- يعرض: `customer_lat/lng` للعميل + إحداثيات `courier_branches` للفرع المعيّن (`assigned_branch_id`).
+- لو الإحداثيات مفقودة → البطاقة لا تظهر (graceful fallback).
+
+---
+
+## ٥. خريطة "تغطية الأحياء" (Admin) — إثراء بيانات
+صفحة جديدة: `src/features/admin/pages/AdminDistrictsMap.tsx`
+- خريطة لسوريا + markers لكل حي عنده lat/lng.
+- الأحياء بدون إحداثيات تظهر في قائمة جانبية: ضغطة على الحي → ضغطة على الخريطة → استدعاء RPC `set_district_coords` → تحديث لحظي.
+- يحل مشكلة "حلب فقط فيها إحداثيات".
+
+route جديد `/admin/districts-map` + بند في sidebar admin.
+
+---
+
+## ٦. خريطة Demo في Landing (تسويق)
+مكوّن جديد: `src/features/landing/components/CoverageMapSection.tsx`
+- يُضاف **بعد** `Workflow` في `Landing.tsx` (إضافة سطر واحد، لا تعديل لأي قسم).
+- يعرض: `ALEPPO_MERCHANTS` (تجار) + فروع شركات الشحن في حلب من DB.
+- بدون تفاعل مع DB للزوار — read-only public select على `courier_branches` (السياسة موجودة لـ active=true).
+
+---
+
+## ضمانات عدم كسر الصفحات الحالية
+- لا تعديل على: `client.ts`, `types.ts`, schema قاعدة البيانات (الأعمدة المطلوبة موجودة كلها: `orders.customer_lat/lng`, `districts.lat/lng`, `courier_branches.lat/lng`, `orders.assigned_branch_id`).
+- لا تعديل على RLS — كل البيانات تُقرأ ضمن السياسات الحالية.
+- `LocationPicker` يُستخدم كما هو دون تعديل.
+- كل مكوّن جديد lazy-loaded عبر `React.lazy` في الراوتر للحفاظ على bundle size.
+
+---
+
+## التفاصيل التقنية (للمراجعة)
+- لا حاجة لـ migration — كل الأعمدة الجغرافية موجودة.
+- لا حاجة لمكتبات جديدة (`leaflet` و `react-leaflet` مثبتة).
+- مركز سوريا الافتراضي: `[34.8, 38.9]` zoom 7.
+- ستايل tile: OpenStreetMap (مجاني، بدون API key).
+- أيقونات Marker مخصصة بـ DivIcon لاستخدام لون `--primary` (orange #FF8C00).
+
+---
+
+## ترتيب التنفيذ
+1. `SilaMap` المشترك
+2. خريطة Landing (سهلة، بدون auth)
+3. خريطة Admin Coverage (فروع)
+4. خريطة Admin Districts (إثراء lat/lng)
+5. تكامل LocationPicker في ShipmentForm
+6. خريطة Tracking
+
+تقريباً 6 ملفات جديدة + تعديلات صغيرة في `router.tsx`, `MerchantSidebar`, `Landing.tsx`, `ShipmentForm`, `TrackOrderPage`.

@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import LocationPicker from "@/shared/components/inputs/LocationPicker";
 import { toast } from "sonner";
-import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight } from "lucide-react";
+import { Package, Loader2, MapPin, AlertCircle, ShieldAlert, Truck, Weight, Crosshair, Check } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { calculatePricing, isLossOrder } from "@/features/wallet/lib/pricing-engine";
 import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
@@ -109,6 +111,9 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
     cod_amount: prefill?.cod_amount || "",
     notes: "",
   });
+  const [customerCoords, setCustomerCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerDraft, setPickerDraft] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
 
   useEffect(() => {
     supabase.from("districts").select("id,name,parent_id,province,province_ar,delivery_fee,lat,lng").eq("is_active", true)
@@ -401,6 +406,8 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
       net_amount: codAmount - selectedCourier.fee - courierCodFee,
       notes: form.notes.trim() || null,
       status: "new",
+      customer_lat: customerCoords?.lat ?? null,
+      customer_lng: customerCoords?.lng ?? null,
     } as any).select().single();
 
     if (orderErr) { toast.error(orderErr.message); setLoading(false); return; }
@@ -669,8 +676,29 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>العنوان التفصيلي <span className="text-destructive">*</span></Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label>العنوان التفصيلي <span className="text-destructive">*</span></Label>
+            <Button
+              type="button"
+              size="sm"
+              variant={customerCoords ? "secondary" : "outline"}
+              className="h-7 gap-1 text-xs"
+              onClick={() => {
+                setPickerDraft({ lat: customerCoords?.lat ?? null, lng: customerCoords?.lng ?? null });
+                setPickerOpen(true);
+              }}
+            >
+              {customerCoords ? <Check className="h-3 w-3" /> : <Crosshair className="h-3 w-3" />}
+              {customerCoords ? "موقع محدد" : "تحديد الموقع"}
+            </Button>
+          </div>
           <Textarea placeholder="الشارع، البناء، الطابق..." value={form.detailed_address} onChange={e => setForm({ ...form, detailed_address: e.target.value })} required rows={3} />
+          {customerCoords && (
+            <p className="text-[11px] text-muted-foreground" dir="ltr">
+              📍 {customerCoords.lat.toFixed(5)}, {customerCoords.lng.toFixed(5)}
+              <button type="button" onClick={() => setCustomerCoords(null)} className="text-destructive mr-2 underline">إزالة</button>
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>مبلغ التحصيل عند الاستلام (ل.س)</Label>
@@ -752,6 +780,35 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Package className="ml-2 h-4 w-4" />}
         إنشاء طلب شحن
       </Button>
+
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className="max-w-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" /> تحديد موقع العميل</DialogTitle>
+          </DialogHeader>
+          <LocationPicker
+            lat={pickerDraft.lat}
+            lng={pickerDraft.lng}
+            onChange={(lat, lng) => setPickerDraft({ lat, lng })}
+          />
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="ghost" onClick={() => setPickerOpen(false)}>إلغاء</Button>
+            <Button
+              type="button"
+              disabled={pickerDraft.lat == null || pickerDraft.lng == null}
+              onClick={() => {
+                if (pickerDraft.lat != null && pickerDraft.lng != null) {
+                  setCustomerCoords({ lat: pickerDraft.lat, lng: pickerDraft.lng });
+                }
+                setPickerOpen(false);
+              }}
+              className="gap-1.5"
+            >
+              <Check className="h-4 w-4" /> تأكيد الموقع
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }
