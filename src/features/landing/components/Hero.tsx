@@ -30,9 +30,9 @@ export function Hero() {
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
           {/* Text */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
             className={`text-center ${isRtl ? "lg:text-right" : "lg:text-left"} order-2 lg:order-1`}
           >
             <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium px-3.5 py-1.5 mb-5 border border-primary/20">
@@ -66,9 +66,9 @@ export function Hero() {
 
           {/* Illustration */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
             className="order-1 lg:order-2 relative"
           >
             <div className="absolute -inset-6 bg-gradient-to-tr from-primary/25 via-info/15 to-transparent rounded-[2rem] blur-3xl opacity-60" aria-hidden />
