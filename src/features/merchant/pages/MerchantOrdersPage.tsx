@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
+import { generateSilaCode } from "@/features/shipments/lib/sila-code";
 import StarRating from "@/shared/components/inputs/StarRating";
 import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -164,21 +165,8 @@ interface BoxItem {
 
 const fmtSYP = (n: number) => new Intl.NumberFormat("ar-SY").format(n) + " ل.س";
 const silaCodeOf = (id: string) => "SL-" + id.slice(0, 6).toUpperCase();
-// Builds the globally-unique tracking number stored in shipments.tracking_number.
-// Format: SL-XXXXXX-YYYY (14 chars total)
-//   - XXXXXX: first 6 chars of the order UUID (uppercase) — keeps it tied to the order
-//   - YYYY:   4 random uppercase alphanumeric chars — eliminates collisions on the
-//             UNIQUE constraint that previously caused "duplicate key" failures
-//             when the 6-char prefix repeated across re-created shipments.
-// silaCodeOf() (the 9-char SL-XXXXXX form) is intentionally kept for UI display only.
-const buildTrackingNumber = (orderId: string): string => {
-  const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let suffix = "";
-  for (let i = 0; i < 4; i++) {
-    suffix += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
-  }
-  return `${silaCodeOf(orderId)}-${suffix}`;
-};
+// silaCodeOf() (the 9-char SL-XXXXXX form) is kept for UI display of legacy orders only.
+// New shipments use the strong generator from features/shipments/lib/sila-code.
 const isLocked = (o: OrderRow) => isOrderLocked(o).isEditLocked || isOrderLocked(o).isCancelLocked;
 
 // Map an Arabic/English province label to the shipment_city enum value used
@@ -204,7 +192,7 @@ const createShipmentForOrder = async (
   merchantId: string,
   deliveryFee: number,
 ) => {
-  const tracking = buildTrackingNumber(order.id);
+  const tracking = generateSilaCode();
   const cod = Number(order.final_sale_price ?? order.total_amount ?? 0);
   const fee = Number(deliveryFee || 0);
 
