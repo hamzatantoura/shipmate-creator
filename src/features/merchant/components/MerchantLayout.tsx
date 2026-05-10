@@ -25,7 +25,7 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background" dir={meta.dir}>
         <MerchantSidebar />
-        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+        <div className="flex-1 flex flex-col">
           <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-10">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
