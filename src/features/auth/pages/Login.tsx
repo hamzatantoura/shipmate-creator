@@ -37,7 +37,7 @@ export default function Login() {
         friendly = t("login.errors.emailNotConfirmed");
       }
       console.error("[Login] signIn failed", { loginEmail, code, message: error.message });
-      toast.error(`${friendly} (${error.message})`);
+      toast.error(friendly);
       setLoading(false);
       return;
     }

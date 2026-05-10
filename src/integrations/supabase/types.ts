@@ -1509,41 +1509,26 @@ export type Database = {
       couriers_public: {
         Row: {
           city: string | null
-          cod_fee_type: string | null
-          cod_fee_value: number | null
-          created_at: string | null
           id: string | null
-          integration_type: string | null
           is_active: boolean | null
           logo_url: string | null
           name: string | null
-          return_fee_percentage: number | null
           services: string[] | null
         }
         Insert: {
           city?: string | null
-          cod_fee_type?: string | null
-          cod_fee_value?: number | null
-          created_at?: string | null
           id?: string | null
-          integration_type?: string | null
           is_active?: boolean | null
           logo_url?: string | null
           name?: string | null
-          return_fee_percentage?: number | null
           services?: string[] | null
         }
         Update: {
           city?: string | null
-          cod_fee_type?: string | null
-          cod_fee_value?: number | null
-          created_at?: string | null
           id?: string | null
-          integration_type?: string | null
           is_active?: boolean | null
           logo_url?: string | null
           name?: string | null
-          return_fee_percentage?: number | null
           services?: string[] | null
         }
         Relationships: []
