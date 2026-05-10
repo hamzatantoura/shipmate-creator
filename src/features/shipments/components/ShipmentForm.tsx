@@ -676,8 +676,29 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>العنوان التفصيلي <span className="text-destructive">*</span></Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label>العنوان التفصيلي <span className="text-destructive">*</span></Label>
+            <Button
+              type="button"
+              size="sm"
+              variant={customerCoords ? "secondary" : "outline"}
+              className="h-7 gap-1 text-xs"
+              onClick={() => {
+                setPickerDraft({ lat: customerCoords?.lat ?? null, lng: customerCoords?.lng ?? null });
+                setPickerOpen(true);
+              }}
+            >
+              {customerCoords ? <Check className="h-3 w-3" /> : <Crosshair className="h-3 w-3" />}
+              {customerCoords ? "موقع محدد" : "تحديد الموقع"}
+            </Button>
+          </div>
           <Textarea placeholder="الشارع، البناء، الطابق..." value={form.detailed_address} onChange={e => setForm({ ...form, detailed_address: e.target.value })} required rows={3} />
+          {customerCoords && (
+            <p className="text-[11px] text-muted-foreground" dir="ltr">
+              📍 {customerCoords.lat.toFixed(5)}, {customerCoords.lng.toFixed(5)}
+              <button type="button" onClick={() => setCustomerCoords(null)} className="text-destructive mr-2 underline">إزالة</button>
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>مبلغ التحصيل عند الاستلام (ل.س)</Label>
