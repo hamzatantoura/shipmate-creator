@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { SilaMap, type SilaMarker } from "@/shared/components/maps/SilaMap";
+import type { SilaMarker } from "@/shared/components/maps/SilaMap";
 import { ALEPPO_MERCHANTS } from "@/data/aleppo-demo-merchants";
 import { Card } from "@/components/ui/card";
 import { Building2, Store, MapPin } from "lucide-react";
+
+const SilaMap = lazy(() =>
+  import("@/shared/components/maps/SilaMap").then((m) => ({ default: m.SilaMap }))
+);
 
 interface BranchRow {
   id: string;
@@ -16,6 +20,24 @@ interface BranchRow {
 export function CoverageMapSection() {
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [courierNames, setCourierNames] = useState<Record<string, string>>({});
+  const [mapVisible, setMapVisible] = useState(false);
+  const mapHostRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!mapHostRef.current || mapVisible) return;
+    const el = mapHostRef.current;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setMapVisible(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [mapVisible]);
 
   useEffect(() => {
     (async () => {
@@ -84,7 +106,26 @@ export function CoverageMapSection() {
         </div>
 
         <Card className="p-3 bg-card/60 backdrop-blur border-border">
-          <SilaMap markers={all} height={500} />
+          <div ref={mapHostRef} style={{ minHeight: 500 }}>
+            {mapVisible ? (
+              <Suspense
+                fallback={
+                  <div
+                    className="rounded-xl bg-muted/40 animate-pulse"
+                    style={{ height: 500 }}
+                  />
+                }
+              >
+                <SilaMap markers={all} height={500} />
+              </Suspense>
+            ) : (
+              <div
+                className="rounded-xl bg-muted/40"
+                style={{ height: 500 }}
+                aria-hidden
+              />
+            )}
+          </div>
           <div className="flex items-center justify-center gap-6 mt-3 text-sm">
             <span className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full" style={{ background: PRIMARY }} />
