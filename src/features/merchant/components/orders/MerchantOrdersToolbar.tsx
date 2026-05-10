@@ -65,7 +65,7 @@ export default function MerchantOrdersToolbar({
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center flex-wrap gap-2 md:shrink-0">
           <Select value={status} onValueChange={onStatusChange}>
             <SelectTrigger className="h-10 w-[170px] gap-1.5">
               <Filter className="h-3.5 w-3.5 text-muted-foreground" />
