@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Package, MapPin, Clock, Truck, ArrowRight, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
+import { normalizeSilaCode, validateSilaCode } from "@/features/shipments/lib/sila-code";
 
 const STATUS_AR: Record<string, string> = {
   new: "جديد",
@@ -71,12 +72,22 @@ export default function TrackOrderPage() {
   const [searched, setSearched] = useState(false);
 
   const doSearch = async (input: string) => {
-    const trimmed = input.trim();
+    const trimmed = normalizeSilaCode(input);
     if (!trimmed) return;
     setLoading(true);
     setSearched(true);
     setError(null);
     setData(null);
+
+    // Client-side checksum guard for new-format codes (SL-XXXXXXXX-C).
+    // Saves a network round-trip on typos. Legacy codes (SL-XXXXXX or
+    // SL-XXXXXX-XXXX) bypass this check and go straight to the RPC.
+    const isNewFormatShape = /^SL-[A-Z2-9]{8}-[A-Z2-9]$/.test(trimmed);
+    if (isNewFormatShape && !validateSilaCode(trimmed)) {
+      setError("الرمز غير صحيح. تأكد من نسخه كاملاً دون تعديل.");
+      setLoading(false);
+      return;
+    }
 
     const { data: result, error: rpcErr } = await supabase.rpc(
       "track_order_by_sila_code" as any,
@@ -90,6 +101,7 @@ export default function TrackOrderPage() {
       if (errKey === "not_found") setError("لم نجد طلباً بهذا الرمز. تأكد من الرمز وحاول مجدداً.");
       else if (errKey === "ambiguous") setError("هذا الرمز يطابق أكثر من طلب. يرجى التواصل مع التاجر للحصول على الرمز الكامل.");
       else if (errKey === "code_too_short") setError("الرمز قصير جداً. يجب أن يحتوي على 6 أحرف على الأقل (مثال: SL-1A2B3C).");
+      else if (errKey === "invalid_code") setError("الرمز غير صحيح. تأكد من نسخه كاملاً دون تعديل.");
       else setError("لم نجد طلباً بهذا الرمز.");
     } else if (result) {
       setData(result as TrackResult);
@@ -136,13 +148,13 @@ export default function TrackOrderPage() {
             <Package className="h-7 w-7 text-primary-foreground" />
           </div>
           <h2 className="text-2xl font-display font-bold text-foreground">تتبع طلبك</h2>
-          <p className="text-muted-foreground text-sm">أدخل رمز صلة (Sila Code) المختصر أو الكامل (مثل SL-XXXXXX أو SL-XXXXXX-XXXX)</p>
+          <p className="text-muted-foreground text-sm">أدخل رمز صلة (Sila Code) كاملاً كما يظهر في صفحة الطلب</p>
         </div>
 
         {/* Search */}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
-            placeholder="SL-EE9864 أو SL-EE9864-SRNI"
+            placeholder="SL-XXXXXXXX-X"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             className="flex-1 font-mono text-center tracking-wider uppercase"
