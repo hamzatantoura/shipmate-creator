@@ -1550,6 +1550,9 @@ export type Database = {
       }
     }
     Functions: {
+      _sila_alphabet: { Args: never; Returns: string }
+      _sila_checksum: { Args: { p_body: string }; Returns: string }
+      _sila_validate: { Args: { p_code: string }; Returns: boolean }
       approve_top_up: { Args: { p_topup_id: string }; Returns: Json }
       complete_payout: {
         Args: { p_new_status: string; p_payout_id: string }
@@ -1591,6 +1594,7 @@ export type Database = {
           total_branches_in_destination: number
         }[]
       }
+      generate_sila_code: { Args: never; Returns: string }
       get_admin_analytics: { Args: never; Returns: Json }
       get_courier_net_owed: { Args: { _courier_id: string }; Returns: number }
       get_current_vendor_courier_profile: {
