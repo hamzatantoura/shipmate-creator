@@ -513,6 +513,11 @@ export default function AdminLogistics() {
           {/* Heavy tabs: keep mounted across tab switches so open dialogs and unsaved
               form state are preserved when the admin briefly visits another tab. */}
           <TabsContent value="districts" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <div className="mb-3 flex justify-end">
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <a href="/admin/districts-map"><MapPin className="h-3.5 w-3.5" /> فتح خريطة الأحياء</a>
+              </Button>
+            </div>
             <AdminDistrictsManagement />
           </TabsContent>
           <TabsContent value="merchants" forceMount className="mt-4 data-[state=inactive]:hidden">
@@ -522,6 +527,11 @@ export default function AdminLogistics() {
             <AdminCouriersManagement />
           </TabsContent>
           <TabsContent value="branches" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <div className="mb-3 flex justify-end">
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <a href="/admin/coverage-map"><MapPin className="h-3.5 w-3.5" /> فتح خريطة التغطية</a>
+              </Button>
+            </div>
             <AdminBranchesManagement />
           </TabsContent>
           <TabsContent value="transactions" forceMount className="mt-4 data-[state=inactive]:hidden">
