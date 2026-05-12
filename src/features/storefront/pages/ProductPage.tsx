@@ -23,15 +23,12 @@ interface ProductImage {
 }
 
 interface District {
-  id: string; province: string; province_ar: string; area: string | null; area_ar: string | null; delivery_fee: number;
-}
-
-interface Province {
-  id: string; name: string; name_ar: string;
-}
-
-interface SubRegion {
-  id: string; name: string; name_ar: string; province_id: string;
+  id: string;
+  name: string;
+  province_ar: string | null;
+  area_ar: string | null;
+  parent_id: string | null;
+  delivery_fee: number;
 }
 
 interface MerchantShippingInfo {
@@ -69,12 +66,8 @@ export default function ProductPage() {
   const [merchantBlocked, setMerchantBlocked] = useState(false);
 
   const [districts, setDistricts] = useState<District[]>([]);
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [subRegions, setSubRegions] = useState<SubRegion[]>([]);
-  const [filteredSubRegions, setFilteredSubRegions] = useState<SubRegion[]>([]);
-  const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [selectedSubRegion, setSelectedSubRegion] = useState("");
-  const [selectedProvinceAr, setSelectedProvinceAr] = useState("");
+  const [selectedProvinceId, setSelectedProvinceId] = useState("");
+  const [selectedAreaId, setSelectedAreaId] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
   const [form, setForm] = useState({
@@ -147,27 +140,30 @@ export default function ProductPage() {
 
   // Fetch geographic data
   useEffect(() => {
-    Promise.all([
-      supabase.from("districts").select("*").eq("is_active", true).order("province_ar"),
-      supabase.from("provinces").select("*").order("name_ar"),
-      supabase.from("sub_regions").select("*").order("name_ar"),
-    ]).then(([distRes, provRes, subRes]) => {
-      if (distRes.data) setDistricts(distRes.data as any);
-      if (provRes.data) setProvinces(provRes.data as any);
-      if (subRes.data) setSubRegions(subRes.data as any);
-    });
+    supabase
+      .from("districts")
+      .select("id, name, province_ar, area_ar, parent_id, delivery_fee")
+      .eq("is_active", true)
+      .order("name")
+      .then(({ data }) => {
+        if (data) setDistricts(data as any);
+      });
   }, []);
 
-  const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
-  const rawDeliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
-
-  // Unique provinces (Arabic) extracted from districts
-  const uniqueProvinces = Array.from(
-    new Map(districts.map(d => [d.province_ar, d])).values()
-  );
-  const provinceDistricts = selectedProvinceAr
-    ? districts.filter(d => d.province_ar === selectedProvinceAr)
+  // Hierarchical districts: provinces are rows with parent_id=null,
+  // areas/sub-regions are rows whose parent_id points to the province.
+  const provinceList = districts.filter(d => !d.parent_id);
+  const areaList = selectedProvinceId
+    ? districts.filter(d => d.parent_id === selectedProvinceId)
     : [];
+
+  // Final district id = selected area if any, otherwise the province itself
+  const finalDistrictId = selectedAreaId || selectedProvinceId;
+  const finalDistrictObj = districts.find(d => d.id === finalDistrictId);
+  const provinceObj = districts.find(d => d.id === selectedProvinceId);
+  const rawDeliveryFee = Number(
+    finalDistrictObj?.delivery_fee || provinceObj?.delivery_fee || 0
+  );
 
   const qty = parseInt(form.quantity) || 1;
   const productTotal = product ? product.price * qty : 0;
@@ -175,21 +171,6 @@ export default function ProductPage() {
     shippingInfo.shipping_policy === "free_all" ||
     (shippingInfo.shipping_policy === "free_above" && productTotal >= shippingInfo.free_shipping_threshold);
   const customerDeliveryFee = isShippingFreeForCustomer ? 0 : rawDeliveryFee;
-
-  // Filter sub-regions by selected district's province
-  useEffect(() => {
-    if (selectedDistrictObj && provinces.length > 0 && subRegions.length > 0) {
-      const province = provinces.find(p => p.name === selectedDistrictObj.province || p.name_ar === selectedDistrictObj.province_ar);
-      if (province) {
-        setFilteredSubRegions(subRegions.filter(sr => sr.province_id === province.id));
-      } else {
-        setFilteredSubRegions([]);
-      }
-    } else {
-      setFilteredSubRegions([]);
-    }
-    setSelectedSubRegion("");
-  }, [selectedDistrict, provinces, subRegions]);
 
   const handlePhoneChange = (val: string) => {
     setForm({ ...form, phone_number: val });
@@ -201,8 +182,8 @@ export default function ProductPage() {
     if (!product) return;
     if (!form.receiver_name.trim()) { toast.error("الاسم مطلوب"); return; }
     if (!validatePhone(form.phone_number)) { toast.error("رقم الهاتف غير صحيح"); return; }
-    if (!selectedDistrict) { toast.error("الرجاء اختيار المحافظة"); return; }
-    if (!selectedSubRegion && filteredSubRegions.length > 0) { toast.error("الرجاء اختيار الحي / المنطقة"); return; }
+    if (!selectedProvinceId) { toast.error("الرجاء اختيار المحافظة"); return; }
+    if (areaList.length > 0 && !selectedAreaId) { toast.error("الرجاء اختيار المنطقة / الحي"); return; }
 
     // Validate delivery fee is not zero when shipping is on customer
     if (!isShippingFreeForCustomer && rawDeliveryFee <= 0) {
@@ -217,7 +198,7 @@ export default function ProductPage() {
       p_merchant_id: product.merchant_id,
       p_product_id: product.id,
       p_quantity: qty,
-      p_district_id: selectedDistrict,
+      p_district_id: finalDistrictId,
       p_receiver_name: form.receiver_name.trim(),
       p_phone_number: form.phone_number.trim(),
       p_detailed_address: form.detailed_address.trim() || "غير محدد",
@@ -241,7 +222,7 @@ export default function ProductPage() {
       orderId: newOrderId ? newOrderId.slice(0, 8).toUpperCase() : "—",
       receiverName: form.receiver_name.trim(),
       phone: form.phone_number.trim(),
-      city: selectedDistrictObj?.province_ar || "",
+      city: provinceObj?.province_ar || provinceObj?.name || "",
       address: form.detailed_address.trim() || "غير محدد",
       total: serverTotal + serverDelivery,
       productName: product.name,
@@ -469,55 +450,43 @@ export default function ProductPage() {
                   <div className="space-y-1.5">
                     <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
                     <Select
-                      value={selectedProvinceAr}
+                      value={selectedProvinceId}
                       onValueChange={(v) => {
-                        setSelectedProvinceAr(v);
-                        setSelectedDistrict("");
-                        setSelectedSubRegion("");
+                        setSelectedProvinceId(v);
+                        setSelectedAreaId("");
                       }}
                     >
                       <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                       <SelectContent>
-                        {uniqueProvinces.map(p => (
-                          <SelectItem key={p.province_ar} value={p.province_ar}>
-                            {p.province_ar}
+                        {provinceList.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.province_ar || p.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Area / Center selector */}
+                  {/* Area / Sub-region selector */}
                   <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة / المركز <span className="text-destructive">*</span></Label>
+                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة / الحي <span className="text-destructive">*</span></Label>
                     <Select
-                      value={selectedDistrict}
-                      onValueChange={setSelectedDistrict}
-                      disabled={!selectedProvinceAr}
+                      value={selectedAreaId}
+                      onValueChange={setSelectedAreaId}
+                      disabled={!selectedProvinceId || areaList.length === 0}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={selectedProvinceAr ? "اختر المنطقة" : "اختر المحافظة أولاً"} />
+                        <SelectValue placeholder={
+                          !selectedProvinceId ? "اختر المحافظة أولاً" :
+                          areaList.length === 0 ? "لا توجد مناطق فرعية" :
+                          "اختر المنطقة / الحي"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        {provinceDistricts.map(d => (
-                          <SelectItem key={d.id} value={d.id}>
-                            {d.area_ar || "مركز المحافظة"}
+                        {areaList.map(a => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.area_ar || a.name}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Sub-region selector */}
-                  <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي / المنطقة <span className="text-destructive">*</span></Label>
-                    <Select value={selectedSubRegion} onValueChange={setSelectedSubRegion} disabled={filteredSubRegions.length === 0}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={selectedDistrict ? (filteredSubRegions.length > 0 ? "اختر الحي" : "لا توجد أحياء لهذه المحافظة") : "اختر المحافظة أولاً"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredSubRegions.map(sr => (
-                          <SelectItem key={sr.id} value={sr.id}>{sr.name_ar}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -542,7 +511,7 @@ export default function ProductPage() {
                       </span>
                     </div>
                     {/* Show shipping fee ONLY in summary, not in dropdown */}
-                    {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee > 0 && (
+                    {selectedProvinceId && !isShippingFreeForCustomer && rawDeliveryFee > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
                         <span className="font-display font-bold text-foreground">{customerDeliveryFee.toLocaleString()} ل.س</span>
@@ -554,7 +523,7 @@ export default function ProductPage() {
                         <span className="font-display font-bold text-primary">مجاني</span>
                       </div>
                     )}
-                    {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee <= 0 && (
+                    {selectedProvinceId && !isShippingFreeForCustomer && rawDeliveryFee <= 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-warning">⚠️ لا تتوفر تسعيرة شحن لهذه المنطقة</span>
                       </div>
