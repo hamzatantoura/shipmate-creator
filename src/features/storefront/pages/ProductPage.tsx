@@ -115,6 +115,35 @@ export default function ProductPage() {
     });
   }, [slug]);
 
+  // Realtime: listen to merchant shipping policy updates
+  useEffect(() => {
+    if (!product?.merchant_id) return;
+    const channel = supabase
+      .channel(`merchant-shipping-${product.merchant_id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "merchants", filter: `user_id=eq.${product.merchant_id}` },
+        (payload) => {
+          const m = payload.new as any;
+          setShippingInfo((prev) => ({
+            ...prev,
+            shipping_policy: m.shipping_policy ?? prev.shipping_policy,
+            free_shipping_threshold: m.free_shipping_threshold ?? prev.free_shipping_threshold,
+            whatsapp_number: m.whatsapp_number ?? prev.whatsapp_number,
+            phone: m.phone ?? prev.phone,
+            store_name: m.store_name ?? prev.store_name,
+            verification_status: m.verification_status ?? prev.verification_status,
+            is_active: m.is_active ?? prev.is_active,
+          }));
+          setMerchantBlocked(m.verification_status !== "verified" || !m.is_active);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [product?.merchant_id]);
+
   // Fetch geographic data
   useEffect(() => {
     Promise.all([
@@ -482,10 +511,10 @@ export default function ProductPage() {
                         <span className="font-display font-bold text-foreground">{customerDeliveryFee.toLocaleString()} ل.س</span>
                       </div>
                     )}
-                    {isShippingFreeForCustomer && selectedDistrict && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
-                        <span className="font-display font-bold text-primary">مجاني ✓</span>
+                    {isShippingFreeForCustomer && (
+                      <div className="flex items-center justify-between rounded-md bg-primary/10 px-2 py-1.5">
+                        <span className="text-sm font-semibold text-primary">🎁 الشحن على حساب المتجر</span>
+                        <span className="font-display font-bold text-primary">مجاني</span>
                       </div>
                     )}
                     {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee <= 0 && (
