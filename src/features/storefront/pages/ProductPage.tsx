@@ -74,6 +74,7 @@ export default function ProductPage() {
   const [filteredSubRegions, setFilteredSubRegions] = useState<SubRegion[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedSubRegion, setSelectedSubRegion] = useState("");
+  const [selectedProvinceAr, setSelectedProvinceAr] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
   const [form, setForm] = useState({
@@ -159,6 +160,14 @@ export default function ProductPage() {
 
   const selectedDistrictObj = districts.find(d => d.id === selectedDistrict);
   const rawDeliveryFee = selectedDistrictObj ? Number(selectedDistrictObj.delivery_fee) : 0;
+
+  // Unique provinces (Arabic) extracted from districts
+  const uniqueProvinces = Array.from(
+    new Map(districts.map(d => [d.province_ar, d])).values()
+  );
+  const provinceDistricts = selectedProvinceAr
+    ? districts.filter(d => d.province_ar === selectedProvinceAr)
+    : [];
 
   const qty = parseInt(form.quantity) || 1;
   const productTotal = product ? product.price * qty : 0;
@@ -459,12 +468,40 @@ export default function ProductPage() {
                   {/* Province selector - NO price shown */}
                   <div className="space-y-1.5">
                     <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
-                    <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+                    <Select
+                      value={selectedProvinceAr}
+                      onValueChange={(v) => {
+                        setSelectedProvinceAr(v);
+                        setSelectedDistrict("");
+                        setSelectedSubRegion("");
+                      }}
+                    >
                       <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                       <SelectContent>
-                        {districts.map(d => (
+                        {uniqueProvinces.map(p => (
+                          <SelectItem key={p.province_ar} value={p.province_ar}>
+                            {p.province_ar}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Area / Center selector */}
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة / المركز <span className="text-destructive">*</span></Label>
+                    <Select
+                      value={selectedDistrict}
+                      onValueChange={setSelectedDistrict}
+                      disabled={!selectedProvinceAr}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedProvinceAr ? "اختر المنطقة" : "اختر المحافظة أولاً"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {provinceDistricts.map(d => (
                           <SelectItem key={d.id} value={d.id}>
-                            {d.province_ar} {d.area_ar ? `— ${d.area_ar}` : ""}
+                            {d.area_ar || "مركز المحافظة"}
                           </SelectItem>
                         ))}
                       </SelectContent>
