@@ -450,55 +450,43 @@ export default function ProductPage() {
                   <div className="space-y-1.5">
                     <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المحافظة <span className="text-destructive">*</span></Label>
                     <Select
-                      value={selectedProvinceAr}
+                      value={selectedProvinceId}
                       onValueChange={(v) => {
-                        setSelectedProvinceAr(v);
-                        setSelectedDistrict("");
-                        setSelectedSubRegion("");
+                        setSelectedProvinceId(v);
+                        setSelectedAreaId("");
                       }}
                     >
                       <SelectTrigger><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                       <SelectContent>
-                        {uniqueProvinces.map(p => (
-                          <SelectItem key={p.province_ar} value={p.province_ar}>
-                            {p.province_ar}
+                        {provinceList.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.province_ar || p.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Area / Center selector */}
+                  {/* Area / Sub-region selector */}
                   <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة / المركز <span className="text-destructive">*</span></Label>
+                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> المنطقة / الحي <span className="text-destructive">*</span></Label>
                     <Select
-                      value={selectedDistrict}
-                      onValueChange={setSelectedDistrict}
-                      disabled={!selectedProvinceAr}
+                      value={selectedAreaId}
+                      onValueChange={setSelectedAreaId}
+                      disabled={!selectedProvinceId || areaList.length === 0}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={selectedProvinceAr ? "اختر المنطقة" : "اختر المحافظة أولاً"} />
+                        <SelectValue placeholder={
+                          !selectedProvinceId ? "اختر المحافظة أولاً" :
+                          areaList.length === 0 ? "لا توجد مناطق فرعية" :
+                          "اختر المنطقة / الحي"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        {provinceDistricts.map(d => (
-                          <SelectItem key={d.id} value={d.id}>
-                            {d.area_ar || "مركز المحافظة"}
+                        {areaList.map(a => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.area_ar || a.name}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Sub-region selector */}
-                  <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> الحي / المنطقة <span className="text-destructive">*</span></Label>
-                    <Select value={selectedSubRegion} onValueChange={setSelectedSubRegion} disabled={filteredSubRegions.length === 0}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={selectedDistrict ? (filteredSubRegions.length > 0 ? "اختر الحي" : "لا توجد أحياء لهذه المحافظة") : "اختر المحافظة أولاً"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredSubRegions.map(sr => (
-                          <SelectItem key={sr.id} value={sr.id}>{sr.name_ar}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -523,7 +511,7 @@ export default function ProductPage() {
                       </span>
                     </div>
                     {/* Show shipping fee ONLY in summary, not in dropdown */}
-                    {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee > 0 && (
+                    {selectedProvinceId && !isShippingFreeForCustomer && rawDeliveryFee > 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
                         <span className="font-display font-bold text-foreground">{customerDeliveryFee.toLocaleString()} ل.س</span>
@@ -535,7 +523,7 @@ export default function ProductPage() {
                         <span className="font-display font-bold text-primary">مجاني</span>
                       </div>
                     )}
-                    {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee <= 0 && (
+                    {selectedProvinceId && !isShippingFreeForCustomer && rawDeliveryFee <= 0 && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-warning">⚠️ لا تتوفر تسعيرة شحن لهذه المنطقة</span>
                       </div>
