@@ -511,10 +511,10 @@ export default function ProductPage() {
                         <span className="font-display font-bold text-foreground">{customerDeliveryFee.toLocaleString()} ل.س</span>
                       </div>
                     )}
-                    {isShippingFreeForCustomer && selectedDistrict && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">رسوم التوصيل</span>
-                        <span className="font-display font-bold text-primary">مجاني ✓</span>
+                    {isShippingFreeForCustomer && (
+                      <div className="flex items-center justify-between rounded-md bg-primary/10 px-2 py-1.5">
+                        <span className="text-sm font-semibold text-primary">🎁 الشحن على حساب المتجر</span>
+                        <span className="font-display font-bold text-primary">مجاني</span>
                       </div>
                     )}
                     {selectedDistrict && !isShippingFreeForCustomer && rawDeliveryFee <= 0 && (
