@@ -49,10 +49,13 @@ export function Hero() {
               <Zap className="h-3.5 w-3.5" />
               نظام تشغيل متكامل لتجارتك
             </span>
-            <h1 className="font-display font-bold tracking-normal text-foreground text-4xl sm:text-5xl lg:text-[3.05rem] leading-[1.28] [word-spacing:0.035em] py-2 text-balance">
-              <span className="block">أدر تجارتك من مكان واحد</span>
-              <span className="block bg-gradient-to-l from-primary via-info to-primary bg-clip-text text-transparent pb-1 leading-[1.32]">
-                مبيعاتك، شحناتك، وأموالك
+            <h1 className="font-display font-bold tracking-normal text-foreground text-4xl sm:text-5xl lg:text-[3rem] leading-[1.32] [word-spacing:0.025em] py-2 text-balance">
+              <span className="block">أدر متجرك وشحناتك</span>
+              <span className="block">
+                وأموالك من{" "}
+                <span className="bg-gradient-to-l from-primary via-info to-primary bg-clip-text text-transparent pb-1 leading-[1.35]">
+                  منصة واحدة
+                </span>
               </span>
             </h1>
             <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-[1.9] [word-spacing:0.035em] max-w-xl mx-auto md:mx-0">
