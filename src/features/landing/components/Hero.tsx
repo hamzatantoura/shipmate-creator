@@ -45,11 +45,11 @@ export function Hero() {
             transition={{ duration: 0.5, ease: "easeOut" }}
             className="text-center md:text-right order-2 md:order-1"
           >
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium px-3.5 py-1.5 mb-5 border border-primary/20">
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium px-3.5 py-1.5 mb-3 border border-primary/20">
               <Zap className="h-3.5 w-3.5" />
               نظام تشغيل متكامل لتجارتك
             </span>
-            <h1 className="font-display font-bold tracking-normal text-foreground text-4xl sm:text-5xl lg:text-[3rem] leading-[1.32] [word-spacing:0.025em] py-2 text-balance">
+            <h1 className="font-display font-bold tracking-normal text-foreground text-4xl sm:text-5xl lg:text-[3rem] leading-[1.32] [word-spacing:0.025em] pb-2 -mt-1 text-balance">
               <span className="block">أدر متجرك وشحناتك</span>
               <span className="block">
                 وأموالك من{" "}
