@@ -49,14 +49,16 @@ export function Hero() {
               <Zap className="h-3.5 w-3.5" />
               نظام تشغيل متكامل لتجارتك
             </span>
-            <h1 className="font-display font-bold tracking-tight text-foreground text-4xl sm:text-5xl lg:text-[3.25rem] leading-[1.45] [word-spacing:0.1em] py-1">
-              أدر مبيعاتك، شحناتك،{" "}
-              <span className="inline-block bg-gradient-to-l from-primary via-info to-primary bg-clip-text text-transparent pb-2">
-                وأموالك
-              </span>{" "}
-              من مكان واحد
+            <h1 className="font-display font-bold tracking-normal text-foreground text-4xl sm:text-5xl lg:text-[3rem] leading-[1.32] [word-spacing:0.025em] py-2 text-balance">
+              <span className="block">أدر متجرك وشحناتك</span>
+              <span className="block">
+                وأموالك من{" "}
+                <span className="bg-gradient-to-l from-primary via-info to-primary bg-clip-text text-transparent pb-1 leading-[1.35]">
+                  منصة واحدة
+                </span>
+              </span>
             </h1>
-            <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto md:mx-0">
+            <p className="mt-5 text-base sm:text-lg text-muted-foreground leading-[1.9] [word-spacing:0.035em] max-w-xl mx-auto md:mx-0">
               صلة تمنحك متجراً إلكترونياً احترافياً، وتربطك آلياً بأفضل شركات
               الشحن مع محفظة مالية تضبط أرباحك بدقة.
             </p>
