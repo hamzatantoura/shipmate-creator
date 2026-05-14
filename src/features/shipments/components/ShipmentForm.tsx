@@ -53,6 +53,12 @@ interface CourierOption {
   cod_fee: number; // computed for current cod amount
   estimated_days: string | null;
   return_fee_percentage: number;
+  return_fee_type: "percentage" | "fixed";
+  return_fee_fixed: number;
+  cod_collection_responsibility: "merchant" | "courier_absorbs";
+  max_delivery_attempts: number;
+  delivery_sla_hours: number;
+  policy_notes: string | null;
 }
 
 const SERVICE_LABELS: Record<string, string> = {
