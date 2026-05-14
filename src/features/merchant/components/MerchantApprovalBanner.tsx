@@ -17,21 +17,21 @@ export default function MerchantApprovalBanner() {
   const variants = {
     pending_verification: {
       Icon: Clock,
-      tone: "border-amber-500/40 bg-amber-500/10 text-amber-100",
-      iconTone: "text-amber-400",
+      tone: "border-amber-500/50 bg-amber-500/15 text-amber-950 dark:text-amber-100",
+      iconTone: "text-amber-600 dark:text-amber-400",
       title: "حسابك قيد المراجعة",
       desc: "أكمل بياناتك وأضف منتجاتك (ستُحفظ كمسودات) ريثما يتم تفعيل حسابك من الإدارة.",
     },
     pending_admin_approval: {
       Icon: ShieldCheck,
-      tone: "border-blue-500/40 bg-blue-500/10 text-blue-100",
-      iconTone: "text-blue-400",
+      tone: "border-blue-500/50 bg-blue-500/15 text-blue-950 dark:text-blue-100",
+      iconTone: "text-blue-600 dark:text-blue-400",
       title: "بانتظار الاعتماد الإداري",
       desc: "تم استكمال البيانات المطلوبة. سيتم تفعيل الشحن فور موافقة الإدارة.",
     },
     rejected: {
       Icon: XCircle,
-      tone: "border-destructive/50 bg-destructive/10 text-destructive-foreground",
+      tone: "border-destructive/50 bg-destructive/15 text-destructive dark:text-destructive-foreground",
       iconTone: "text-destructive",
       title: "تم رفض حسابك",
       desc: "راجع البيانات وحدّثها من الإعدادات ثم أعد التقديم للمراجعة.",
