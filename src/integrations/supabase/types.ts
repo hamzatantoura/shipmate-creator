@@ -55,6 +55,45 @@ export type Database = {
           },
         ]
       }
+      bulk_import_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_count: number
+          errors: Json
+          file_name: string
+          id: string
+          merchant_id: string
+          status: string
+          success_count: number
+          total_rows: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_count?: number
+          errors?: Json
+          file_name: string
+          id?: string
+          merchant_id: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_count?: number
+          errors?: Json
+          file_name?: string
+          id?: string
+          merchant_id?: string
+          status?: string
+          success_count?: number
+          total_rows?: number
+        }
+        Relationships: []
+      }
       courier_branches: {
         Row: {
           address_details: string | null
@@ -799,6 +838,8 @@ export type Database = {
       platform_settings: {
         Row: {
           allow_international_phones: boolean
+          bulk_import_max_rows: number
+          bulk_import_required_fields: Json
           collection_fee_visible: boolean
           created_at: string
           default_collection_fee_pct: number
@@ -820,6 +861,8 @@ export type Database = {
         }
         Insert: {
           allow_international_phones?: boolean
+          bulk_import_max_rows?: number
+          bulk_import_required_fields?: Json
           collection_fee_visible?: boolean
           created_at?: string
           default_collection_fee_pct?: number
@@ -841,6 +884,8 @@ export type Database = {
         }
         Update: {
           allow_international_phones?: boolean
+          bulk_import_max_rows?: number
+          bulk_import_required_fields?: Json
           collection_fee_visible?: boolean
           created_at?: string
           default_collection_fee_pct?: number
