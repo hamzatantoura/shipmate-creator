@@ -380,6 +380,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         default_collection_fee_pct: platformSettings.default_collection_fee_pct,
         courier_cod_fee_type: selectedCourier?.cod_fee_type,
         courier_cod_fee_value: selectedCourier?.cod_fee_value,
+        cod_collection_responsibility: selectedCourier?.cod_collection_responsibility,
+        courier_return_fee_type: selectedCourier?.return_fee_type,
+        courier_return_fee_percentage: selectedCourier?.return_fee_percentage,
+        courier_return_fee_fixed: selectedCourier?.return_fee_fixed,
       },
     });
   }, [carrierFee, codAmount, platformSettings, selectedCourier]);
