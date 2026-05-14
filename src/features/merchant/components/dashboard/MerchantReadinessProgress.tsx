@@ -51,7 +51,7 @@ export default function MerchantReadinessProgress() {
     { label: `الملف الشخصي (${profileDone}/${profileTotal})`, ok: profileDone === profileTotal, weight: 40, href: "/merchant/settings" },
     { label: `وثائق التحقق (${kycDone}/${kycTotal})`, ok: kycDone === kycTotal, weight: 30, href: "/merchant/settings" },
     { label: `المنتجات${productCount != null ? ` (${productCount})` : ""}`, ok: (productCount ?? 0) >= 1, weight: 20, href: "/merchant/products" },
-    { label: "الاعتماد الإداري", ok: status === "verified", weight: 10 },
+    { label: "الاعتماد الإداري", ok: false, weight: 10 },
   ];
 
   const earned = items.filter((i) => i.ok).reduce((s, i) => s + i.weight, 0);
