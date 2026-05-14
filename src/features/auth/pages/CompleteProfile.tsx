@@ -71,49 +71,22 @@ export default function CompleteProfile() {
       return;
     }
     setSubmitting(true);
-    try {
-      // 1. Update profile with merchant data
-      const { error: pErr } = await supabase
-        .from("profiles")
-        .update({
-          store_name: values.storeName,
-          contact_person: values.contactPerson,
-          phone: values.phone,
-          city: values.city,
-          role: "merchant",
-          needs_onboarding: false,
-        } as any)
-        .eq("user_id", user.id);
-      if (pErr) throw pErr;
-
-      // 2. Create the role row (merchant)
-      const { error: rErr } = await supabase
-        .from("user_roles")
-        .insert({ user_id: user.id, role: "merchant" } as any);
-      // Ignore unique-violation if it already exists
-      if (rErr && !/duplicate key|unique/i.test(rErr.message)) throw rErr;
-
-      // 3. Create the merchants row (pending approval)
-      const { error: mErr } = await supabase
-        .from("merchants")
-        .insert({
-          user_id: user.id,
-          store_name: values.storeName,
-          contact_person: values.contactPerson,
-          phone: values.phone,
-          city: values.city,
-          email_confirmed: !!user.email_confirmed_at,
-          verification_status: "pending_admin_approval",
-        } as any);
-      if (mErr && !/duplicate key|unique/i.test(mErr.message)) throw mErr;
-
-      toast.success("تم إكمال البيانات! جاري تحويلك للوحة التحكم");
-      // Hard reload so AuthProvider re-fetches the new profile + role
-      window.location.href = "/merchant";
-    } catch (err: any) {
-      toast.error("تعذر حفظ البيانات: " + (err?.message ?? "خطأ غير معروف"));
+    // Atomic onboarding via SECURITY DEFINER RPC: updates profile,
+    // grants merchant role, and creates the pending merchants record.
+    const { error } = await supabase.rpc("complete_merchant_onboarding" as any, {
+      p_store_name: values.storeName,
+      p_contact_person: values.contactPerson,
+      p_phone: values.phone,
+      p_city: values.city,
+    });
+    if (error) {
+      toast.error("تعذر حفظ البيانات: " + error.message);
       setSubmitting(false);
+      return;
     }
+    toast.success("تم إكمال البيانات! جاري تحويلك للوحة التحكم");
+    // Hard reload so AuthProvider re-fetches the new profile + role.
+    window.location.href = "/merchant";
   };
 
   return (
