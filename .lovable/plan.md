@@ -1,107 +1,48 @@
-# خطة: نظام مصادقة احترافي عالي الجودة
+# خطة: إعداد البريد المُخصّص لمنصة صلة
 
-## النطاق
-ترقية صفحات `Login` / `Signup` / `ForgotPassword` / `ResetPassword` لتجربة بمستوى Stripe/Apple، مع تشديد الأمان وتفعيل تحقق البريد + Google OAuth.
+## السبب
+رسائل التأكيد لم تعد تصل لأن النظام يعتمد حالياً على مزوّد البريد الافتراضي لـ Supabase — وهو محدود (≈3 رسائل/ساعة) وغالباً ما تذهب رسائله إلى Spam لأن المُرسِل ليس نطاقك. الحل الجذري ربط نطاق صلة الرسمي.
 
----
+## ما سيتم تنفيذه
 
-## 1. الأمان والمنطق (Supabase Auth)
+### 1) ربط نطاق البريد
+- استخدام نطاق `sila-sy.com` (المربوط أصلاً بالمشروع كنطاق مُخصّص).
+- فتح حوار إعداد البريد ليُرشدك خطوة-بخطوة لإضافة سجلات DNS (SPF/DKIM/DMARC) عند مزوّد النطاق.
+- ملاحظة: التحقق من DNS قد يستغرق من دقائق حتى 24 ساعة، لكن يمكن تجهيز كل شيء فوراً.
 
-### تحقق البريد الإلكتروني (Email Verification)
-- **إيقاف auto_confirm** عبر `configure_auth` (auto_confirm_email=false) ليُجبر المستخدم على تأكيد بريده.
-- في `Signup`: بعد `signUp`، إن كان `data.user && !data.session` → عرض شاشة "تحقق من بريدك" + زر إعادة الإرسال (`resend`).
-- في `AuthGuard`: التحقق من `user.email_confirmed_at` — إن كان `null` يُعاد التوجيه إلى صفحة `/verify-email` (جديدة) بدل لوحة التحكم.
-- استثناء: حسابات `vendor` (شركات الشحن) تستخدم username وهمي — لا يُطبق عليها فحص تأكيد البريد.
+### 2) قوالب رسائل التأكيد بهوية صلة
+بعد إعداد النطاق سأُنشئ قوالب React Email مخصّصة لـ:
+- **تأكيد الحساب** (signup) — رسالة ترحيب بالعربية بألوان وشعار صلة
+- **استعادة كلمة المرور** (recovery)
+- **رابط سحري** (magic-link) — للاستخدام المستقبلي
+- **تغيير البريد** (email-change)
 
-### تفعيل HIBP وحماية كلمة المرور
-- تشغيل `password_hibp_enabled=true` لرفض كلمات المرور المسربة.
+كل قالب:
+- اتجاه RTL، خط Readex Pro
+- ألوان المنصة (خلفية كحلية #0F172A تقريباً + برتقالي #FF8C00 للأزرار)
+- شعار صلة في الأعلى
+- نصوص بعربية واضحة ودودة، مثل "أهلاً بك في صلة" بدل "Verify Email"
 
-### التحقق من النموذج (Validation)
-- إضافة **Zod schemas** في `src/features/auth/lib/auth-schemas.ts`:
-  - Email: تنسيق صحيح + ≤255
-  - Password: ≥8، يحتوي على حرف ورقم على الأقل (regex)
-  - Confirm password: مطابقة
-- استخدام `react-hook-form` + `zodResolver` (المشروع يحوي `@hookform/resolvers` و `react-hook-form` أصلاً).
-- الخادم: `password_hibp_enabled` + سياسة Supabase الافتراضية (طول 8) كطبقة ثانية.
+### 3) نشر edge function للبريد
+نشر `auth-email-hook` تلقائياً ليتولى تسليم رسائل المصادقة عبر النطاق المُخصّص فور اكتمال التحقق من DNS.
 
-### حماية المسارات
-- `/dashboard` غير موجود حالياً (المسار هو `/merchant/dashboard`). سأضيف توجيه `/dashboard → /merchant/dashboard` ضمن `AuthGuard`، ويبقى `AuthGuard` يحمي كل المسارات الداخلية كما هو.
-- إضافة فحص `email_confirmed_at` كما ذُكر أعلاه.
+### 4) أثناء انتظار DNS
+- ستستمر رسائل Supabase الافتراضية بالعمل (حتى لو وصلت إلى Spam).
+- بمجرد اكتمال التحقق، تنتقل تلقائياً إلى الإرسال عبر `noreply@sila-sy.com` بهوية صلة الكاملة.
 
-### حالات التحميل
-- جميع أزرار النماذج تستخدم `disabled={loading}` مع `Loader2` (موجود جزئياً) — توحيد عبر مكوّن `AuthSubmitButton`.
+## ما لن يتغيّر
+- منطق التسجيل/الدخول، شاشات Login/Signup/VerifyEmail تبقى كما هي.
+- تأكيد البريد يبقى **إلزامياً** للتجار (الأمان لا يتراجع).
+- حسابات شركات الشحن (vendor) تبقى مُعفاة كما هي.
 
----
+## التحقق بعد التنفيذ
+1. تسجيل حساب جديد بالبريد الحقيقي.
+2. مراقبة حالة DNS من **Cloud → Emails**.
+3. عند ظهور حالة "Active"، يصل أول بريد بهوية صلة خلال ثوانٍ.
 
-## 2. تصميم UI/UX المميز (Glass-morphism)
+## الملفات المتأثرة
+- جديد: `supabase/functions/auth-email-hook/{index.ts, deno.json}`
+- جديد: `supabase/functions/_shared/email-templates/*.tsx` (4-6 قوالب)
+- تحديث: `supabase/config.toml` (إضافة تكوين الدالة فقط)
 
-### تصميم البطاقة
-- بطاقة موسطة `max-w-md`, `rounded-2xl`, `shadow-2xl`, `backdrop-blur-xl`, `bg-card/60 border border-border/40`.
-- خلفية متدرجة ناعمة (تستخدم HSL tokens من `index.css`): radial + linear gradient بألوان `--primary/10` و `--background`.
-- شعار صلة في الأعلى داخل دائرة مضيئة (glow ring).
-
-### الخط
-- المشروع يستخدم Readex Pro (عربي) + Inter (إنكليزي) — سنحافظ عليهما (لا نخالف ذاكرة المشروع).
-
-### التفاعلات
-- **انتقال سلس Login ↔ Signup**: استخدام `framer-motion` لتبديل forms مع `AnimatePresence` (fade + slide).
-- **Password toggle**: زر `Eye/EyeOff` داخل حقل كلمة المرور، مكوّن مشترك `PasswordInput`.
-- **Focus rings ملوّنة بالـ primary**، تأثير hover ناعم على الأزرار (glow-btn موجود).
-
-### الإشعارات
-- `sonner` (مستخدم أصلاً) مع رسائل عربية واضحة:
-  - نجاح: "تم إرسال رابط التأكيد إلى بريدك"
-  - خطأ: ترجمة أخطاء Supabase الشائعة لرسائل عربية مفهومة
-
-### الاستجابة (Responsive)
-- Mobile-first: `p-4 sm:p-6`, البطاقة `w-full max-w-md`
-- اختبار على 375px / 768px / 1280px
-
----
-
-## 3. لمسات احترافية إضافية
-
-### نسيت كلمة المرور
-- صفحات `ForgotPassword` و `ResetPassword` موجودة — سيتم إعادة تصميمها بنفس glass-morphism وتوحيد منطق التحقق (zod).
-
-### Google Social Login
-- استدعاء `configure_social_auth` مع `providers: ["google"]`.
-- زر "المتابعة عبر Google" بتصميم متّسق (أيقونة + خلفية بيضاء/داكنة حسب الثيم).
-- استخدام `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`.
-- بعد العودة: قراءة `role` من `user_roles` وتوجيه حسب الدور (admin/merchant/vendor). مستخدمو Google الجدد يُمنحون دور `merchant` تلقائياً (موجود في trigger `handle_new_user`).
-
----
-
-## التغييرات التقنية (الملفات)
-
-```text
-جديد:
-  src/features/auth/lib/auth-schemas.ts          # Zod schemas
-  src/features/auth/components/AuthCard.tsx      # Glass-morphism wrapper
-  src/features/auth/components/PasswordInput.tsx # حقل + eye toggle
-  src/features/auth/components/GoogleAuthButton.tsx
-  src/features/auth/pages/VerifyEmail.tsx        # شاشة "تحقق من بريدك"
-  src/integrations/lovable/...                   # يُولَّد تلقائياً عبر configure_social_auth
-
-معدّل:
-  src/features/auth/pages/Login.tsx              # إعادة تصميم + zod + framer-motion
-  src/features/auth/pages/Signup.tsx             # نفس الشيء + التحقق من البريد
-  src/features/auth/pages/ForgotPassword.tsx     # توحيد التصميم
-  src/features/auth/pages/ResetPassword.tsx      # توحيد التصميم
-  src/features/auth/components/AuthGuard.tsx     # فحص email_confirmed_at
-  src/app/router.tsx                             # +/verify-email، +/dashboard redirect
-  src/index.css                                  # طبقة gradient الخلفية للمصادقة (إن لزم)
-
-استدعاءات أدوات (قبل الكود):
-  configure_auth(auto_confirm_email=false, password_hibp_enabled=true, disable_signup=false, external_anonymous_users_enabled=false)
-  configure_social_auth(providers=["google"])
-```
-
----
-
-## أسئلة قبل التنفيذ
-
-1. **تأكيد البريد إلزامي**: هل تريد فعلاً إيقاف auto-confirm؟ (هذا يعني أن المستخدمين الحاليين الذين لم يؤكدوا لن يتمكنوا من الدخول حتى يؤكدوا — نادر لكن مهم).
-2. **Google Login**: هل يُسمح بدخول التجار عبر Google فقط؟ (شركات الشحن ستبقى username/password لأن لها edge function خاص).
-3. **نطاق التغيير**: هل أعيد تصميم صفحات `ForgotPassword/ResetPassword` بنفس الأسلوب أم تكتفي بـ Login/Signup الآن؟
-
+لا تغييرات على الواجهة الأمامية أو قاعدة البيانات.
