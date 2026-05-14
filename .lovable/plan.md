@@ -1,150 +1,107 @@
-# خارطة طريق تطوير منصة صلة — تجربة تاجر متكاملة
+# خطة: نظام مصادقة احترافي عالي الجودة
 
-**المبدأ الحاكم (يُطبَّق على كل ميزة بلا استثناء):**
-- ❌ لا قيم افتراضية مدسوسة في الكود (لا أسعار، لا شركات شحن وهمية، لا مدن).
-- ✅ كل إعداد يُضاف عبر لوحة الأدمن أو إعدادات التاجر، ويُخزَّن في قاعدة البيانات.
-- ✅ كل حقل جديد له **زر/شاشة لإدارته** + **انعكاس مرئي** في كل واجهة معنية (تاجر، شركة شحن، أدمن).
-- ✅ كل عملية مالية تمر عبر `wallet_transactions` (Ledger).
+## النطاق
+ترقية صفحات `Login` / `Signup` / `ForgotPassword` / `ResetPassword` لتجربة بمستوى Stripe/Apple، مع تشديد الأمان وتفعيل تحقق البريد + Google OAuth.
 
 ---
 
-## 🔹 المرحلة 1 — تسريع العمليات اليومية (الأعلى أثراً)
+## 1. الأمان والمنطق (Supabase Auth)
 
-### 1.1 الاستيراد المجمّع للشحنات (Bulk Import)
-**جداول جديدة:** `bulk_import_jobs` (id, merchant_id, file_url, total_rows, success_count, error_count, status, created_at).
-**واجهة التاجر:**
-- زر جديد "استيراد من Excel" في `/merchant/shipments` بجانب "شحنة جديدة".
-- Sheet يفتح: تنزيل القالب → رفع الملف → معاينة الأخطاء صف بصف → تأكيد.
-- جدول "سجل الاستيرادات" يعرض كل المهام السابقة مع روابط لتحميل تقرير الأخطاء.
-**واجهة الأدمن:** تبويب جديد "عمليات الاستيراد" لمراقبة جميع الجلسات.
-**القيم القابلة للضبط (admin):** الحد الأقصى لعدد الصفوف لكل ملف، الحقول الإلزامية في القالب.
+### تحقق البريد الإلكتروني (Email Verification)
+- **إيقاف auto_confirm** عبر `configure_auth` (auto_confirm_email=false) ليُجبر المستخدم على تأكيد بريده.
+- في `Signup`: بعد `signUp`، إن كان `data.user && !data.session` → عرض شاشة "تحقق من بريدك" + زر إعادة الإرسال (`resend`).
+- في `AuthGuard`: التحقق من `user.email_confirmed_at` — إن كان `null` يُعاد التوجيه إلى صفحة `/verify-email` (جديدة) بدل لوحة التحكم.
+- استثناء: حسابات `vendor` (شركات الشحن) تستخدم username وهمي — لا يُطبق عليها فحص تأكيد البريد.
 
-### 1.2 دفتر العناوين (Customer Address Book)
-**جدول جديد:** `merchant_customers` (id, merchant_id, phone, name, default_district_id, default_address, total_orders, last_order_at, success_rate).
-**Trigger:** بعد كل شحنة جديدة، يُحدَّث/يُنشأ السجل تلقائياً.
-**واجهة التاجر:**
-- صفحة جديدة `/merchant/customers` (قائمة الزبائن مع بحث).
-- في `ShipmentForm`: عند إدخال رقم هاتف موجود → bannerأخضر "زبون متكرر — تم تعبئة العنوان" + زر "استخدم آخر عنوان" / "عنوان جديد".
-**انعكاس:** بطاقة "أفضل 10 زبائن" في `/merchant/dashboard`.
+### تفعيل HIBP وحماية كلمة المرور
+- تشغيل `password_hibp_enabled=true` لرفض كلمات المرور المسربة.
 
-### 1.3 رابط الطلب الذاتي (Order Link)
-**جدول جديد:** `order_links` (id, merchant_id, product_id?, slug, expires_at, max_uses, current_uses, custom_message, is_active).
-**واجهة التاجر:**
-- صفحة جديدة `/merchant/order-links` لإنشاء/إدارة الروابط.
-- زر "نسخ الرابط" + زر "مشاركة عبر واتساب".
-**واجهة الزبون (عامة):** صفحة `/order/:slug` — اختيار محافظة → منطقة → عنوان → رقم → تأكيد.
-**انعكاس:** الطلب يصل تاجرَه في `/merchant/orders` بحالة `new` مع شارة "من رابط ذاتي".
-**القيم القابلة للضبط (admin):** الحد الأقصى لعمر الرابط، الحد الأقصى للاستخدامات.
+### التحقق من النموذج (Validation)
+- إضافة **Zod schemas** في `src/features/auth/lib/auth-schemas.ts`:
+  - Email: تنسيق صحيح + ≤255
+  - Password: ≥8، يحتوي على حرف ورقم على الأقل (regex)
+  - Confirm password: مطابقة
+- استخدام `react-hook-form` + `zodResolver` (المشروع يحوي `@hookform/resolvers` و `react-hook-form` أصلاً).
+- الخادم: `password_hibp_enabled` + سياسة Supabase الافتراضية (طول 8) كطبقة ثانية.
+
+### حماية المسارات
+- `/dashboard` غير موجود حالياً (المسار هو `/merchant/dashboard`). سأضيف توجيه `/dashboard → /merchant/dashboard` ضمن `AuthGuard`، ويبقى `AuthGuard` يحمي كل المسارات الداخلية كما هو.
+- إضافة فحص `email_confirmed_at` كما ذُكر أعلاه.
+
+### حالات التحميل
+- جميع أزرار النماذج تستخدم `disabled={loading}` مع `Loader2` (موجود جزئياً) — توحيد عبر مكوّن `AuthSubmitButton`.
 
 ---
 
-## 🔹 المرحلة 2 — تجربة احترافية للزبون النهائي
+## 2. تصميم UI/UX المميز (Glass-morphism)
 
-### 2.1 صفحة التتبع العامة (Public Tracking)
-**بدون جدول جديد** — اعتماد `shipments.tracking_number` + `shipment_status_history`.
-**صفحة جديدة عامة:** `/track/:tracking_number` (لا تتطلب تسجيل دخول).
-- خط زمني للحالات + اسم شركة الشحن (شعارها) + رقم خدمة عملاء التاجر + زر "تواصل واتساب".
-**انعكاس:**
-- في `ShipmentTable` للتاجر: زر "نسخ رابط التتبع" بجانب كل شحنة.
-- إعداد جديد للتاجر: تفعيل/تعطيل عرض رقم هاتفه على صفحة التتبع.
+### تصميم البطاقة
+- بطاقة موسطة `max-w-md`, `rounded-2xl`, `shadow-2xl`, `backdrop-blur-xl`, `bg-card/60 border border-border/40`.
+- خلفية متدرجة ناعمة (تستخدم HSL tokens من `index.css`): radial + linear gradient بألوان `--primary/10` و `--background`.
+- شعار صلة في الأعلى داخل دائرة مضيئة (glow ring).
 
-### 2.2 إشعارات واتساب التلقائية
-**جدول جديد:** `notification_templates` (id, event_key, channel, message_template, is_active, managed_by) — يديره الأدمن فقط.
-**جدول جديد:** `notification_logs` (id, shipment_id, template_id, recipient_phone, status, sent_at).
-**Edge Function:** `send-shipment-notification` تُستدعى عند تغيُّر حالة الشحنة.
-**واجهة الأدمن:** صفحة "قوالب الإشعارات" — تحرير نص كل حدث (استلام/انطلاق/تسليم/تعذُّر/إرجاع) مع متغيرات `{customer_name}` `{tracking_url}` `{merchant_name}`.
-**واجهة التاجر:**
-- في إعدادات المتجر: مفاتيح تشغيل/إيقاف لكل نوع إشعار.
-- في `ShipmentForm`: checkbox "إرسال إشعارات واتساب لهذا الزبون".
-- في تفاصيل الشحنة: تبويب "الإشعارات المرسلة" مع حالة كل واحدة.
-**القيم القابلة للضبط (admin):** سعر الرسالة الواحدة (يُخصم من محفظة التاجر)، الحد اليومي.
+### الخط
+- المشروع يستخدم Readex Pro (عربي) + Inter (إنكليزي) — سنحافظ عليهما (لا نخالف ذاكرة المشروع).
 
-### 2.3 لوحة تحليلات التاجر (Analytics)
-**View جديد:** `merchant_analytics_view` يُجمِّع الأداء من `shipments` + `wallet_transactions`.
-**صفحة جديدة:** `/merchant/analytics` — بطاقات KPI + رسومات (Recharts):
-- نسبة النجاح/الإرجاع، متوسط زمن التسليم، أفضل شركة شحن، الإيرادات الشهرية، خريطة حرارية للمحافظات.
-**فلاتر:** نطاق تواريخ، شركة شحن، محافظة.
-**انعكاس:** رابط في الشريط الجانبي للتاجر بدلاً من الـ Dashboard المبسّط الحالي.
+### التفاعلات
+- **انتقال سلس Login ↔ Signup**: استخدام `framer-motion` لتبديل forms مع `AnimatePresence` (fade + slide).
+- **Password toggle**: زر `Eye/EyeOff` داخل حقل كلمة المرور، مكوّن مشترك `PasswordInput`.
+- **Focus rings ملوّنة بالـ primary**، تأثير hover ناعم على الأزرار (glow-btn موجود).
+
+### الإشعارات
+- `sonner` (مستخدم أصلاً) مع رسائل عربية واضحة:
+  - نجاح: "تم إرسال رابط التأكيد إلى بريدك"
+  - خطأ: ترجمة أخطاء Supabase الشائعة لرسائل عربية مفهومة
+
+### الاستجابة (Responsive)
+- Mobile-first: `p-4 sm:p-6`, البطاقة `w-full max-w-md`
+- اختبار على 375px / 768px / 1280px
 
 ---
 
-## 🔹 المرحلة 3 — قوة مالية وتشغيلية
+## 3. لمسات احترافية إضافية
 
-### 3.1 الترشيح الذكي لشركات الشحن
-**بدون جدول جديد** — حساب من البيانات الموجودة.
-**Function (DB):** `get_recommended_couriers(district_id, weight)` تُرجع أفضل 3 مع سبب الترشيح.
-**واجهة التاجر:** في `ShipmentForm` بدل قائمة منسدلة → 3 بطاقات اقتراح:
-- 🏆 الأفضل أداءً (نسبة نجاح للتاجر)
-- 💰 الأرخص (السعر الفعلي للمنطقة)
-- ⚡ الأسرع (SLA الأقل)
-- زر "عرض كل الشركات" يكشف الباقي.
-**انعكاس:** كل بطاقة تظهر السعر الحقيقي من `courier_district_rates` + سياسات الشركة (من المرحلة السابقة).
+### نسيت كلمة المرور
+- صفحات `ForgotPassword` و `ResetPassword` موجودة — سيتم إعادة تصميمها بنفس glass-morphism وتوحيد منطق التحقق (zod).
 
-### 3.2 قواعد التسعير الخاصة بالتاجر (Pricing Rules)
-**جدول جديد:** `merchant_pricing_rules` (id, merchant_id, rule_type, condition_field, condition_operator, condition_value, action_type, action_value, priority, is_active).
-أمثلة: "إذا قيمة الطلب ≥ X → شحن مجاني للزبون"، "إذا المحافظة = حلب → خصم Y على الشحن".
-**واجهة التاجر:** صفحة `/merchant/pricing-rules` — بناء قواعد بصيغة "إذا/ثم" بدون كتابة كود.
-**Engine:** `pricing-engine.ts` يُطبِّق القواعد بترتيب `priority` قبل احتساب الإجمالي.
-**انعكاس:** في `ShipmentForm` يظهر سطر "خصم مُطبَّق: قاعدة (شحن مجاني فوق 50,000)".
-
-### 3.3 الأسباب المُصنَّفة للإرجاع
-**جدول جديد:** `return_reasons` (id, code, label_ar, category, requires_note, is_active) — يديره الأدمن.
-**تعديل:** `shipments.return_reason_id` (FK) بدل النص الحر.
-**واجهة شركة الشحن:** عند تحديد "مرتجع" → قائمة منسدلة من الأسباب المُعَدَّة فقط (لا قيم محشورة في الكود).
-**انعكاس:** تقرير في `/merchant/analytics` "أسباب الإرجاع الأكثر تكراراً" مع توصيات.
-
-### 3.4 سحب الأرباح المُحسَّن
-**تعديلات:** على `payout_requests` إضافة `available_amount`, `pending_amount` (محسوبتين من الـ Ledger).
-**واجهة التاجر:** في `/merchant/wallet`:
-- بطاقتان: "متاح للسحب" + "معلَّق (شحنات لم تُحصَّل)".
-- زر "اطلب سحب" مع اختيار طريقة (سيرياتيل كاش/MTN/بنكي) من قائمة طرق يُديرها الأدمن.
-**جدول جديد:** `payout_methods` (id, code, label_ar, requires_account_number, fee_pct, fee_fixed, min_amount, is_active).
-**انعكاس:** في الأدمن `/admin/payouts` كل طلب يعرض الطريقة وحقول الحساب الخاصة بها.
+### Google Social Login
+- استدعاء `configure_social_auth` مع `providers: ["google"]`.
+- زر "المتابعة عبر Google" بتصميم متّسق (أيقونة + خلفية بيضاء/داكنة حسب الثيم).
+- استخدام `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`.
+- بعد العودة: قراءة `role` من `user_roles` وتوجيه حسب الدور (admin/merchant/vendor). مستخدمو Google الجدد يُمنحون دور `merchant` تلقائياً (موجود في trigger `handle_new_user`).
 
 ---
 
-## 🔹 المرحلة 4 — حماية وتكامل خارجي
-
-### 4.1 درع الاحتيال (Fraud Shield)
-**View:** `customer_fraud_score_view` يحسب لكل رقم هاتف نسبة الرفض عبر جميع التجار.
-**انعكاس في `ShipmentForm`:** عند إدخال رقم بدرجة خطورة عالية → بانر تحذير "هذا الرقم رفض N شحنة آخر 30 يوم". لا حظر تلقائي — تنبيه فقط.
-
-### 4.2 تكامل API و Webhooks
-**جدول جديد:** `merchant_api_keys` (id, merchant_id, key_hash, label, scopes, last_used_at, is_active).
-**جدول جديد:** `merchant_webhooks` (id, merchant_id, event, target_url, secret, is_active).
-**واجهة التاجر:** صفحة `/merchant/integrations` — توليد مفاتيح + تسجيل webhooks + توثيق مرئي.
-**Edge Functions:** `api-create-shipment`, `api-track-shipment`, ودالة إرسال webhooks عند تغيُّر الحالة.
-
----
-
-## التفاصيل التقنية
-
-**Migrations المتوقعة:** ~12 جدول جديد، ~6 views، ~4 functions، عدد من الـ triggers.
-**Edge Functions جديدة:** `bulk-import-shipments`, `send-shipment-notification`, `dispatch-webhook`, `api-create-shipment`, `api-track-shipment`.
-**ملفات Frontend جديدة (تقديرياً):** ~25 صفحة/مكوِّن جديد موزَّعة على `features/imports`, `features/customers`, `features/order-links`, `features/tracking`, `features/notifications`, `features/analytics`, `features/pricing-rules`, `features/integrations`.
-**Engine موحَّد:** كل المنطق المالي والأسعار يمر عبر `pricing-engine.ts` (موجود ويُوسَّع).
-**RLS:** كل جدول جديد يُحمى بسياسات صارمة (المالك فقط + الأدمن).
-**Audit:** كل تغيير على إعدادات (قواعد التسعير، القوالب، طرق السحب) يُسجَّل في `field_audit_logs`.
-
----
-
-## آلية التنفيذ المقترحة
+## التغييرات التقنية (الملفات)
 
 ```text
-كل مرحلة تُسلَّم كاملة قبل البدء بالتي تليها:
-  ┌─ Migration (جدول + RLS + triggers)
-  ├─ شاشة إدارة في الأدمن (إن لزم)
-  ├─ شاشة استخدام للتاجر
-  ├─ انعكاسات على شاشات الشحنات/المحفظة
-  └─ اختبار end-to-end على بيانات حقيقية
-```
+جديد:
+  src/features/auth/lib/auth-schemas.ts          # Zod schemas
+  src/features/auth/components/AuthCard.tsx      # Glass-morphism wrapper
+  src/features/auth/components/PasswordInput.tsx # حقل + eye toggle
+  src/features/auth/components/GoogleAuthButton.tsx
+  src/features/auth/pages/VerifyEmail.tsx        # شاشة "تحقق من بريدك"
+  src/integrations/lovable/...                   # يُولَّد تلقائياً عبر configure_social_auth
 
-**مدة تقريبية:** المرحلة 1: تسليمتان. المرحلة 2: ثلاث تسليمات. المرحلة 3: ثلاث تسليمات. المرحلة 4: تسليمتان.
+معدّل:
+  src/features/auth/pages/Login.tsx              # إعادة تصميم + zod + framer-motion
+  src/features/auth/pages/Signup.tsx             # نفس الشيء + التحقق من البريد
+  src/features/auth/pages/ForgotPassword.tsx     # توحيد التصميم
+  src/features/auth/pages/ResetPassword.tsx      # توحيد التصميم
+  src/features/auth/components/AuthGuard.tsx     # فحص email_confirmed_at
+  src/app/router.tsx                             # +/verify-email، +/dashboard redirect
+  src/index.css                                  # طبقة gradient الخلفية للمصادقة (إن لزم)
+
+استدعاءات أدوات (قبل الكود):
+  configure_auth(auto_confirm_email=false, password_hibp_enabled=true, disable_signup=false, external_anonymous_users_enabled=false)
+  configure_social_auth(providers=["google"])
+```
 
 ---
 
-## ❓ قبل الموافقة
+## أسئلة قبل التنفيذ
 
-1. هل ترتيب المراحل مناسب أم تريد تقديم/تأخير ميزة معينة؟
-2. هل أبدأ بـ **المرحلة 1.1 (الاستيراد المجمّع)** فوراً بعد موافقتك، أم تريد دمج 1.1 + 1.2 معاً في تسليمة واحدة؟
-3. هل هناك ميزة في المراحل 3-4 تريد حذفها أو تأجيلها لمرحلة لاحقة (مثلاً API/Webhooks قد لا تكون أولوية الآن)؟
+1. **تأكيد البريد إلزامي**: هل تريد فعلاً إيقاف auto-confirm؟ (هذا يعني أن المستخدمين الحاليين الذين لم يؤكدوا لن يتمكنوا من الدخول حتى يؤكدوا — نادر لكن مهم).
+2. **Google Login**: هل يُسمح بدخول التجار عبر Google فقط؟ (شركات الشحن ستبقى username/password لأن لها edge function خاص).
+3. **نطاق التغيير**: هل أعيد تصميم صفحات `ForgotPassword/ResetPassword` بنفس الأسلوب أم تكتفي بـ Login/Signup الآن؟
+

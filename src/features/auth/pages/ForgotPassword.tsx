@@ -1,80 +1,79 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2, Mail, ArrowRight, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Truck, Mail, ArrowRight, ArrowLeft } from "lucide-react";
+import AuthCard from "@/features/auth/components/AuthCard";
 import { useLanguage } from "@/i18n/use-language";
+import { forgotSchema, friendlyAuthError } from "@/features/auth/lib/auth-schemas";
+import { z } from "zod";
+
+type Values = z.infer<typeof forgotSchema>;
 
 export default function ForgotPassword() {
-  const { t } = useTranslation("auth");
-  const { meta, isRtl } = useLanguage();
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const { isRtl } = useLanguage();
+  const [sent, setSent] = useState<string | null>(null);
   const BackIcon = isRtl ? ArrowRight : ArrowLeft;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<Values>({ resolver: zodResolver(forgotSchema), defaultValues: { email: "" } });
 
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  const onSubmit = async (values: Values) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    setLoading(false);
-    if (error) toast.error(error.message);
-    else setSent(true);
+    if (error) toast.error(friendlyAuthError(error));
+    else setSent(values.email);
   };
 
   if (sent) {
     return (
-      <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
-        <Card className="w-full max-w-md border-primary/30 bg-card text-center relative z-10">
-          <CardContent className="py-12 space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Mail className="h-8 w-8 text-primary" />
-            </div>
-            <h2 className="text-xl font-display font-bold text-foreground">{t("forgot.sentTitle")}</h2>
-            <p className="text-muted-foreground text-sm">{t("forgot.sentBody", { email })}</p>
-            <Link to="/login">
-              <Button variant="outline" className="mt-4 gap-2"><BackIcon className="h-4 w-4" />{t("forgot.back")}</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthCard title="تحقق من بريدك" subtitle="إذا كان البريد مسجّلاً لدينا، فستصلك رسالة بإعادة تعيين كلمة المرور.">
+        <div className="space-y-5">
+          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+            <Mail className="h-7 w-7 text-primary" />
+          </div>
+          <p className="text-center text-sm text-foreground" dir="ltr">{sent}</p>
+          <Link to="/login" className="block">
+            <Button variant="outline" className="w-full gap-2"><BackIcon className="h-4 w-4" />العودة لتسجيل الدخول</Button>
+          </Link>
+        </div>
+      </AuthCard>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
-      <Card className="w-full max-w-md border-border bg-card/80 backdrop-blur-sm relative z-10">
-        <CardHeader className="text-center space-y-3">
-          <div className="mx-auto w-14 h-14 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
-            <Truck className="h-7 w-7 text-primary" />
-          </div>
-          <CardTitle className="font-display text-2xl text-primary">{t("forgot.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">{t("forgot.subtitle")}</p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleReset} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">{t("email")}</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                placeholder="example@sila.sy" dir="ltr" />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full h-11 text-base font-semibold glow-btn">
-              {loading && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-              {t("forgot.submit")}
-            </Button>
-          </form>
-          <div className="mt-6 text-center">
-            <Link to="/login" className="text-sm text-primary hover:underline font-medium">{t("forgot.back")}</Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthCard title="نسيت كلمة المرور" subtitle="أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور.">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <div className="space-y-1.5">
+          <Label htmlFor="email">البريد الإلكتروني</Label>
+          <Input
+            id="email"
+            type="email"
+            dir="ltr"
+            placeholder="example@sila.sy"
+            autoComplete="email"
+            {...register("email")}
+            aria-invalid={!!errors.email}
+            className={errors.email ? "border-destructive" : ""}
+          />
+          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+        </div>
+        <Button type="submit" disabled={isSubmitting} className="w-full h-11 text-base font-semibold glow-btn">
+          {isSubmitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+          إرسال رابط إعادة التعيين
+        </Button>
+      </form>
+      <div className="mt-6 text-center">
+        <Link to="/login" className="text-sm text-primary hover:underline font-medium">العودة لتسجيل الدخول</Link>
+      </div>
+    </AuthCard>
   );
 }

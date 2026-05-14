@@ -1,22 +1,18 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2, Lock, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Truck, Lock, CheckCircle2 } from "lucide-react";
-import { useLanguage } from "@/i18n/use-language";
+import AuthCard from "@/features/auth/components/AuthCard";
+import { PasswordInput } from "@/features/auth/components/PasswordInput";
+import { resetSchema, friendlyAuthError, type ResetValues } from "@/features/auth/lib/auth-schemas";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { t } = useTranslation("auth");
-  const { meta } = useLanguage();
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [isRecovery, setIsRecovery] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -28,79 +24,78 @@ export default function ResetPassword() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password !== confirmPassword) { toast.error(t("reset.errors.mismatch")); return; }
-    if (password.length < 6) { toast.error(t("reset.errors.tooShort")); return; }
-    setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-    if (error) toast.error(error.message);
-    else { setSuccess(true); setTimeout(() => navigate("/login"), 3000); }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ResetValues>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { password: "", confirmPassword: "" },
+  });
+
+  const onSubmit = async (values: ResetValues) => {
+    const { error } = await supabase.auth.updateUser({ password: values.password });
+    if (error) {
+      toast.error(friendlyAuthError(error));
+      return;
+    }
+    setSuccess(true);
+    setTimeout(() => navigate("/login"), 2500);
   };
 
   if (success) {
     return (
-      <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
-        <Card className="w-full max-w-md border-primary/30 bg-card text-center relative z-10">
-          <CardContent className="py-12 space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-primary" />
-            </div>
-            <h2 className="text-xl font-display font-bold text-foreground">{t("reset.successTitle")}</h2>
-            <p className="text-muted-foreground text-sm">{t("reset.successDesc")}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthCard title="تم تغيير كلمة المرور" subtitle="سيتم تحويلك لصفحة تسجيل الدخول...">
+        <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+          <CheckCircle2 className="h-7 w-7 text-primary" />
+        </div>
+      </AuthCard>
     );
   }
 
   if (!isRecovery) {
     return (
-      <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
-        <Card className="w-full max-w-md border-destructive/30 bg-card text-center relative z-10">
-          <CardContent className="py-12 space-y-4">
-            <Lock className="h-10 w-10 text-destructive mx-auto" />
-            <h2 className="text-xl font-display font-bold text-foreground">{t("reset.invalidTitle")}</h2>
-            <p className="text-muted-foreground text-sm">{t("reset.invalidDesc")}</p>
-            <Button onClick={() => navigate("/forgot-password")} variant="outline" className="mt-2">
-              {t("reset.requestNew")}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthCard title="رابط غير صالح" subtitle="هذا الرابط غير صالح أو منتهي الصلاحية.">
+        <div className="space-y-4 text-center">
+          <Lock className="h-10 w-10 text-destructive mx-auto" />
+          <Button onClick={() => navigate("/forgot-password")} variant="outline" className="w-full">
+            طلب رابط جديد
+          </Button>
+        </div>
+      </AuthCard>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-background p-4 py-8 overflow-y-auto" dir={meta.dir}>
-      <Card className="w-full max-w-md border-border bg-card/80 backdrop-blur-sm relative z-10">
-        <CardHeader className="text-center space-y-3">
-          <div className="mx-auto w-14 h-14 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center">
-            <Truck className="h-7 w-7 text-primary" />
-          </div>
-          <CardTitle className="font-display text-2xl text-primary">{t("reset.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">{t("reset.subtitle")}</p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleReset} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">{t("reset.newPassword")}</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required
-                placeholder="••••••••" minLength={6} dir="ltr" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
-              <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required
-                placeholder="••••••••" minLength={6} dir="ltr" />
-            </div>
-            <Button type="submit" disabled={loading} className="w-full h-11 text-base font-semibold glow-btn">
-              {loading && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
-              {t("reset.submit")}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthCard title="إعادة تعيين كلمة المرور" subtitle="اختر كلمة مرور قوية (8 أحرف على الأقل تتضمن حروف وأرقام).">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <div className="space-y-1.5">
+          <Label htmlFor="password">كلمة المرور الجديدة</Label>
+          <PasswordInput
+            id="password"
+            placeholder="••••••••"
+            autoComplete="new-password"
+            error={errors.password?.message}
+            {...register("password")}
+          />
+          {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="confirmPassword">تأكيد كلمة المرور</Label>
+          <PasswordInput
+            id="confirmPassword"
+            placeholder="••••••••"
+            autoComplete="new-password"
+            error={errors.confirmPassword?.message}
+            {...register("confirmPassword")}
+          />
+          {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+        </div>
+        <Button type="submit" disabled={isSubmitting} className="w-full h-11 text-base font-semibold glow-btn">
+          {isSubmitting && <Loader2 className="me-2 h-4 w-4 animate-spin" />}
+          تعيين كلمة المرور
+        </Button>
+      </form>
+    </AuthCard>
   );
 }
