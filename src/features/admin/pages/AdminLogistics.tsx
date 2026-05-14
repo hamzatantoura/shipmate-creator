@@ -568,6 +568,21 @@ export default function AdminLogistics() {
               </CardContent>
             </Card>
           </TabsContent>
+          <TabsContent value="imports" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <Card className="bg-card border-border">
+              <CardContent className="p-6 space-y-4">
+                <div>
+                  <h3 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                    <FileSpreadsheet className="h-5 w-5 text-primary" /> عمليات الاستيراد المجمّع
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    سجل لكل عمليات استيراد الطلبات التي قام بها التجار من ملفات Excel.
+                  </p>
+                </div>
+                <ImportJobsHistory adminMode />
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
 
         {/* Payout detail dialog */}
