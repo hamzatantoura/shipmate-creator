@@ -103,11 +103,17 @@ Deno.serve(async (req) => {
 
     const newUserId = created.user.id;
 
-    // Force role = vendor on profiles + user_roles (handle_new_user trigger should have run).
+    // Enforce single role = vendor (handle_new_user trigger already inserted based on metadata).
     await admin.from("profiles").update({ role: "vendor" }).eq("user_id", newUserId);
-    await admin
+    await admin.from("user_roles").delete().eq("user_id", newUserId);
+    const { error: roleInsertErr } = await admin
       .from("user_roles")
-      .upsert({ user_id: newUserId, role: "vendor" }, { onConflict: "user_id,role" });
+      .insert({ user_id: newUserId, role: "vendor" });
+    if (roleInsertErr) {
+      return new Response(JSON.stringify({ error: `تم إنشاء الحساب لكن فشل تعيين الدور: ${roleInsertErr.message}` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Link the courier record.
     const { error: linkErr } = await admin
