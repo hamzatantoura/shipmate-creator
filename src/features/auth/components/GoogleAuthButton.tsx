@@ -20,7 +20,7 @@ export default function GoogleAuthButton({ label = "المتابعة عبر Goog
       setLoading(false);
       return;
     }
-    window.location.href = "/";
+    window.location.href = "/dashboard";
   };
 
   return (
