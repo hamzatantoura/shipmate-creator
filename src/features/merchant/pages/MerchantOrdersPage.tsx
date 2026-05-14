@@ -7,6 +7,7 @@ import StarRating from "@/shared/components/inputs/StarRating";
 import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { MerchantSidebar } from "@/features/merchant/components/MerchantSidebar";
+import MerchantBottomNav from "@/features/merchant/components/MerchantBottomNav";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -1089,7 +1090,7 @@ export default function MerchantOrdersPage() {
             </div>
           </header>
 
-          <main className="flex-1 p-4 md:p-6 space-y-6 max-w-7xl w-full mx-auto">
+          <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 space-y-6 max-w-7xl w-full mx-auto">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
@@ -1768,6 +1769,7 @@ export default function MerchantOrdersPage() {
           trackingNumber={trackingOrder?.shipments?.tracking_number ?? null}
           courierName={trackingOrder ? courierNameOf(trackingOrder) : null}
         />
+        <MerchantBottomNav />
       </div>
     </SidebarProvider>
   );
