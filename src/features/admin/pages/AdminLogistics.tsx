@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt, Settings, LifeBuoy, ShieldCheck } from "lucide-react";
+import { CreditCard, Upload, Image as ImageIcon, TrendingUp, Truck, Bell, ArrowDownCircle, CheckCircle, Package, Clock, ChevronDown, ChevronUp, User, MapPin, Phone, Wallet, Building2, BarChart3, MessageCircle, ScrollText, Receipt, Settings, LifeBuoy, ShieldCheck, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import AppHeader from "@/shared/components/layout/AppHeader";
 import AdminDistrictsManagement from "@/features/admin/components/AdminDistrictsManagement";
@@ -25,6 +25,7 @@ import AdminRoleManagement from "@/features/admin/components/AdminRoleManagement
 import { CourierSettlementsPanel } from "@/features/admin/pages/AdminSettlements";
 import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
 import SecureReceiptImage from "@/shared/components/inputs/SecureReceiptImage";
+import ImportJobsHistory from "@/features/imports/components/ImportJobsHistory";
 import type { Database } from "@/integrations/supabase/types";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
@@ -353,6 +354,9 @@ export default function AdminLogistics() {
             <TabsTrigger value="settings" className="gap-1.5">
               <Settings className="h-3.5 w-3.5" /> إعدادات المنصة
             </TabsTrigger>
+            <TabsTrigger value="imports" className="gap-1.5">
+              <FileSpreadsheet className="h-3.5 w-3.5" /> عمليات الاستيراد
+            </TabsTrigger>
           </TabsList>
           </div>
 
@@ -561,6 +565,21 @@ export default function AdminLogistics() {
                 <Button asChild className="gap-1.5">
                   <a href="/admin/settings"><Settings className="h-4 w-4" /> فتح لوحة الإعدادات</a>
                 </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="imports" forceMount className="mt-4 data-[state=inactive]:hidden">
+            <Card className="bg-card border-border">
+              <CardContent className="p-6 space-y-4">
+                <div>
+                  <h3 className="text-lg font-display font-bold text-foreground flex items-center gap-2">
+                    <FileSpreadsheet className="h-5 w-5 text-primary" /> عمليات الاستيراد المجمّع
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    سجل لكل عمليات استيراد الطلبات التي قام بها التجار من ملفات Excel.
+                  </p>
+                </div>
+                <ImportJobsHistory adminMode />
               </CardContent>
             </Card>
           </TabsContent>
