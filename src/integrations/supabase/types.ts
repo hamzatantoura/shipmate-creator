@@ -1039,12 +1039,14 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auth_provider: string
           city: string | null
           contact_person: string | null
           created_at: string
           id: string
           latitude: number | null
           longitude: number | null
+          needs_onboarding: boolean
           phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           store_name: string | null
@@ -1053,12 +1055,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auth_provider?: string
           city?: string | null
           contact_person?: string | null
           created_at?: string
           id?: string
           latitude?: number | null
           longitude?: number | null
+          needs_onboarding?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
@@ -1067,12 +1071,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auth_provider?: string
           city?: string | null
           contact_person?: string | null
           created_at?: string
           id?: string
           latitude?: number | null
           longitude?: number | null
+          needs_onboarding?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
