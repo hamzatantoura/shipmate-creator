@@ -19,7 +19,7 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -65,6 +65,12 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   const isSyntheticVendor = (user.email ?? "").endsWith("@courier.sila.local");
   if (!user.email_confirmed_at && !isSyntheticVendor) {
     return <Navigate to="/verify-email" replace />;
+  }
+
+  // Google (and other OAuth) signups land without store info — force them
+  // through the onboarding form before they can access any protected page.
+  if (profile?.needs_onboarding) {
+    return <Navigate to="/complete-profile" replace />;
   }
 
   if (allowedRoles) {

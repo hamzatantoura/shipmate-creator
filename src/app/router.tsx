@@ -13,6 +13,7 @@ import Signup from "@/features/auth/pages/Signup";
 import ForgotPassword from "@/features/auth/pages/ForgotPassword";
 import ResetPassword from "@/features/auth/pages/ResetPassword";
 import VerifyEmail from "@/features/auth/pages/VerifyEmail";
+import CompleteProfile from "@/features/auth/pages/CompleteProfile";
 
 // Merchant feature
 import MerchantDashboard from "@/features/merchant/pages/MerchantDashboard";
@@ -57,6 +58,7 @@ export function AppRouter() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
         <Route path="/track" element={<TrackOrderPage />} />
         <Route path="/track-shipment" element={<TrackShipment />} />
         <Route path="/track-shipment/:trackingId" element={<TrackShipment />} />
@@ -111,9 +113,10 @@ export function AppRouter() {
  * their role, or to /login when not authenticated.
  */
 function DashboardRedirect() {
-  const { user, role, loading } = useAuth();
+  const { user, role, profile, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (profile?.needs_onboarding) return <Navigate to="/complete-profile" replace />;
   const map = { admin: "/admin", merchant: "/merchant", vendor: "/courier/orders" } as const;
   return <Navigate to={role ? map[role] : "/login"} replace />;
 }

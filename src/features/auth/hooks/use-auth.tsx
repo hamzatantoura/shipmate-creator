@@ -9,6 +9,8 @@ interface AuthProfile {
   contact_person: string | null;
   phone: string | null;
   city: string | null;
+  needs_onboarding: boolean;
+  auth_provider: string | null;
 }
 
 interface AuthState {
@@ -59,7 +61,7 @@ async function loadAuthState(user: User): Promise<Omit<AuthState, "signOut">> {
   const [{ data: profile }, { data: roleRows }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("store_name, contact_person, phone, city")
+      .select("store_name, contact_person, phone, city, needs_onboarding, auth_provider")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase
@@ -77,7 +79,16 @@ async function loadAuthState(user: User): Promise<Omit<AuthState, "signOut">> {
   return {
     user,
     role,
-    profile: profile ?? null,
+    profile: profile
+      ? {
+          store_name: profile.store_name,
+          contact_person: profile.contact_person,
+          phone: profile.phone,
+          city: profile.city,
+          needs_onboarding: (profile as any).needs_onboarding ?? false,
+          auth_provider: (profile as any).auth_provider ?? "email",
+        }
+      : null,
     loading: false,
   };
 }

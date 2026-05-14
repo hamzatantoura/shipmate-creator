@@ -1039,12 +1039,14 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auth_provider: string
           city: string | null
           contact_person: string | null
           created_at: string
           id: string
           latitude: number | null
           longitude: number | null
+          needs_onboarding: boolean
           phone: string | null
           role: Database["public"]["Enums"]["app_role"]
           store_name: string | null
@@ -1053,12 +1055,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auth_provider?: string
           city?: string | null
           contact_person?: string | null
           created_at?: string
           id?: string
           latitude?: number | null
           longitude?: number | null
+          needs_onboarding?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
@@ -1067,12 +1071,14 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auth_provider?: string
           city?: string | null
           contact_person?: string | null
           created_at?: string
           id?: string
           latitude?: number | null
           longitude?: number | null
+          needs_onboarding?: boolean
           phone?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           store_name?: string | null
@@ -1629,6 +1635,15 @@ export type Database = {
       _sila_checksum: { Args: { p_body: string }; Returns: string }
       _sila_validate: { Args: { p_code: string }; Returns: boolean }
       approve_top_up: { Args: { p_topup_id: string }; Returns: Json }
+      complete_merchant_onboarding: {
+        Args: {
+          p_city: string
+          p_contact_person: string
+          p_phone: string
+          p_store_name: string
+        }
+        Returns: undefined
+      }
       complete_payout: {
         Args: { p_new_status: string; p_payout_id: string }
         Returns: undefined

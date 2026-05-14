@@ -20,6 +20,8 @@ export default function GoogleAuthButton({ label = "المتابعة عبر Goog
       setLoading(false);
       return;
     }
+    // Hard reload so AuthProvider rebuilds session, then AuthGuard routes
+    // the user to /complete-profile (new) or their dashboard (returning).
     window.location.href = "/dashboard";
   };
 
