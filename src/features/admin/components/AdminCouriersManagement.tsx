@@ -1225,41 +1225,99 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
 
             <Card className="p-4 space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" /> عمولة التحصيل (COD)
+                <DollarSign className="h-4 w-4 text-primary" /> السياسات والرسوم
               </h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>نوع عمولة التحصيل</Label>
-                  <Select value={codFeeType} onValueChange={(v) => setCodFeeType(v as any)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="percentage">نسبة مئوية (%)</SelectItem>
-                      <SelectItem value="fixed">مبلغ ثابت (ل.س)</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+              {/* COD collection fee */}
+              <div className="space-y-2 pb-3 border-b border-border">
+                <p className="text-xs font-medium text-foreground">عمولة تحصيل المبلغ النقدي (COD)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">نوع العمولة</Label>
+                    <Select value={codFeeType} onValueChange={(v) => setCodFeeType(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">نسبة مئوية (%)</SelectItem>
+                        <SelectItem value="fixed">مبلغ ثابت (ل.س)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">القيمة</Label>
+                    <Input type="number" min="0" step={codFeeType === "percentage" ? "0.1" : "100"} value={codFeeValue} onChange={(e) => setCodFeeValue(e.target.value)} dir="ltr" />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>قيمة عمولة التحصيل</Label>
-                  <Input type="number" min="0" step={codFeeType === "percentage" ? "0.1" : "100"} value={codFeeValue} onChange={(e) => setCodFeeValue(e.target.value)} dir="ltr" />
+                  <Label className="text-xs">من يتحمل عمولة التحصيل؟</Label>
+                  <Select value={codResponsibility} onValueChange={(v) => setCodResponsibility(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="merchant">التاجر (تُخصم من مستحقاته)</SelectItem>
+                      <SelectItem value="courier_absorbs">الشركة تتحملها</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <p className="text-[11px] text-muted-foreground">
                     {codFeeType === "percentage" ? "مثال: 1 = 1٪ من قيمة التحصيل" : "مبلغ ثابت يُضاف على كل شحنة فيها تحصيل"}
                   </p>
                 </div>
               </div>
-              <div className="space-y-1.5 pt-2 border-t">
-                <Label>نسبة رسوم المرتجع (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={returnFeePct}
-                  onChange={(e) => setReturnFeePct(e.target.value)}
-                  dir="ltr"
-                />
+
+              {/* Return policy */}
+              <div className="space-y-2 pb-3 border-b border-border">
+                <p className="text-xs font-medium text-foreground">سياسة الإرجاع</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">نوع رسم الإرجاع</Label>
+                    <Select value={returnFeeType} onValueChange={(v) => setReturnFeeType(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">نسبة من أجرة الشحن (%)</SelectItem>
+                        <SelectItem value="fixed">مبلغ ثابت (ل.س)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">القيمة</Label>
+                    {returnFeeType === "percentage" ? (
+                      <Input type="number" min="0" max="100" step="1" value={returnFeePct} onChange={(e) => setReturnFeePct(e.target.value)} dir="ltr" />
+                    ) : (
+                      <Input type="number" min="0" step="100" value={returnFeeFixed} onChange={(e) => setReturnFeeFixed(e.target.value)} dir="ltr" />
+                    )}
+                  </div>
+                </div>
                 <p className="text-[11px] text-muted-foreground">
-                  النسبة من رسم الشحن التي تُحتسب للشركة عند إرجاع الشحنة (مثال: 50 = نصف الرسم).
+                  {returnFeeType === "percentage"
+                    ? "النسبة من أجرة الشحن التي تُحتسب للشركة عند إرجاع الشحنة (مثال: 50 = نصف الأجرة)."
+                    : "مبلغ ثابت يُخصم من التاجر لصالح شركة الشحن عند الإرجاع."}
                 </p>
+              </div>
+
+              {/* Delivery */}
+              <div className="space-y-2 pb-3 border-b border-border">
+                <p className="text-xs font-medium text-foreground">التسليم</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">عدد محاولات التسليم القصوى</Label>
+                    <Input type="number" min="1" max="10" step="1" value={maxDeliveryAttempts} onChange={(e) => setMaxDeliveryAttempts(e.target.value)} dir="ltr" />
+                    <p className="text-[10px] text-muted-foreground">بعد هذا العدد تصبح الشحنة مرتجعة تلقائياً.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">مهلة التسليم (ساعات)</Label>
+                    <Input type="number" min="1" step="1" value={deliverySlaHours} onChange={(e) => setDeliverySlaHours(e.target.value)} dir="ltr" />
+                    <p className="text-[10px] text-muted-foreground">المدة القصوى من الاستلام حتى التسليم.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">ملاحظات السياسة (تظهر للتاجر)</Label>
+                <Textarea
+                  rows={3}
+                  value={policyNotes}
+                  onChange={(e) => setPolicyNotes(e.target.value)}
+                  placeholder="مثال: الاستلام من المخزن يومياً 9-12 ظهراً. لا نشحن المواد الغذائية الطازجة."
+                />
               </div>
             </Card>
 
