@@ -11,6 +11,7 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import type { Database } from "@/integrations/supabase/types";
 import BulkImportSheet from "@/features/imports/components/BulkImportSheet";
 import ImportJobsHistory from "@/features/imports/components/ImportJobsHistory";
+import LockedActionButton from "@/features/merchant/components/LockedActionButton";
 
 type Shipment = Database["public"]["Tables"]["shipments"]["Row"];
 
@@ -46,10 +47,10 @@ export default function MerchantShipments() {
   return (
     <div className="space-y-8">
       <div className="flex justify-end">
-        <Button onClick={() => setImportOpen(true)} variant="outline" className="gap-2">
+        <LockedActionButton onClick={() => setImportOpen(true)} variant="outline" className="gap-2">
           <FileSpreadsheet className="h-4 w-4" />
           استيراد من Excel
-        </Button>
+        </LockedActionButton>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
