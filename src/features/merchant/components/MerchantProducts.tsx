@@ -12,6 +12,8 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import { compressImage } from "@/shared/lib/image-compress";
 import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
 import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
+import { useMerchantApproval } from "@/features/merchant/hooks/use-merchant-approval";
+import { Badge } from "@/components/ui/badge";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
@@ -31,6 +33,7 @@ function generateSlug(name: string): string {
 export default function MerchantProducts() {
   const { user } = useAuth();
   const { settings: platformSettings } = usePlatformSettings();
+  const { isApproved } = useMerchantApproval();
   const maxImages = platformSettings.product_max_images || 5;
   const [products, setProducts] = useState<Product[]>([]);
   const [productImages, setProductImages] = useState<Record<string, ProductImage[]>>({});
@@ -95,6 +98,9 @@ export default function MerchantProducts() {
         length_cm: parseFloat(form.length_cm) || 0,
         width_cm: parseFloat(form.width_cm) || 0,
         height_cm: parseFloat(form.height_cm) || 0,
+        // Pending merchants can add products but they stay as drafts
+        // (is_active=false) until the account is verified by an admin.
+        ...(isApproved ? {} : { is_active: false }),
       };
 
       if (editingProduct) {
