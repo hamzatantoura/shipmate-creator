@@ -42,7 +42,7 @@ export default function MerchantBottomNav() {
   const secondary = [
     { key: "archive", url: "/merchant/archive", icon: Archive },
     { key: "products", url: "/merchant/products", icon: Package },
-    { key: "topup", url: "/merchant/wallet/topup", icon: CreditCard },
+    { key: "topup", url: "/topup", icon: CreditCard },
     { key: "settings", url: "/merchant/settings", icon: Settings },
   ];
 
