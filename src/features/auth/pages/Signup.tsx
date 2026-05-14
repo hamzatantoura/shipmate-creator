@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -196,16 +196,14 @@ function Field({
   );
 }
 
-const InputWithIcon = (() => {
-  const { forwardRef } = require("react");
-  return forwardRef<HTMLInputElement, React.ComponentProps<"input"> & { icon: React.ElementType }>(
-    function InputWithIcon({ icon: Icon, className, ...props }, ref) {
-      return (
-        <div className="relative">
-          <Icon className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input ref={ref} className={`ps-10 ${className ?? ""}`} {...props} />
-        </div>
-      );
-    }
+const InputWithIcon = forwardRef<
+  HTMLInputElement,
+  React.ComponentProps<"input"> & { icon: React.ElementType }
+>(function InputWithIcon({ icon: Icon, className, ...props }, ref) {
+  return (
+    <div className="relative">
+      <Icon className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <Input ref={ref} className={`ps-10 ${className ?? ""}`} {...props} />
+    </div>
   );
-})();
+});
