@@ -31,6 +31,12 @@ export interface PricingSettings {
   courier_cod_fee_value?: number;
   /** Fallback collection fee % applied when no courier override is provided. */
   default_collection_fee_pct: number;
+  /** Who pays the COD collection fee. Default: merchant. */
+  cod_collection_responsibility?: "merchant" | "courier_absorbs";
+  /** Courier return fee policy. */
+  courier_return_fee_type?: "percentage" | "fixed";
+  courier_return_fee_percentage?: number;
+  courier_return_fee_fixed?: number;
 }
 
 export interface PricingInput {
@@ -82,6 +88,19 @@ export function calcCollectionFee(cod_amount: number, settings: PricingSettings)
   return Math.max(0, Math.round((cod_amount * (settings.default_collection_fee_pct || 0)) / 100));
 }
 
+/**
+ * Compute the return fee charged when a shipment is returned.
+ * percentage: % of the courier shipping fee. fixed: flat amount.
+ */
+export function calcReturnFee(carrier_fee: number, settings: PricingSettings): number {
+  const type = settings.courier_return_fee_type || "percentage";
+  if (type === "fixed") {
+    return Math.max(0, Math.round(settings.courier_return_fee_fixed || 0));
+  }
+  const pct = Math.max(0, Math.min(100, settings.courier_return_fee_percentage || 0));
+  return Math.max(0, Math.round((carrier_fee * pct) / 100));
+}
+
 /** Full pricing calculation */
 export function calculatePricing(input: PricingInput): PricingBreakdown {
   const { carrier_fee, cod_amount, settings } = input;
@@ -106,8 +125,10 @@ export function calculatePricing(input: PricingInput): PricingBreakdown {
   // Dynamic collection fee — courier override OR platform default
   const collection_fee = calcCollectionFee(cod_amount, settings);
 
-  // Total cost to merchant
-  const total_merchant_cost = merchant_shipping_fee + collection_fee;
+  // Total cost to merchant — exclude collection_fee if the courier absorbs it
+  const merchant_collection_fee =
+    settings.cod_collection_responsibility === "courier_absorbs" ? 0 : collection_fee;
+  const total_merchant_cost = merchant_shipping_fee + merchant_collection_fee;
 
   // Net amount merchant receives
   const net_to_merchant = cod_amount - total_merchant_cost;

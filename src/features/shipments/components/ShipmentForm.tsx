@@ -53,6 +53,12 @@ interface CourierOption {
   cod_fee: number; // computed for current cod amount
   estimated_days: string | null;
   return_fee_percentage: number;
+  return_fee_type: "percentage" | "fixed";
+  return_fee_fixed: number;
+  cod_collection_responsibility: "merchant" | "courier_absorbs";
+  max_delivery_attempts: number;
+  delivery_sla_hours: number;
+  policy_notes: string | null;
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -302,7 +308,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
       const { data: couriersData } = await supabase
         .from("couriers_public" as any)
-        .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value, return_fee_percentage")
+        .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value, return_fee_percentage, return_fee_type, return_fee_fixed, cod_collection_responsibility, max_delivery_attempts, delivery_sla_hours, policy_notes")
         .in("id", courierIds)
         .eq("is_active", true);
       if (cancelled) return;
@@ -334,6 +340,12 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             cod_fee: Math.round(codFee),
             estimated_days: r.estimated_days || null,
             return_fee_percentage: Number(c.return_fee_percentage) || 50,
+            return_fee_type: (c.return_fee_type as any) || "percentage",
+            return_fee_fixed: Number(c.return_fee_fixed) || 0,
+            cod_collection_responsibility: (c.cod_collection_responsibility as any) || "merchant",
+            max_delivery_attempts: Number(c.max_delivery_attempts) || 3,
+            delivery_sla_hours: Number(c.delivery_sla_hours) || 72,
+            policy_notes: c.policy_notes || null,
           };
         })
         .sort((a, b) => {
@@ -368,6 +380,10 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
         default_collection_fee_pct: platformSettings.default_collection_fee_pct,
         courier_cod_fee_type: selectedCourier?.cod_fee_type,
         courier_cod_fee_value: selectedCourier?.cod_fee_value,
+        cod_collection_responsibility: selectedCourier?.cod_collection_responsibility,
+        courier_return_fee_type: selectedCourier?.return_fee_type,
+        courier_return_fee_percentage: selectedCourier?.return_fee_percentage,
+        courier_return_fee_fixed: selectedCourier?.return_fee_fixed,
       },
     });
   }, [carrierFee, codAmount, platformSettings, selectedCourier]);
@@ -761,19 +777,47 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
           )}
 
           {selectedCourier && pricing.merchant_shipping_fee > 0 && (() => {
-            const pct = selectedCourier.return_fee_percentage || 50;
-            const returnFee = Math.round(pricing.merchant_shipping_fee * pct / 100);
+            const isPct = selectedCourier.return_fee_type !== "fixed";
+            const returnFee = isPct
+              ? Math.round(pricing.merchant_shipping_fee * (selectedCourier.return_fee_percentage || 0) / 100)
+              : Math.max(0, Math.round(selectedCourier.return_fee_fixed || 0));
+            const label = isPct
+              ? `رسوم مرتجع ${selectedCourier.return_fee_percentage || 0}%`
+              : `رسوم مرتجع ثابتة`;
             const total = pricing.merchant_shipping_fee + returnFee;
             return (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
                 <span className="font-semibold">في حال إرجاع الشحنة: </span>
                 يُخصم من محفظتك أجور الشحن ({pricing.merchant_shipping_fee.toLocaleString()} ل.س) +
-                رسوم مرتجع {pct}% ({returnFee.toLocaleString()} ل.س) =
+                {label} ({returnFee.toLocaleString()} ل.س) =
                 <span className="font-bold mx-1">{total.toLocaleString()} ل.س</span>
                 (قد يظهر كرصيد سالب يُسوَّى لاحقاً).
               </div>
             );
           })()}
+
+          {selectedCourier && (
+            <div className="p-3 rounded-lg bg-info/5 border border-info/20 text-xs leading-relaxed space-y-2">
+              <p className="font-semibold text-foreground">سياسة شركة "{selectedCourier.name}":</p>
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
+                <li>• محاولات التسليم: <span className="text-foreground font-medium">{selectedCourier.max_delivery_attempts}</span></li>
+                <li>• مهلة التسليم: <span className="text-foreground font-medium">{selectedCourier.delivery_sla_hours} ساعة</span></li>
+                <li>• عمولة التحصيل: <span className="text-foreground font-medium">
+                  {selectedCourier.cod_fee_type === "fixed"
+                    ? `${(selectedCourier.cod_fee_value || 0).toLocaleString()} ل.س ثابت`
+                    : `${selectedCourier.cod_fee_value || 0}%`}
+                </span></li>
+                <li>• يتحملها: <span className="text-foreground font-medium">
+                  {selectedCourier.cod_collection_responsibility === "courier_absorbs" ? "الشركة" : "التاجر"}
+                </span></li>
+              </ul>
+              {selectedCourier.policy_notes && (
+                <p className="pt-2 border-t border-info/20 text-foreground/80 whitespace-pre-wrap">
+                  {selectedCourier.policy_notes}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
