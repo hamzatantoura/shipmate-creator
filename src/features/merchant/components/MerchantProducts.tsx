@@ -197,6 +197,11 @@ export default function MerchantProducts() {
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
               <DialogHeader><DialogTitle>{editingProduct ? "تعديل المنتج" : "منتج جديد"}</DialogTitle></DialogHeader>
+              {!isApproved && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                  سيُحفظ هذا المنتج كمسودة وسيُنشر تلقائياً فور تفعيل حسابك من الإدارة.
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label>اسم المنتج</Label>
