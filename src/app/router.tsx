@@ -11,6 +11,7 @@ import Login from "@/features/auth/pages/Login";
 import Signup from "@/features/auth/pages/Signup";
 import ForgotPassword from "@/features/auth/pages/ForgotPassword";
 import ResetPassword from "@/features/auth/pages/ResetPassword";
+import VerifyEmail from "@/features/auth/pages/VerifyEmail";
 
 // Merchant feature
 import MerchantDashboard from "@/features/merchant/pages/MerchantDashboard";
@@ -54,6 +55,7 @@ export function AppRouter() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/track" element={<TrackOrderPage />} />
         <Route path="/track-shipment" element={<TrackShipment />} />
         <Route path="/track-shipment/:trackingId" element={<TrackShipment />} />
