@@ -1635,6 +1635,15 @@ export type Database = {
       _sila_checksum: { Args: { p_body: string }; Returns: string }
       _sila_validate: { Args: { p_code: string }; Returns: boolean }
       approve_top_up: { Args: { p_topup_id: string }; Returns: Json }
+      complete_merchant_onboarding: {
+        Args: {
+          p_city: string
+          p_contact_person: string
+          p_phone: string
+          p_store_name: string
+        }
+        Returns: undefined
+      }
       complete_payout: {
         Args: { p_new_status: string; p_payout_id: string }
         Returns: undefined
