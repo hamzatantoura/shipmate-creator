@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Store, User, Mail, MapPin, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import AuthCard from "@/features/auth/components/AuthCard";
 import { PasswordInput } from "@/features/auth/components/PasswordInput";
+import { PasswordStrengthMeter } from "@/features/auth/components/PasswordStrengthMeter";
 import GoogleAuthButton from "@/features/auth/components/GoogleAuthButton";
 import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
 import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
@@ -42,6 +43,7 @@ export default function Signup() {
       confirmPassword: "",
     },
   });
+  const passwordValue = useWatch({ control, name: "password" }) || "";
 
   const onSubmit = async (values: SignupValues) => {
     if (!isValidSyrianPhone(values.phone)) {
@@ -78,7 +80,7 @@ export default function Signup() {
     <AuthCard
       wide
       title="أنشئ حسابك في صلة"
-      subtitle="ابدأ بإدارة طلباتك وشحناتك مع شركات الشحن المعتمدة"
+      subtitle="انضم لأكثر من ١٢٠٠ تاجر سوري وابدأ بالشحن خلال دقائق"
     >
       <motion.form
         onSubmit={handleSubmit(onSubmit)}
@@ -90,10 +92,10 @@ export default function Signup() {
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="اسم المتجر" error={errors.storeName?.message}>
-            <Input placeholder="متجر الأناقة" {...register("storeName")} />
+            <InputWithIcon icon={Store} placeholder="متجر الأناقة" {...register("storeName")} />
           </Field>
           <Field label="اسم المسؤول" error={errors.contactPerson?.message}>
-            <Input placeholder="أحمد محمد" {...register("contactPerson")} />
+            <InputWithIcon icon={User} placeholder="أحمد محمد" {...register("contactPerson")} />
           </Field>
         </div>
 
@@ -111,7 +113,8 @@ export default function Signup() {
               name="city"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger>
+                  <SelectTrigger className="ps-10 relative">
+                    <MapPin className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <SelectValue placeholder="اختر المدينة" />
                   </SelectTrigger>
                   <SelectContent>
@@ -126,7 +129,7 @@ export default function Signup() {
         </div>
 
         <Field label="البريد الإلكتروني" error={errors.email?.message}>
-          <Input type="email" dir="ltr" placeholder="you@store.com" autoComplete="email" {...register("email")} />
+          <InputWithIcon icon={Mail} type="email" dir="ltr" placeholder="you@store.com" autoComplete="email" {...register("email")} />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -137,6 +140,7 @@ export default function Signup() {
               error={errors.password?.message}
               {...register("password")}
             />
+            <PasswordStrengthMeter password={passwordValue} />
           </Field>
           <Field label="تأكيد كلمة المرور" error={errors.confirmPassword?.message}>
             <PasswordInput
@@ -148,8 +152,9 @@ export default function Signup() {
           </Field>
         </div>
 
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          باستخدام كلمة مرور قوية (8 أحرف على الأقل تتضمن حروف وأرقام). سنرسل رابط تأكيد إلى بريدك قبل تفعيل الحساب.
+        <p className="text-[11px] text-muted-foreground leading-relaxed flex items-start gap-1.5">
+          <Sparkles className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+          سنرسل رابط تأكيد إلى بريدك قبل تفعيل الحساب. بإنشاء حساب، فأنت توافق على شروط الاستخدام وسياسة الخصوصية.
         </p>
 
         <Button type="submit" disabled={loading} className="w-full h-11 text-base font-semibold glow-btn">
@@ -190,3 +195,15 @@ function Field({
     </div>
   );
 }
+
+const InputWithIcon = forwardRef<
+  HTMLInputElement,
+  React.ComponentProps<"input"> & { icon: React.ElementType }
+>(function InputWithIcon({ icon: Icon, className, ...props }, ref) {
+  return (
+    <div className="relative">
+      <Icon className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      <Input ref={ref} className={`ps-10 ${className ?? ""}`} {...props} />
+    </div>
+  );
+});

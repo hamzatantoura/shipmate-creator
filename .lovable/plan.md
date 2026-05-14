@@ -1,103 +1,65 @@
-## Context
+# ترقية صفحات الدخول والهبوط — هوية "صلة" الاحترافية
 
-The platform already has a full pending-approval pipeline that maps 1:1 to your "is_approved" idea — no new boolean is needed:
+## الهدف
+رفع مستوى صفحات: **الهبوط Landing**، **تسجيل الدخول Login**، **إنشاء حساب Signup**، **استعادة كلمة المرور Forgot/Reset** لتصبح بنفس قوة وفخامة لوحات شركة الشحن (Courier Dashboard) — مع الحفاظ على نفس المنطق والوظائف الحالية بدون لمس قاعدة البيانات أو تدفق المصادقة.
 
-- `merchants.verification_status`: `pending_verification` → `pending_admin_approval` → `verified` (or `rejected`)
-- `MerchantVerificationGate` currently **blocks the entire dashboard** for non-verified merchants
-- `AdminMerchantApproval` already lets admins flip the status to `verified`
-- Profile/KYC fields, logo upload, warehouse address, etc. already exist on the `merchants` table
+## التشخيص الحالي
+- `AuthCard.tsx` يستخدم Glass-morphism بسيط مع gradient واحد + أيقونة شاحنة.
+- `Landing.tsx` صغيرة جداً (48 سطر) — مجرد بطاقة دخول، لا تعكس قوة المنصة.
+- صفحات Login/Signup/Forgot/Reset كلها تتشارك نفس `AuthCard` الضيّق (max-w-md).
+- لا يوجد عرض بصري للميزات أو الإحصائيات أو الثقة (Social proof).
 
-What's missing is exactly what you're asking for: a **softer permission model** (let unverified merchants explore most of the app, only block shipment creation), plus the educational UX (onboarding tour, persistent banner, progress tracker).
+## خطة التنفيذ
 
-So instead of duplicating the system with a new `is_approved` column, this plan adapts the existing one.
+### 1. صفحة الهبوط Landing (إعادة بناء كاملة)
+بنية جديدة احترافية مكوّنة من أقسام:
+- **Hero مزدوج العمود**: عنوان قوي + CTA مزدوج (تسجيل تاجر / تسجيل شركة شحن) + رسم بياني/Mockup للوحة التحكم على اليمين مع توهج orange.
+- **شريط الثقة**: عدّادات حيّة (عدد التجار، عدد الطلبات، شركات الشحن المعتمدة) — أرقام ثابتة في البداية.
+- **Bento Grid للميزات**: 6 بطاقات بأحجام مختلفة (محفظة ذكية، تسعير حسب المنطقة، تتبّع لحظي، تكامل شركات الشحن، تقارير، API).
+- **قسم "كيف يعمل"**: 3 خطوات بصرية للتاجر و3 لشركة الشحن (Tabs).
+- **قسم شركات الشحن المعتمدة**: شعارات/بطاقات الناقلين الفعليين من DB.
+- **CTA نهائي + Footer كامل**: روابط، سياسة، تواصل، لغة.
 
-## What changes
+### 2. ترقية AuthCard المشترك
+تطوير `AuthCard.tsx` إلى تخطيط **Split-Screen** على الشاشات الكبيرة:
+- **العمود الأيمن (40%)**: النموذج نفسه داخل بطاقة Glass.
+- **العمود الأيسر (60%)**: لوحة Brand فخمة تعرض:
+  - شعار + شعار "صلة" بخط Display كبير.
+  - 3 ميزات سريعة بأيقونات (Lucide).
+  - Mockup صغير لإحصائية أو طلب نموذجي.
+  - خلفية Mesh Gradient ديناميكية (Framer Motion) بألوان orange/navy.
+- على الجوال: ينهار إلى عمود واحد (الشكل الحالي) للحفاظ على UX الموبايل.
 
-### 1. Permission model (relaxed gate)
+### 3. تحسينات تجربة النماذج (Login/Signup/Forgot/Reset)
+- **مؤشر قوة كلمة المرور** في Signup (ضعيفة/متوسطة/قوية) — UI فقط.
+- **أيقونات داخل الحقول** (Mail, Lock, Eye toggle).
+- **رسائل ترحيب ديناميكية** حسب الوقت (صباح الخير/مساء الخير).
+- **Loading states أنيقة**: Skeleton + Spinner داخل الزر.
+- **Animations متتالية** للحقول (stagger) عند الدخول.
+- **أزرار اجتماعية محسّنة** (Google) بنفس وزن الزر الأساسي.
 
-Replace today's "block everything" `MerchantVerificationGate` with a per-action policy driven by `verification_status === 'verified'`:
+### 4. صفحة Reset Password
+نفس التحسينات + شريط تقدّم بصري لخطوات الاستعادة (طلب → فحص بريد → كلمة جديدة → تم).
 
-| Area | Pending merchant | Verified merchant |
-|---|---|---|
-| Dashboard (KPIs, banner, progress) | Allowed | Allowed |
-| Settings / Profile / KYC upload | Allowed | Allowed |
-| Products list + Add Product | Allowed (`is_active=false` forced — "Draft") | Allowed (`is_active=true`) |
-| Orders list (read) | Allowed | Allowed |
-| **Create Shipment / Print Waybill / Bulk import** | **Disabled with tooltip** "متاحة بعد تفعيل الحساب" | Allowed |
-| Storefront (public) | Hidden until verified (already enforced by existing anon RLS) | Visible |
+## ما لن يتغيّر
+- منطق المصادقة في `use-auth.tsx` و`AuthForm.tsx` (validation, submit).
+- سياسات RLS أو جداول قاعدة البيانات.
+- التدفقات الأمنية (HIBP, email verification).
+- مكوّن `AuthGuard` و`Router`.
 
-Add a hook `useMerchantApproval()` returning `{ isApproved, status, lockMessage }` used by every action button. Wrap `<Button disabled>` in a Tooltip when `!isApproved`.
+## التفاصيل التقنية
+- جميع الألوان من `index.css` tokens (`--primary`, `--background`, `--card`, `--muted`).
+- خط `font-display` (Readex Pro) للعناوين، `font-body` (Inter) للنص.
+- استخدام `framer-motion` للحركات (موجود مسبقاً).
+- صور/Mockups مولّدة عبر `imagegen` بجودة `standard`.
+- RTL محفوظ عبر `dir={meta.dir}` و`start/end` بدلاً من `left/right`.
 
-The existing `MerchantVerificationGate` is repurposed to wrap **only** the Shipments page (`MerchantShipments` create form) and the bulk-print bar — not the entire dashboard, products, or settings pages.
+## الملفات المتأثّرة
+- **تعديل**: `AuthCard.tsx`, `Landing.tsx`, `Login.tsx`, `Signup.tsx`, `ForgotPassword.tsx`, `ResetPassword.tsx`, `AuthForm.tsx`.
+- **إنشاء**: `LandingHero.tsx`, `LandingFeatures.tsx`, `LandingHowItWorks.tsx`, `LandingCarriers.tsx`, `LandingFooter.tsx`, `AuthBrandPanel.tsx`, `PasswordStrengthMeter.tsx`.
+- **أصول**: 1-2 صور/mockups في `src/assets/`.
 
-### 2. Persistent status banner
-
-New `<MerchantApprovalBanner />` rendered at the top of `MerchantLayout` (above page content) whenever `verification_status !== 'verified'`. Variants:
-
-- `pending_verification`: yellow — "حسابك قيد المراجعة. أكمل بياناتك وأضف منتجاتك ريثما يتم تفعيله."
-- `pending_admin_approval`: blue — "تم استكمال البيانات. بانتظار اعتماد الإدارة لتفعيل الشحن."
-- `rejected`: red — "تم رفض حسابك. راجع البيانات وأعد التقديم."
-
-Includes a mini progress chip ("جاهزية الحساب: 60%") linking to Settings.
-
-### 3. First-login onboarding tour
-
-New `<MerchantOnboardingTour />` mounted inside `MerchantLayout`. A 4-step Shadcn `Dialog` stepper shown **once** (flag stored in `localStorage` keyed by `user.id`):
-
-1. أهلاً بك في صلة — كيف تعمل المنصة (سطر مختصر + أيقونة)
-2. أكمل ملف المتجر (شعار، اسم، تواصل، عنوان مستودع)
-3. أضف منتجاتك (تُحفظ كمسودة حتى التفعيل)
-4. بانتظار التفعيل — سنُعلِمك فور موافقة الإدارة
-
-Uses existing UI tokens (Readex Pro, primary orange #FF8C00, dark navy bg). Skippable, replayable from the banner via "إعادة عرض الجولة".
-
-### 4. Readiness progress tracker
-
-New `<MerchantReadinessProgress />` card on the dashboard. Reuses the checks already returned by `useMerchantVerification()`:
-
-```text
-[████████░░] 80% جاهز للإطلاق
-✓ الملف الشخصي    ✓ المنتجات (3)
-✓ شعار المتجر     ○ الموافقة الإدارية
-```
-
-Weighted: profile 40% / KYC docs 30% / at least 1 product 20% / admin approval 10%. Pure UI from existing data — no new query.
-
-### 5. Product drafts during pending
-
-In `MerchantProducts.tsx`, when `!isApproved` force `is_active = false` on insert/update (UI shows a locked "مسودة" badge with tooltip). When the merchant becomes `verified`, an opt-in toast offers "تفعيل كل المسودات".
-
-### 6. Admin notifications
-
-Already partly wired (`AdminMerchantApproval` shows a destructive badge with the pending count). Add a database trigger so a row is **inserted into `notifications`** for every admin (`user_roles.role='admin'`) when:
-
-- a new `merchants` row is created → "تاجر جديد بانتظار التحقق"
-- `verification_status` flips to `pending_admin_approval` → "تاجر جاهز للاعتماد"
-
-Linked to `/admin?tab=merchants` so the admin lands directly on the approval table.
-
-## Files
-
-**Create**
-- `src/features/merchant/hooks/use-merchant-approval.ts` — thin wrapper around `useMerchantVerification` exposing `{ isApproved, lockMessage }`
-- `src/features/merchant/components/MerchantApprovalBanner.tsx`
-- `src/features/merchant/components/MerchantOnboardingTour.tsx`
-- `src/features/merchant/components/dashboard/MerchantReadinessProgress.tsx`
-- `src/features/merchant/components/LockedActionButton.tsx` — shared `<Button>` + `<Tooltip>` wrapper
-
-**Edit**
-- `src/features/merchant/components/MerchantLayout.tsx` — mount banner + tour
-- `src/features/merchant/components/MerchantVerificationGate.tsx` — narrow scope (only used for shipment creation)
-- `src/features/merchant/pages/MerchantDashboard.tsx` — add readiness card, drop hard lock alert (banner replaces it)
-- `src/features/merchant/pages/MerchantProductsPage.tsx` — remove gate wrapper, allow access
-- `src/features/merchant/components/MerchantProducts.tsx` — force draft for pending merchants
-- `src/features/merchant/pages/MerchantOrdersPage.tsx` + `MerchantShipments.tsx` — wrap create/print/bulk buttons with `LockedActionButton`
-
-**Migration**
-- Trigger on `merchants` insert + status update → insert rows into `notifications` for every admin user. No schema changes; uses existing tables.
-
-## Out of scope
-
-- No new `is_approved` column (existing `verification_status` covers it)
-- No changes to RLS policies (current policies already prevent unverified merchants from receiving public orders)
-- No email notifications (handled by the separate custom-email-domain plan)
+## خارج النطاق
+- أي تغيير في تدفق الموافقة (Pending Approval) المُنفّذ سابقاً.
+- إعدادات إيميل/Domain.
+- إضافة مزوّدي دخول جدد (Apple, Phone…).

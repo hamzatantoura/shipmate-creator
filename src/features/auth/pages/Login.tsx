@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Mail, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,13 @@ import { loginSchema, friendlyAuthError, type LoginValues } from "@/features/aut
 export default function Login() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 5) return "مساء الخير";
+    if (h < 12) return "صباح الخير";
+    if (h < 18) return "نهارك سعيد";
+    return "مساء الخير";
+  }, []);
   const {
     register,
     handleSubmit,
@@ -68,8 +75,8 @@ export default function Login() {
 
   return (
     <AuthCard
-      title="أهلاً بك في صلة"
-      subtitle="سجّل دخولك إلى منصة صلة لإدارة طلباتك وشحناتك"
+      title={`${greeting} 👋`}
+      subtitle="سجّل دخولك إلى لوحة صلة لإدارة طلباتك وشحناتك"
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -80,24 +87,37 @@ export default function Login() {
           transition={{ duration: 0.25 }}
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <div className="space-y-1.5">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
+              className="space-y-1.5"
+            >
               <Label htmlFor="identifier">البريد الإلكتروني أو اسم المستخدم</Label>
-              <Input
-                id="identifier"
-                type="text"
-                dir="ltr"
-                placeholder="example@sila.sy"
-                autoComplete="username"
-                {...register("identifier")}
-                aria-invalid={!!errors.identifier}
-                className={errors.identifier ? "border-destructive" : ""}
-              />
+              <div className="relative">
+                <Mail className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="identifier"
+                  type="text"
+                  dir="ltr"
+                  placeholder="example@sila.sy"
+                  autoComplete="username"
+                  {...register("identifier")}
+                  aria-invalid={!!errors.identifier}
+                  className={`ps-10 ${errors.identifier ? "border-destructive" : ""}`}
+                />
+              </div>
               {errors.identifier && (
                 <p className="text-xs text-destructive">{errors.identifier.message}</p>
               )}
-            </div>
+            </motion.div>
 
-            <div className="space-y-1.5">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.12 }}
+              className="space-y-1.5"
+            >
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">كلمة المرور</Label>
                 <Link to="/forgot-password" className="text-xs text-primary hover:underline">
@@ -114,20 +134,27 @@ export default function Login() {
               {errors.password && (
                 <p className="text-xs text-destructive">{errors.password.message}</p>
               )}
-            </div>
+            </motion.div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 text-base font-semibold glow-btn"
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.18 }}
             >
-              {loading ? (
-                <Loader2 className="me-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowRight className="me-2 h-4 w-4 rtl-flip" />
-              )}
-              تسجيل الدخول
-            </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 text-base font-semibold glow-btn"
+              >
+                {loading ? (
+                  <Loader2 className="me-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="me-2 h-4 w-4" />
+                )}
+                تسجيل الدخول
+                {!loading && <ArrowRight className="ms-2 h-4 w-4 rtl-flip opacity-70" />}
+              </Button>
+            </motion.div>
           </form>
 
           <div className="relative my-5">
