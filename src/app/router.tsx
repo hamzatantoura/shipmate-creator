@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AuthGuard from "@/features/auth/components/AuthGuard";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 
 // Public / app-level pages
 import Landing from "@/app/pages/Landing";
@@ -92,7 +93,7 @@ export function AppRouter() {
         <Route path="/admin/districts-map" element={<AuthGuard allowedRoles={["admin"]}><AdminDistrictsMap /></AuthGuard>} />
 
         {/* Legacy redirects */}
-        <Route path="/dashboard" element={<Navigate to="/login" replace />} />
+        <Route path="/dashboard" element={<DashboardRedirect />} />
         <Route path="/admin-logistics" element={<AuthGuard allowedRoles={["admin"]}><AdminLogistics /></AuthGuard>} />
         <Route path="/products" element={<Navigate to="/merchant/products" replace />} />
         <Route path="/orders" element={<Navigate to="/merchant/orders" replace />} />
@@ -103,4 +104,16 @@ export function AppRouter() {
       </Routes>
     </BrowserRouter>
   );
+}
+
+/**
+ * `/dashboard` is a generic alias — route the user to the dashboard for
+ * their role, or to /login when not authenticated.
+ */
+function DashboardRedirect() {
+  const { user, role, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  const map = { admin: "/admin", merchant: "/merchant", vendor: "/courier/orders" } as const;
+  return <Navigate to={role ? map[role] : "/login"} replace />;
 }
