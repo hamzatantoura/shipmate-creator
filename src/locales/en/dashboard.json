@@ -10,6 +10,8 @@
     "analytics": "Analytics",
     "settings": "Settings",
     "signOut": "Sign out",
+    "more": "More",
+    "topup": "Top up",
     "welcome": "Welcome",
     "homeSubtitle": "Welcome {{name}}",
     "lockedTitle": "Account not yet activated",

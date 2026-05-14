@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth, type UserRole } from "@/features/auth/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import {
@@ -21,10 +21,20 @@ interface AuthGuardProps {
 export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   const { user, role, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // Intercept the browser/device back button on protected pages so users don't
-  // accidentally log themselves out by swiping back to /login.
+  // Smart back-button behavior:
+  // - On a sub-page (e.g. /merchant/wallet) → go back to the role's root page.
+  // - On the role's root page (e.g. /merchant) → ask to confirm logout.
+  const roleRoot: Record<UserRole, string> = {
+    merchant: "/merchant",
+    vendor: "/courier/orders",
+    admin: "/admin",
+  };
+  const rootPath = role ? roleRoot[role] : "/";
+  const isAtRoot = location.pathname === rootPath;
+
   useEffect(() => {
     if (!user) return;
 
@@ -32,14 +42,18 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
 
     const onPopState = () => {
       window.history.pushState({ __silaGuard: true }, "");
-      setConfirmOpen(true);
+      if (isAtRoot) {
+        setConfirmOpen(true);
+      } else {
+        navigate(rootPath, { replace: true });
+      }
     };
 
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
     };
-  }, [user]);
+  }, [user, isAtRoot, rootPath, navigate]);
 
   const handleConfirmLogout = async () => {
     setConfirmOpen(false);
