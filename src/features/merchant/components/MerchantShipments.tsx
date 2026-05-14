@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Package, Truck, DollarSign, Search, FileSpreadsheet } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import ShipmentForm from "@/features/shipments/components/ShipmentForm";
