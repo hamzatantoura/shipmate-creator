@@ -68,7 +68,7 @@ export default function Login() {
 
   return (
     <AuthCard
-      title="مرحباً بعودتك"
+      title="أهلاً بك في صلة"
       subtitle="سجّل دخولك إلى منصة صلة لإدارة طلباتك وشحناتك"
     >
       <AnimatePresence mode="wait">
