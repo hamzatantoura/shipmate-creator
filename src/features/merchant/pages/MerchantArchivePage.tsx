@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { MerchantSidebar } from "@/features/merchant/components/MerchantSidebar";
+import MerchantBottomNav from "@/features/merchant/components/MerchantBottomNav";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -105,7 +106,7 @@ export default function MerchantArchivePage() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background" dir="rtl">
         <MerchantSidebar />
-        <main className="flex-1 p-4 md:p-6 space-y-4">
+        <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
@@ -229,6 +230,7 @@ export default function MerchantArchivePage() {
             </AlertDialogContent>
           </AlertDialog>
         </main>
+        <MerchantBottomNav />
       </div>
     </SidebarProvider>
   );
