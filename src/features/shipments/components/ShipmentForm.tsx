@@ -308,7 +308,7 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
 
       const { data: couriersData } = await supabase
         .from("couriers_public" as any)
-        .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value, return_fee_percentage")
+        .select("id, name, logo_url, services, is_active, cod_fee_type, cod_fee_value, return_fee_percentage, return_fee_type, return_fee_fixed, cod_collection_responsibility, max_delivery_attempts, delivery_sla_hours, policy_notes")
         .in("id", courierIds)
         .eq("is_active", true);
       if (cancelled) return;
@@ -340,6 +340,12 @@ export default function ShipmentForm({ onCreated, prefill }: ShipmentFormProps) 
             cod_fee: Math.round(codFee),
             estimated_days: r.estimated_days || null,
             return_fee_percentage: Number(c.return_fee_percentage) || 50,
+            return_fee_type: (c.return_fee_type as any) || "percentage",
+            return_fee_fixed: Number(c.return_fee_fixed) || 0,
+            cod_collection_responsibility: (c.cod_collection_responsibility as any) || "merchant",
+            max_delivery_attempts: Number(c.max_delivery_attempts) || 3,
+            delivery_sla_hours: Number(c.delivery_sla_hours) || 72,
+            policy_notes: c.policy_notes || null,
           };
         })
         .sort((a, b) => {
