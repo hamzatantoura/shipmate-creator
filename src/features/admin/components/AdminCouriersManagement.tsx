@@ -932,6 +932,22 @@ function CourierProfileSheet({ courier, districts, provinces, areasOf, onClose, 
   const [returnFeePct, setReturnFeePct] = useState<string>(
     courier.return_fee_percentage != null ? String(courier.return_fee_percentage) : "50"
   );
+  const [returnFeeType, setReturnFeeType] = useState<"percentage" | "fixed">(
+    (courier.return_fee_type as any) || "percentage"
+  );
+  const [returnFeeFixed, setReturnFeeFixed] = useState<string>(
+    courier.return_fee_fixed != null ? String(courier.return_fee_fixed) : "0"
+  );
+  const [maxDeliveryAttempts, setMaxDeliveryAttempts] = useState<string>(
+    courier.max_delivery_attempts != null ? String(courier.max_delivery_attempts) : "3"
+  );
+  const [deliverySlaHours, setDeliverySlaHours] = useState<string>(
+    courier.delivery_sla_hours != null ? String(courier.delivery_sla_hours) : "72"
+  );
+  const [codResponsibility, setCodResponsibility] = useState<"merchant" | "courier_absorbs">(
+    (courier.cod_collection_responsibility as any) || "merchant"
+  );
+  const [policyNotes, setPolicyNotes] = useState<string>(courier.policy_notes || "");
   const [taxId, setTaxId] = useState(courier.tax_id || "");
   const [contactPerson, setContactPerson] = useState(courier.contact_person || "");
   const [contactEmail, setContactEmail] = useState(courier.contact_email || "");
