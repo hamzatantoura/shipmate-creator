@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 
 /** Excel column headers (Arabic, exactly as users will see them) */
-export const TEMPLATE_HEADERS = [
+export const TEMPLATE_HEADERS: string[] = [
   "اسم المستلم",
   "رقم الهاتف",
   "المحافظة",
@@ -10,7 +10,7 @@ export const TEMPLATE_HEADERS = [
   "قيمة التحصيل (ل.س)",
   "الكمية",
   "ملاحظات",
-] as const;
+];
 
 export type TemplateRow = {
   receiver_name: string;
@@ -25,7 +25,7 @@ export type TemplateRow = {
 
 /** Build a sample workbook the merchant downloads as a starting point. */
 export function buildTemplateWorkbook(): Blob {
-  const rows = [
+  const rows: any[][] = [
     TEMPLATE_HEADERS,
     ["محمد أحمد", "0933123456", "دمشق", "المزة", "شارع الجلاء، بناء 12", 75000, 1, "هش - حذر أثناء النقل"],
     ["سارة علي", "0944556677", "حلب", "السبيل", "حي الشهباء، بناء 5", 120000, 2, ""],
