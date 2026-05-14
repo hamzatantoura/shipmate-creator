@@ -59,6 +59,14 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     return <Navigate to="/login" replace />;
   }
 
+  // Real users (merchants/admins) must confirm their email before accessing
+  // the app. Vendor accounts use synthetic @courier.sila.local emails that are
+  // pre-confirmed when the admin creates them, so they bypass this gate.
+  const isSyntheticVendor = (user.email ?? "").endsWith("@courier.sila.local");
+  if (!user.email_confirmed_at && !isSyntheticVendor) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
   if (allowedRoles) {
     if (!role) {
       // Role not loaded yet or missing — redirect to login
