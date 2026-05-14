@@ -113,9 +113,10 @@ export function AppRouter() {
  * their role, or to /login when not authenticated.
  */
 function DashboardRedirect() {
-  const { user, role, loading } = useAuth();
+  const { user, role, profile, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (profile?.needs_onboarding) return <Navigate to="/complete-profile" replace />;
   const map = { admin: "/admin", merchant: "/merchant", vendor: "/courier/orders" } as const;
   return <Navigate to={role ? map[role] : "/login"} replace />;
 }
