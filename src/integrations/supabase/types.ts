@@ -1527,26 +1527,53 @@ export type Database = {
       couriers_public: {
         Row: {
           city: string | null
+          cod_collection_responsibility: string | null
+          cod_fee_type: string | null
+          cod_fee_value: number | null
+          delivery_sla_hours: number | null
           id: string | null
           is_active: boolean | null
           logo_url: string | null
+          max_delivery_attempts: number | null
           name: string | null
+          policy_notes: string | null
+          return_fee_fixed: number | null
+          return_fee_percentage: number | null
+          return_fee_type: string | null
           services: string[] | null
         }
         Insert: {
           city?: string | null
+          cod_collection_responsibility?: string | null
+          cod_fee_type?: string | null
+          cod_fee_value?: number | null
+          delivery_sla_hours?: number | null
           id?: string | null
           is_active?: boolean | null
           logo_url?: string | null
+          max_delivery_attempts?: number | null
           name?: string | null
+          policy_notes?: string | null
+          return_fee_fixed?: number | null
+          return_fee_percentage?: number | null
+          return_fee_type?: string | null
           services?: string[] | null
         }
         Update: {
           city?: string | null
+          cod_collection_responsibility?: string | null
+          cod_fee_type?: string | null
+          cod_fee_value?: number | null
+          delivery_sla_hours?: number | null
           id?: string | null
           is_active?: boolean | null
           logo_url?: string | null
+          max_delivery_attempts?: number | null
           name?: string | null
+          policy_notes?: string | null
+          return_fee_fixed?: number | null
+          return_fee_percentage?: number | null
+          return_fee_type?: string | null
           services?: string[] | null
         }
         Relationships: []
