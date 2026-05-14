@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.notify_admins_of_merchant_event(text, text, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.handle_merchant_admin_notify() FROM PUBLIC, anon, authenticated;
