@@ -101,12 +101,12 @@ export default function MerchantBottomNav() {
               <span className="absolute top-0 h-0.5 w-8 rounded-full bg-primary" />
             )}
             <MoreHorizontal className={cn("h-5 w-5 transition-transform", moreActive && "scale-110")} />
-            <span>{t("merchant.more")}</span>
+            <span>{t("merchant.more", "المزيد")}</span>
           </button>
         </SheetTrigger>
         <SheetContent side="bottom" className="rounded-t-2xl pb-[env(safe-area-inset-bottom)]" dir={meta.dir}>
           <SheetHeader className="text-start">
-            <SheetTitle>{t("merchant.more")}</SheetTitle>
+            <SheetTitle>{t("merchant.more", "المزيد")}</SheetTitle>
           </SheetHeader>
           <div className="grid grid-cols-2 gap-3 mt-4">
             {secondary.map((item) => {
@@ -124,7 +124,11 @@ export default function MerchantBottomNav() {
                   )}
                 >
                   <item.icon className="h-6 w-6" />
-                  <span>{t(`merchant.${item.key}`)}</span>
+                  <span>
+                    {item.key === "topup"
+                      ? t("merchant.topup", "شحن الرصيد")
+                      : t(`merchant.${item.key}`)}
+                  </span>
                 </button>
               );
             })}
