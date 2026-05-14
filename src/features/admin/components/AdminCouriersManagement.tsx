@@ -40,6 +40,12 @@ interface Courier {
   contact_email?: string | null;
   integration_type?: string | null;
   logo_url?: string | null;
+  return_fee_type?: "percentage" | "fixed" | null;
+  return_fee_fixed?: number | null;
+  max_delivery_attempts?: number | null;
+  delivery_sla_hours?: number | null;
+  cod_collection_responsibility?: "merchant" | "courier_absorbs" | null;
+  policy_notes?: string | null;
 }
 
 interface VendorProfile {
