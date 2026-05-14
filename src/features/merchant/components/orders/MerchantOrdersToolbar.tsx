@@ -1,6 +1,7 @@
 import { Search, X, Download, Plus, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import LockedActionButton from "@/features/merchant/components/LockedActionButton";
 import {
   Select,
   SelectContent,
@@ -107,10 +108,10 @@ export default function MerchantOrdersToolbar({
             {exporting ? "جاري التصدير..." : "تصدير CSV"}
           </Button>
 
-          <Button className="h-10 gap-1.5" onClick={onCreate}>
+          <LockedActionButton className="h-10 gap-1.5" onClick={onCreate}>
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">طلب جديد</span>
-          </Button>
+          </LockedActionButton>
         </div>
       </div>
 
