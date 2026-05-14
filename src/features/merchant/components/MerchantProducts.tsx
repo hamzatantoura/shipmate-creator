@@ -13,7 +13,6 @@ import { compressImage } from "@/shared/lib/image-compress";
 import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
 import { usePlatformSettings } from "@/shared/hooks/use-platform-settings";
 import { useMerchantApproval } from "@/features/merchant/hooks/use-merchant-approval";
-import { Badge } from "@/components/ui/badge";
 
 interface Product {
   id: string; name: string; description: string | null; image_url: string | null;
