@@ -9,6 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, Eye, Loader2, Store, Mail, Phone, Shield, Image as ImageIcon, Video, IdCard, MapPin, Building2 } from "lucide-react";
 
+/** Inline Google "G" mark — shown next to merchants who signed up via Google OAuth. */
+function GoogleMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-label="Google" role="img">
+      <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.5 14.7 2.5 12 2.5 6.8 2.5 2.6 6.7 2.6 12s4.2 9.5 9.4 9.5c5.4 0 9-3.8 9-9.1 0-.6-.1-1.1-.2-1.6H12z" />
+    </svg>
+  );
+}
+
 interface Merchant {
   id: string;
   user_id: string;
@@ -27,6 +36,7 @@ interface Merchant {
   verification_status: string;
   whatsapp_number: string | null;
   created_at: string;
+  auth_provider?: string | null;
 }
 
 const STATUS_AR: Record<string, string> = {
@@ -52,11 +62,17 @@ export default function AdminMerchantApproval() {
 
   const fetchMerchants = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("merchants")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setMerchants((data as any[]) || []);
+    const [{ data: m }, { data: profiles }] = await Promise.all([
+      supabase.from("merchants").select("*").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("user_id, auth_provider"),
+    ]);
+    const providerByUser = new Map<string, string>();
+    (profiles as any[] | null)?.forEach((p) => providerByUser.set(p.user_id, p.auth_provider ?? "email"));
+    const enriched = ((m as any[]) || []).map((row) => ({
+      ...row,
+      auth_provider: providerByUser.get(row.user_id) ?? "email",
+    }));
+    setMerchants(enriched);
     setLoading(false);
   };
 
@@ -119,7 +135,17 @@ export default function AdminMerchantApproval() {
               <TableBody>
                 {merchants.map((m) => (
                   <TableRow key={m.id}>
-                    <TableCell className="font-medium">{m.store_name || "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        {m.store_name || "—"}
+                        {m.auth_provider === "google" && (
+                          <Badge variant="outline" className="gap-1 px-1.5 py-0 text-[10px] font-normal">
+                            <GoogleMark className="h-3 w-3" />
+                            Google
+                          </Badge>
+                        )}
+                      </span>
+                    </TableCell>
                     <TableCell>{m.contact_person || "—"}</TableCell>
                     <TableCell>{m.city || "—"}</TableCell>
                     <TableCell>
