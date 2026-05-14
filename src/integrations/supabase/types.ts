@@ -1802,6 +1802,10 @@ export type Database = {
         Args: { _city: string }
         Returns: Database["public"]["Enums"]["shipment_city"]
       }
+      notify_admins_of_merchant_event: {
+        Args: { _link: string; _message: string; _title: string }
+        Returns: undefined
+      }
       reverse_payout: {
         Args: { p_payout_id: string; p_reason?: string }
         Returns: Json

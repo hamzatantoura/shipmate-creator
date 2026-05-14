@@ -1,9 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import MerchantLayout from "@/features/merchant/components/MerchantLayout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShieldAlert } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import KpiCards from "@/features/merchant/components/dashboard/KpiCards";
@@ -11,6 +9,7 @@ import RevenueChart from "@/features/merchant/components/dashboard/RevenueChart"
 import RecentOrders from "@/features/merchant/components/dashboard/RecentOrders";
 import WalletOverview from "@/features/merchant/components/dashboard/WalletOverview";
 import DeliveryStatusSummary from "@/features/merchant/components/dashboard/DeliveryStatusSummary";
+import MerchantReadinessProgress from "@/features/merchant/components/dashboard/MerchantReadinessProgress";
 import { DashboardData, PENDING_STATUSES } from "@/features/merchant/components/dashboard/types";
 
 export default function MerchantDashboard() {
@@ -182,27 +181,13 @@ export default function MerchantDashboard() {
     return () => { supabase.removeChannel(channel); };
   }, [user, fetchAll]);
 
-  const isLocked = data.verificationStatus !== null && data.verificationStatus !== "verified";
-  const lockKey =
-    data.verificationStatus === "pending_verification" ? "merchant.locked.pending_verification"
-    : data.verificationStatus === "pending_admin_approval" ? "merchant.locked.pending_admin_approval"
-    : data.verificationStatus === "rejected" ? "merchant.locked.rejected"
-    : "merchant.locked.default";
-  const lockMessage = t(lockKey);
-
   return (
     <MerchantLayout title={t("merchant.home")} subtitle={t("merchant.homeSubtitle", { name: profile?.store_name || "" })}>
       {data.loading ? (
         <DashboardSkeleton />
       ) : (
         <div className="space-y-5 md:space-y-6">
-          {isLocked && (
-            <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
-              <ShieldAlert className="h-5 w-5" />
-              <AlertTitle className="font-bold">{t("merchant.lockedTitle")}</AlertTitle>
-              <AlertDescription>{lockMessage}</AlertDescription>
-            </Alert>
-          )}
+          <MerchantReadinessProgress />
 
           <KpiCards
             revenue30d={data.revenue30d}

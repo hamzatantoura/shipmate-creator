@@ -66,6 +66,7 @@ import { isOrderLocked } from "@/features/shipments/lib/order-locking";
 import { partitionOrdersForPrinting, validateOrderForPrinting } from "@/features/shipments/lib/print-validation";
 import MerchantOrdersToolbar from "@/features/merchant/components/orders/MerchantOrdersToolbar";
 import { exportOrdersToCsv } from "@/features/merchant/components/orders/export-csv";
+import LockedActionButton from "@/features/merchant/components/LockedActionButton";
 
 type OrderStatus = "new" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "returned" | "cancelled";
 
@@ -1651,10 +1652,10 @@ export default function MerchantOrdersPage() {
                               <p className="font-medium text-foreground">لا توجد طلبات بعد</p>
                               <p className="text-xs text-muted-foreground">ابدأ بإضافة أول طلب لزبونك من زر "إضافة طلب جديد" بالأعلى</p>
                             </div>
-                            <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-2 mt-1">
+                            <LockedActionButton size="sm" onClick={() => setCreateOpen(true)} className="gap-2 mt-1">
                               <Plus className="h-4 w-4" />
                               إضافة طلب جديد
-                            </Button>
+                            </LockedActionButton>
                           </div>
                         </TableCell>
                       </TableRow>

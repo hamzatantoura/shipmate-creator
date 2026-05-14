@@ -9,6 +9,8 @@ import NotificationBell from "@/shared/components/feedback/NotificationBell";
 import { useLanguage } from "@/i18n/use-language";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
+import MerchantApprovalBanner from "@/features/merchant/components/MerchantApprovalBanner";
+import MerchantOnboardingTour from "@/features/merchant/components/MerchantOnboardingTour";
 
 interface Props {
   children: ReactNode;
@@ -52,6 +54,7 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
             </div>
           </header>
           <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 space-y-6 max-w-7xl w-full mx-auto overflow-x-hidden">
+            <MerchantApprovalBanner />
             {(title || subtitle) && (
               <div>
                 {title && <h1 className="text-2xl font-display font-bold text-foreground">{title}</h1>}
@@ -61,6 +64,7 @@ export default function MerchantLayout({ children, title, subtitle }: Props) {
             {children}
           </main>
           <MerchantBottomNav />
+          <MerchantOnboardingTour />
         </div>
       </div>
     </SidebarProvider>
