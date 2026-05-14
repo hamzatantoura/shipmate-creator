@@ -1,5 +1,5 @@
 {
-  "merchant": { "title": "Satıcı Paneli", "home": "Ana Sayfa", "orders": "Siparişler", "archive": "Arşiv", "store": "Mağaza", "products": "Ürünler", "wallet": "Cüzdan", "analytics": "Analitik", "settings": "Ayarlar", "signOut": "Çıkış", "welcome": "Hoş geldiniz" },
+  "merchant": { "title": "Satıcı Paneli", "home": "Ana Sayfa", "orders": "Siparişler", "archive": "Arşiv", "store": "Mağaza", "products": "Ürünler", "wallet": "Cüzdan", "analytics": "Analitik", "settings": "Ayarlar", "signOut": "Çıkış", "more": "Daha", "topup": "Bakiye yükle", "welcome": "Hoş geldiniz" },
   "courier": { "title": "Kurye Paneli", "assigned": "Atanan Gönderiler", "history": "Teslimat Geçmişi", "earnings": "Kazançlar", "wallet": "Cüzdan" },
   "admin": { "title": "Yönetim Paneli", "districts": "Bölgeler", "branches": "Şubeler", "merchants": "Satıcılar", "couriers": "Kargo Şirketleri", "analytics": "Analitik", "settlements": "Mutabakatlar", "support": "Destek" },
   "kpi": { "totalOrders": "Toplam Siparişler", "delivered": "Teslim Edildi", "pending": "Beklemede", "revenue": "Gelir", "balance": "Bakiye" }
