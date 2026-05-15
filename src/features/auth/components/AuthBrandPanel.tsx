@@ -64,7 +64,6 @@ export default function AuthBrandPanel() {
         </div>
         <div className={isRtl ? "text-right" : "text-left"}>
           <div className="font-display text-2xl font-bold tracking-tight text-foreground">صلة</div>
-          <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Sila Logistics</div>
         </div>
       </motion.div>
 
