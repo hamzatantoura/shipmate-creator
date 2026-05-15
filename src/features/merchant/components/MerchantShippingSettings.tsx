@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Loader2, Check, Store, Phone, MapPin, User } from "lucide-react";
+import { Settings, Loader2, Check, Store, Phone, MapPin, User, Globe } from "lucide-react";
 import { toast } from "sonner";
 
 type ShippingPolicy = "customer_pays" | "free_all" | "free_above";
@@ -27,6 +27,7 @@ export default function MerchantShippingSettings() {
   const [city, setCity] = useState("");
   const [provinceId, setProvinceId] = useState<string>("");
   const [detailedAddress, setDetailedAddress] = useState("");
+  const [externalWebsiteUrl, setExternalWebsiteUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [provinces, setProvinces] = useState<{ id: string; name_ar: string }[]>([]);
@@ -48,6 +49,7 @@ export default function MerchantShippingSettings() {
         setPhone(merchant.phone || "");
         setWhatsappNumber(merchant.whatsapp_number || merchant.phone || "");
         setCity(merchant.city || "");
+        setExternalWebsiteUrl(merchant.external_website_url || "");
         // Resolve province_id: prefer stored, fallback to name match against city
         let resolvedId: string = merchant.province_id || "";
         if (!resolvedId && merchant.city) {
@@ -67,6 +69,11 @@ export default function MerchantShippingSettings() {
     if (!phone.trim() || !isValidPhone(phone)) { toast.error("رقم سوري غير صحيح — مثال: 0933123456"); return; }
     if (!whatsappNumber.trim() || !isValidPhone(whatsappNumber)) { toast.error("رقم واتساب غير صحيح — مثال: 0933123456"); return; }
     if (!provinceId) { toast.error("يرجى اختيار المحافظة"); return; }
+    const trimmedWebsite = externalWebsiteUrl.trim();
+    if (trimmedWebsite && !/^https?:\/\/.+\..+/i.test(trimmedWebsite)) {
+      toast.error("رابط الموقع غير صحيح — يجب أن يبدأ بـ https://");
+      return;
+    }
     const selectedProvince = provinces.find(p => p.id === provinceId);
     const cityName = selectedProvince?.name_ar || city;
 
@@ -83,6 +90,7 @@ export default function MerchantShippingSettings() {
         province_id: provinceId,
         shipping_policy: policy,
         free_shipping_threshold: policy === "free_above" ? parseFloat(threshold) || 0 : 0,
+        external_website_url: trimmedWebsite || null,
       } as any)
       .eq("user_id", user.id);
 
@@ -144,6 +152,17 @@ export default function MerchantShippingSettings() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> رابط الموقع الإلكتروني (اختياري)</Label>
+            <Input
+              dir="ltr"
+              type="url"
+              value={externalWebsiteUrl}
+              onChange={(e) => setExternalWebsiteUrl(e.target.value)}
+              placeholder="https://your-store.com"
+            />
+            <p className="text-xs text-muted-foreground">سيظهر للزبائن كـ "زيارة الموقع الرسمي" في صفحة متجرك العامة.</p>
           </div>
         </CardContent>
       </Card>
