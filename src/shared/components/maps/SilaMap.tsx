@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import syriaBoundary from "@/data/syria-boundary.json";
 
 // Fix default marker icon (re-applied — safe even if LocationPicker also did it)
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -47,6 +48,7 @@ interface SilaMapProps {
   fitToMarkers?: boolean;
   onMapClick?: (lat: number, lng: number) => void;
   className?: string;
+  restrictToSyria?: boolean;
 }
 
 function FitBounds({ markers }: { markers: SilaMarker[] }) {
@@ -62,6 +64,38 @@ function FitBounds({ markers }: { markers: SilaMarker[] }) {
   }, [markers, map]);
   return null;
 }
+
+// Syria bounding box (SW, NE) — used to lock the viewport
+const SYRIA_BOUNDS: L.LatLngBoundsExpression = [
+  [32.2, 35.5],
+  [37.4, 42.5],
+];
+
+/** Build an inverted polygon: world rectangle minus Syria — used as a dimming mask. */
+function buildSyriaMask(): GeoJSON.Feature {
+  const world: number[][] = [
+    [-180, -85],
+    [180, -85],
+    [180, 85],
+    [-180, 85],
+    [-180, -85],
+  ];
+  const geom = (syriaBoundary as any).geometry;
+  // Collect Syria outer rings, reversed (hole winding)
+  const holes: number[][][] = [];
+  if (geom.type === "Polygon") {
+    holes.push([...geom.coordinates[0]].reverse());
+  } else if (geom.type === "MultiPolygon") {
+    for (const poly of geom.coordinates) holes.push([...poly[0]].reverse());
+  }
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: { type: "Polygon", coordinates: [world, ...holes] },
+  };
+}
+
+const SYRIA_MASK = buildSyriaMask();
 
 function ClickCapture({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   const map = useMap();
@@ -85,18 +119,67 @@ export function SilaMap({
   fitToMarkers = true,
   onMapClick,
   className = "",
+  restrictToSyria = false,
 }: SilaMapProps) {
   return (
     <div
       className={`relative rounded-xl overflow-hidden border border-border shadow-lg ${className}`}
       style={{ height, isolation: "isolate", zIndex: 0 }}
     >
-      <MapContainer center={center} zoom={zoom} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {fitToMarkers && markers.length > 0 && <FitBounds markers={markers} />}
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom
+        {...(restrictToSyria
+          ? {
+              maxBounds: SYRIA_BOUNDS,
+              maxBoundsViscosity: 1.0,
+              minZoom: 7,
+              maxZoom: 13,
+              worldCopyJump: false,
+            }
+          : {})}
+      >
+        {restrictToSyria ? (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            subdomains="abcd"
+          />
+        ) : (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+        )}
+        {restrictToSyria && (
+          <>
+            {/* Dimming mask over neighboring countries */}
+            <GeoJSON
+              data={SYRIA_MASK as any}
+              style={{
+                fillColor: "#0a0f1c",
+                fillOpacity: 0.85,
+                color: "transparent",
+                weight: 0,
+                interactive: false,
+              }}
+            />
+            {/* Brand-orange Syria outline */}
+            <GeoJSON
+              data={syriaBoundary as any}
+              style={{
+                color: "hsl(28, 100%, 50%)",
+                weight: 1.5,
+                opacity: 0.9,
+                fillOpacity: 0,
+                interactive: false,
+              }}
+            />
+          </>
+        )}
+        {fitToMarkers && !restrictToSyria && markers.length > 0 && <FitBounds markers={markers} />}
         {onMapClick && <ClickCapture onMapClick={onMapClick} />}
         {markers.map((m) => (
           <Marker
