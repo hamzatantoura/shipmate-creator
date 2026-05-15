@@ -255,6 +255,37 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
           );
         })}
 
+        {/* Major cities (coverage landmarks) */}
+        {cityPts.map((c) => {
+          const [x, y] = c.xy;
+          return (
+            <g key={`city-${c.name}`} pointerEvents="none">
+              {c.capital ? (
+                <>
+                  <circle cx={x} cy={y} r="7" fill="#b1390f" stroke="#fff" strokeWidth="1.8" />
+                  <circle cx={x} cy={y} r="2.4" fill="#fff" />
+                </>
+              ) : (
+                <circle cx={x} cy={y} r="3.4" fill="#7a4a1a" stroke="#fff8e1" strokeWidth="1.2" />
+              )}
+              <text
+                x={x + (c.capital ? 10 : 6)}
+                y={y - 7}
+                fontFamily="Readex Pro, system-ui, sans-serif"
+                fontSize={c.capital ? 13 : 11}
+                fontWeight={c.capital ? 700 : 600}
+                fill="#2a1d08"
+                stroke="#fff8e1"
+                strokeWidth="3"
+                paintOrder="stroke"
+                style={{ direction: "rtl" }}
+              >
+                {c.name}
+              </text>
+            </g>
+          );
+        })}
+
         {/* Animated shipment arcs */}
         {arcs.map((arc) => (
           <g key={arc.id}>
