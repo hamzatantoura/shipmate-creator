@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { Truck } from "lucide-react";
 import { useLanguage } from "@/i18n/use-language";
+import silaLogo from "@/assets/sila-logo.png";
 import LanguageSwitcher from "@/shared/components/i18n/LanguageSwitcher";
 import { motion } from "framer-motion";
 import AuthBrandPanel from "@/features/auth/components/AuthBrandPanel";
@@ -50,7 +50,7 @@ export default function AuthCard({ title, subtitle, children, wide, hideBrand }:
             {/* Mobile brand mark */}
             <div className="lg:hidden flex flex-col items-center mb-6">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center shadow-[0_0_24px_-6px_hsl(var(--primary)/0.6)]">
-                <Truck className="h-7 w-7 text-primary" />
+                <img src={silaLogo} alt="Sila" className="h-8 w-8" />
               </div>
               <div className="mt-2 font-display text-xl font-bold tracking-tight text-foreground">صلة</div>
             </div>
