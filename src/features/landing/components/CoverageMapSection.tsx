@@ -41,11 +41,8 @@ export function CoverageMapSection() {
   useEffect(() => {
     (async () => {
       const { data: br } = await supabase
-        .from("courier_branches")
-        .select("id, name, lat, lng, courier_id")
-        .eq("is_active", true)
-        .not("lat", "is", null)
-        .not("lng", "is", null);
+        .from("courier_branches_public")
+        .select("id, name, lat, lng, courier_id");
       const { data: co } = await supabase
         .from("couriers_public")
         .select("id, name");
