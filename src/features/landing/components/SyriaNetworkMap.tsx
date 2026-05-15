@@ -113,18 +113,17 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
       className="relative w-full overflow-hidden rounded-xl"
       style={{
         height,
-        background:
-          "radial-gradient(ellipse at 50% 40%, hsl(28 100% 50% / 0.12) 0%, hsl(220 45% 7%) 55%, hsl(222 50% 4%) 100%)",
+        background: "hsl(222 47% 6%)",
       }}
     >
       {/* Subtle grid */}
       <svg
-        className="absolute inset-0 w-full h-full opacity-[0.07]"
+        className="absolute inset-0 w-full h-full opacity-[0.05]"
         aria-hidden
       >
         <defs>
           <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-            <path d="M 32 0 L 0 0 0 32" fill="none" stroke="hsl(28 100% 60%)" strokeWidth="0.5" />
+            <path d="M 32 0 L 0 0 0 32" fill="none" stroke="hsl(210 40% 70%)" strokeWidth="0.5" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
@@ -136,41 +135,30 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
         className="absolute inset-0 w-full h-full"
       >
         <defs>
-          <radialGradient id="syriaFill" cx="50%" cy="40%" r="70%">
-            <stop offset="0%" stopColor="hsl(28 100% 55%)" stopOpacity="0.22" />
-            <stop offset="60%" stopColor="hsl(28 100% 50%)" stopOpacity="0.08" />
-            <stop offset="100%" stopColor="hsl(28 100% 45%)" stopOpacity="0.02" />
-          </radialGradient>
           <linearGradient id="arcGrad" x1="0" x2="1" y1="0" y2="0">
             <stop offset="0%" stopColor="hsl(28 100% 60%)" stopOpacity="0" />
             <stop offset="50%" stopColor="hsl(28 100% 65%)" stopOpacity="1" />
             <stop offset="100%" stopColor="hsl(28 100% 60%)" stopOpacity="0" />
           </linearGradient>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="b" />
+            <feGaussianBlur stdDeviation="2" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="6" />
-          </filter>
         </defs>
 
-        {/* Syria silhouette glow */}
-        <path d={path} fill="url(#syriaFill)" filter="url(#softGlow)" />
-        {/* Syria silhouette fill */}
-        <path d={path} fill="url(#syriaFill)" />
-        {/* Syria outline */}
+        {/* Syria solid fill */}
+        <path d={path} fill="hsl(217 33% 14%)" />
+        {/* Syria outline (clean & crisp) */}
         <path
           d={path}
           fill="none"
           stroke="hsl(28 100% 55%)"
-          strokeWidth="1.4"
+          strokeWidth="1.6"
           strokeLinejoin="round"
-          opacity="0.85"
-          filter="url(#glow)"
+          opacity="1"
         />
 
         {/* Animated shipment arcs */}
