@@ -38,7 +38,6 @@ import AdminDistrictsMap from "@/features/admin/pages/AdminDistrictsMap";
 
 // Storefront & tracking
 import Storefront from "@/features/storefront/pages/Storefront";
-import PublicStorefront from "@/features/storefront/pages/PublicStorefront";
 import ProductPage from "@/features/storefront/pages/ProductPage";
 import ReviewOrderPage from "@/features/storefront/pages/ReviewOrderPage";
 import TrackOrderPage from "@/features/tracking/pages/TrackOrderPage";
@@ -66,7 +65,6 @@ export function AppRouter() {
         <Route path="/install" element={<Install />} />
         <Route path="/review/:order_id" element={<ReviewOrderPage />} />
         <Route path="/store/:merchantId" element={<Storefront />} />
-        <Route path="/s/:slug" element={<PublicStorefront />} />
         <Route path="/product/:slug" element={<ProductPage />} />
 
         {/* Merchant */}
