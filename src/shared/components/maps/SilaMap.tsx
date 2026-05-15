@@ -144,7 +144,7 @@ export function SilaMap({
         {restrictToSyria ? (
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
             subdomains="abcd"
           />
         ) : (
@@ -159,8 +159,8 @@ export function SilaMap({
             <GeoJSON
               data={SYRIA_MASK as any}
               style={{
-                fillColor: "hsl(220, 30%, 8%)",
-                fillOpacity: 0.78,
+                fillColor: "#0a0f1c",
+                fillOpacity: 0.85,
                 color: "transparent",
                 weight: 0,
                 interactive: false,
@@ -171,11 +171,10 @@ export function SilaMap({
               data={syriaBoundary as any}
               style={{
                 color: "hsl(28, 100%, 50%)",
-                weight: 2,
-                opacity: 1,
+                weight: 1.5,
+                opacity: 0.9,
                 fillOpacity: 0,
                 interactive: false,
-                className: "sila-syria-outline",
               }}
             />
           </>
