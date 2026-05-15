@@ -540,6 +540,7 @@ export type Database = {
           contact_person: string | null
           created_at: string
           email_confirmed: boolean
+          external_website_url: string | null
           free_shipping_threshold: number
           id: string
           id_back_url: string | null
@@ -568,6 +569,7 @@ export type Database = {
           contact_person?: string | null
           created_at?: string
           email_confirmed?: boolean
+          external_website_url?: string | null
           free_shipping_threshold?: number
           id?: string
           id_back_url?: string | null
@@ -596,6 +598,7 @@ export type Database = {
           contact_person?: string | null
           created_at?: string
           email_confirmed?: boolean
+          external_website_url?: string | null
           free_shipping_threshold?: number
           id?: string
           id_back_url?: string | null
@@ -1758,6 +1761,7 @@ export type Database = {
           province_id: string
         }[]
       }
+      get_public_merchant_by_slug: { Args: { p_slug: string }; Returns: Json }
       get_public_merchant_info: {
         Args: { p_merchant_user_id: string }
         Returns: Json
