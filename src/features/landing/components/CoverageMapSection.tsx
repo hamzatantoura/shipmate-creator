@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import type { SilaMarker } from "@/shared/components/maps/SilaMap";
 import { Card } from "@/components/ui/card";
-import { Building2, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
-const SilaMap = lazy(() =>
-  import("@/shared/components/maps/SilaMap").then((m) => ({ default: m.SilaMap }))
+const SyriaNetworkMap = lazy(() =>
+  import("./SyriaNetworkMap").then((m) => ({ default: m.SyriaNetworkMap }))
 );
 
 interface BranchRow {
@@ -51,24 +50,15 @@ export function CoverageMapSection() {
     })();
   }, []);
 
-  const ACCENT = "hsl(199, 89%, 48%)";  // info blue
-
-  const branchMarkers: SilaMarker[] = branches
+  const networkBranches = branches
     .filter((b) => b.lat != null && b.lng != null)
     .map((b) => ({
-      id: `br-${b.id}`,
+      id: b.id,
+      name: b.name,
       lat: b.lat as number,
       lng: b.lng as number,
-      color: ACCENT,
-      popup: (
-        <div className="text-right space-y-1 min-w-[140px]">
-          <p className="font-bold text-foreground flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" /> {b.name}</p>
-          <p className="text-xs text-muted-foreground">{courierNames[b.courier_id] || "شركة شحن"}</p>
-        </div>
-      ),
+      courier: courierNames[b.courier_id] || "شركة شحن",
     }));
-
-  const all = [...branchMarkers];
 
   return (
     <section className="py-20 bg-gradient-to-b from-background to-card/30" dir="rtl">
@@ -85,7 +75,7 @@ export function CoverageMapSection() {
           </p>
         </div>
 
-        <Card className="p-3 bg-card/60 backdrop-blur border-border">
+        <Card className="p-3 bg-card/40 backdrop-blur border-border/60 overflow-hidden">
           <div ref={mapHostRef} style={{ minHeight: 500 }}>
             {mapVisible ? (
               <Suspense
@@ -96,7 +86,7 @@ export function CoverageMapSection() {
                   />
                 }
               >
-                <SilaMap markers={all} height={500} restrictToSyria />
+                <SyriaNetworkMap branches={networkBranches} height={500} />
               </Suspense>
             ) : (
               <div
@@ -105,12 +95,6 @@ export function CoverageMapSection() {
                 aria-hidden
               />
             )}
-          </div>
-          <div className="flex items-center justify-center gap-6 mt-3 text-sm">
-            <span className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full" style={{ background: ACCENT }} />
-              <span className="text-foreground">فروع شحن ({branchMarkers.length})</span>
-            </span>
           </div>
         </Card>
       </div>
