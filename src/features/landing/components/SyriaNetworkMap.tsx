@@ -101,6 +101,32 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
     }));
   }, []);
 
+  // Major Syrian cities for coverage reference
+  const cities = useMemo(
+    () => [
+      { name: "دمشق", lat: 33.5138, lng: 36.2765, capital: true },
+      { name: "حلب", lat: 36.2021, lng: 37.1343 },
+      { name: "حمص", lat: 34.7308, lng: 36.7090 },
+      { name: "حماة", lat: 35.1318, lng: 36.7578 },
+      { name: "اللاذقية", lat: 35.5317, lng: 35.7915 },
+      { name: "طرطوس", lat: 34.8959, lng: 35.8867 },
+      { name: "دير الزور", lat: 35.3333, lng: 40.1500 },
+      { name: "الرقة", lat: 35.9500, lng: 39.0167 },
+      { name: "الحسكة", lat: 36.5024, lng: 40.7477 },
+      { name: "إدلب", lat: 35.9306, lng: 36.6339 },
+      { name: "درعا", lat: 32.6189, lng: 36.1021 },
+      { name: "السويداء", lat: 32.7094, lng: 36.5694 },
+      { name: "القنيطرة", lat: 33.1256, lng: 35.8244 },
+      { name: "منبج", lat: 36.5283, lng: 37.9550 },
+    ],
+    []
+  );
+
+  const cityPts = useMemo(
+    () => cities.map((c) => ({ ...c, xy: project(c.lng, c.lat) })),
+    [cities]
+  );
+
   const projected = useMemo(
     () =>
       branches.map((b) => ({
