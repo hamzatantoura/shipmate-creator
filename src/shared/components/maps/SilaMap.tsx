@@ -124,13 +124,48 @@ export function SilaMap({
   return (
     <div
       className={`relative rounded-xl overflow-hidden border border-border shadow-lg ${className}`}
-      style={{ height, isolation: "isolate", zIndex: 0 }}
+      style={{
+        height,
+        isolation: "isolate",
+        zIndex: 0,
+        ...(restrictToSyria
+          ? {
+              background:
+                "radial-gradient(ellipse at 50% 45%, hsl(28 100% 50% / 0.10) 0%, hsl(220 40% 8%) 55%, hsl(220 45% 5%) 100%)",
+            }
+          : {}),
+      }}
     >
+      {restrictToSyria && (
+        <style>{`
+          .sila-syria-fill path {
+            filter: drop-shadow(0 0 18px hsl(28 100% 55% / 0.55))
+                    drop-shadow(0 0 42px hsl(28 100% 50% / 0.35));
+          }
+          .sila-syria-outline path {
+            filter: drop-shadow(0 0 6px hsl(28 100% 60% / 0.9));
+          }
+          .leaflet-container.sila-clean {
+            background: transparent !important;
+            cursor: default;
+          }
+          .leaflet-container.sila-clean .leaflet-control-attribution,
+          .leaflet-container.sila-clean .leaflet-control-zoom { display: none; }
+        `}</style>
+      )}
       <MapContainer
         center={center}
         zoom={zoom}
         style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom
+        scrollWheelZoom={!restrictToSyria}
+        dragging={!restrictToSyria}
+        doubleClickZoom={!restrictToSyria}
+        zoomControl={!restrictToSyria}
+        touchZoom={!restrictToSyria}
+        boxZoom={!restrictToSyria}
+        keyboard={!restrictToSyria}
+        attributionControl={!restrictToSyria}
+        className={restrictToSyria ? "sila-clean" : ""}
         {...(restrictToSyria
           ? {
               maxBounds: SYRIA_BOUNDS,
@@ -141,13 +176,7 @@ export function SilaMap({
             }
           : {})}
       >
-        {restrictToSyria ? (
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            subdomains="abcd"
-          />
-        ) : (
+        {!restrictToSyria && (
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -155,24 +184,37 @@ export function SilaMap({
         )}
         {restrictToSyria && (
           <>
-            {/* Dimming mask over neighboring countries */}
+            {/* Glowing Syria fill (under everything) */}
             <GeoJSON
-              data={SYRIA_MASK as any}
-              style={{
-                fillColor: "#0a0f1c",
-                fillOpacity: 0.85,
+              data={syriaBoundary as any}
+              pathOptions={{
+                className: "sila-syria-fill",
+                fillColor: "hsl(28, 100%, 50%)",
+                fillOpacity: 0.18,
                 color: "transparent",
                 weight: 0,
                 interactive: false,
               }}
             />
-            {/* Brand-orange Syria outline */}
+            {/* Solid mask hiding everything outside Syria */}
+            <GeoJSON
+              data={SYRIA_MASK as any}
+              pathOptions={{
+                fillColor: "hsl(220 45% 5%)",
+                fillOpacity: 1,
+                color: "transparent",
+                weight: 0,
+                interactive: false,
+              }}
+            />
+            {/* Glowing brand-orange outline */}
             <GeoJSON
               data={syriaBoundary as any}
-              style={{
+              pathOptions={{
+                className: "sila-syria-outline",
                 color: "hsl(28, 100%, 50%)",
-                weight: 1.5,
-                opacity: 0.9,
+                weight: 2,
+                opacity: 1,
                 fillOpacity: 0,
                 interactive: false,
               }}
