@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Truck, ShieldCheck, Zap, BarChart3, MapPin, Wallet } from "lucide-react";
+import { ShieldCheck, Zap, BarChart3, MapPin, Wallet } from "lucide-react";
 import { useLanguage } from "@/i18n/use-language";
+import silaLogo from "@/assets/sila-logo.png";
 
 interface Feature {
   icon: React.ElementType;
@@ -59,7 +60,7 @@ export default function AuthBrandPanel() {
         className="relative z-10 flex items-center gap-3"
       >
         <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center shadow-[0_0_28px_-6px_hsl(var(--primary)/0.7)]">
-          <Truck className="h-6 w-6 text-primary" />
+          <img src={silaLogo} alt="Sila" className="h-7 w-7" />
         </div>
         <div className={isRtl ? "text-right" : "text-left"}>
           <div className="font-display text-2xl font-bold tracking-tight text-foreground">صلة</div>
