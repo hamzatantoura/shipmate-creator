@@ -10,6 +10,7 @@ import RecentOrders from "@/features/merchant/components/dashboard/RecentOrders"
 import WalletOverview from "@/features/merchant/components/dashboard/WalletOverview";
 import DeliveryStatusSummary from "@/features/merchant/components/dashboard/DeliveryStatusSummary";
 import MerchantReadinessProgress from "@/features/merchant/components/dashboard/MerchantReadinessProgress";
+import SetPasswordBanner from "@/features/merchant/components/SetPasswordBanner";
 import { DashboardData, PENDING_STATUSES } from "@/features/merchant/components/dashboard/types";
 
 export default function MerchantDashboard() {
@@ -187,6 +188,7 @@ export default function MerchantDashboard() {
         <DashboardSkeleton />
       ) : (
         <div className="space-y-5 md:space-y-6">
+          <SetPasswordBanner />
           <MerchantReadinessProgress />
 
           <KpiCards
