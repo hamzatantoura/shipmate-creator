@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { SilaMarker } from "@/shared/components/maps/SilaMap";
-import { ALEPPO_MERCHANTS } from "@/data/aleppo-demo-merchants";
 import { Card } from "@/components/ui/card";
-import { Building2, Store, MapPin } from "lucide-react";
+import { Building2, MapPin } from "lucide-react";
 
 const SilaMap = lazy(() =>
   import("@/shared/components/maps/SilaMap").then((m) => ({ default: m.SilaMap }))
@@ -55,23 +54,7 @@ export function CoverageMapSection() {
     })();
   }, []);
 
-  // Orange tag color tokens
-  const PRIMARY = "hsl(28, 100%, 50%)"; // primary orange
   const ACCENT = "hsl(199, 89%, 48%)";  // info blue
-
-  const merchantMarkers: SilaMarker[] = ALEPPO_MERCHANTS.map((m) => ({
-    id: `mer-${m.id}`,
-    lat: m.lat,
-    lng: m.lng,
-    color: PRIMARY,
-    popup: (
-      <div className="text-right space-y-1 min-w-[140px]">
-        <p className="font-bold text-foreground flex items-center gap-1.5"><Store className="h-3.5 w-3.5" /> {m.name}</p>
-        <p className="text-xs text-muted-foreground">{m.neighborhood} — حلب</p>
-        <p className="text-xs">{m.packages} طرود</p>
-      </div>
-    ),
-  }));
 
   const branchMarkers: SilaMarker[] = branches
     .filter((b) => b.lat != null && b.lng != null)
@@ -88,7 +71,7 @@ export function CoverageMapSection() {
       ),
     }));
 
-  const all = [...merchantMarkers, ...branchMarkers];
+  const all = [...branchMarkers];
 
   return (
     <section className="py-20 bg-gradient-to-b from-background to-card/30" dir="rtl">
@@ -127,10 +110,6 @@ export function CoverageMapSection() {
             )}
           </div>
           <div className="flex items-center justify-center gap-6 mt-3 text-sm">
-            <span className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full" style={{ background: PRIMARY }} />
-              <span className="text-foreground">تجار ({merchantMarkers.length})</span>
-            </span>
             <span className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full" style={{ background: ACCENT }} />
               <span className="text-foreground">فروع شحن ({branchMarkers.length})</span>
