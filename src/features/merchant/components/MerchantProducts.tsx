@@ -6,6 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -42,6 +52,8 @@ export default function MerchantProducts() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [variants, setVariants] = useState<VariantEntry[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
@@ -166,11 +178,38 @@ export default function MerchantProducts() {
     setLoading(false);
   };
 
-  const deleteProduct = async (id: string) => {
-    // Soft delete — set deleted_at timestamp instead of actually deleting
-    const { error } = await supabase.from("products").update({ deleted_at: new Date().toISOString() } as any).eq("id", id);
-    if (error) toast.error(error.message);
-    else { toast.success("تم حذف المنتج"); fetchProducts(); }
+  const extractStoragePath = (url: string | null | undefined): string | null => {
+    if (!url) return null;
+    const marker = "/product-images/";
+    const idx = url.indexOf(marker);
+    if (idx === -1) return null;
+    return decodeURIComponent(url.slice(idx + marker.length).split("?")[0]);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    setDeleting(true);
+    try {
+      // Collect all storage paths (main + extra images)
+      const paths: string[] = [];
+      const mainPath = extractStoragePath(productToDelete.image_url);
+      if (mainPath) paths.push(mainPath);
+      (productImages[productToDelete.id] || []).forEach((img) => {
+        const p = extractStoragePath(img.image_url);
+        if (p) paths.push(p);
+      });
+      if (paths.length > 0) {
+        await supabase.storage.from("product-images").remove(paths);
+      }
+      // Soft delete
+      const { error } = await supabase.from("products").update({ deleted_at: new Date().toISOString() } as any).eq("id", productToDelete.id);
+      if (error) { toast.error(error.message); return; }
+      toast.success("تم حذف المنتج نهائياً");
+      setProductToDelete(null);
+      fetchProducts();
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getProductUrl = (p: Product) => `${window.location.origin}/product/${p.slug || p.id}`;
@@ -289,47 +328,105 @@ export default function MerchantProducts() {
             const images = productImages[p.id] || [];
             const displayImage = p.image_url || images[0]?.image_url;
             return (
-              <Card key={p.id} className="bg-card border-border overflow-hidden">
-                <div className="aspect-video bg-muted/30 flex items-center justify-center overflow-hidden relative">
+              <div
+                key={p.id}
+                className="group flex flex-col bg-white text-zinc-900 border border-zinc-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="aspect-square bg-zinc-50 flex items-center justify-center overflow-hidden relative">
                   {displayImage ? (
-                    <img src={displayImage} alt={p.name} className="w-full h-full object-cover" />
+                    <img
+                      src={displayImage}
+                      alt={p.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   ) : (
-                    <ImagePlus className="h-10 w-10 text-muted-foreground/30" />
+                    <ImagePlus className="h-12 w-12 text-zinc-300" />
                   )}
                   {images.length > 1 && (
-                    <span className="absolute bottom-2 left-2 bg-foreground/70 text-background text-xs px-2 py-0.5 rounded-full">+{images.length - 1}</span>
+                    <span className="absolute bottom-2 left-2 bg-zinc-900/80 text-white text-[11px] px-2 py-0.5 rounded-full">
+                      +{images.length - 1}
+                    </span>
+                  )}
+                  {!p.is_active && (
+                    <span className="absolute top-2 right-2 bg-amber-500 text-white text-[11px] font-medium px-2 py-0.5 rounded-full">
+                      مسودة
+                    </span>
                   )}
                 </div>
-                <CardContent className="p-4 space-y-2">
-                  <h3 className="font-semibold text-foreground">{p.name}</h3>
-                  {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
+                <div className="p-3 flex flex-col gap-2 flex-1">
+                  <h3 className="font-semibold text-sm text-zinc-900 line-clamp-2 leading-snug min-h-[2.5rem]">{p.name}</h3>
                   <div className="flex items-center justify-between">
-                    <span className="text-primary font-display font-bold">{Number(p.price).toLocaleString()} ل.س</span>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{p.weight_kg} كغ</span>
-                      <span>المخزون: {p.stock}</span>
-                    </div>
+                    <span className="inline-flex items-center bg-primary/10 text-primary font-display font-bold text-sm px-2 py-1 rounded-md">
+                      {Number(p.price).toLocaleString()} ل.س
+                    </span>
+                    <span className="text-[11px] text-zinc-500">المخزون: {p.stock}</span>
                   </div>
-                  <div className="flex gap-1.5 pt-1">
-                    <Button variant="outline" size="sm" className="gap-1" onClick={() => openEditDialog(p)}>
-                      <Pencil className="h-3 w-3" /> تعديل
+                  <div className="flex items-center gap-1.5 pt-1 mt-auto border-t border-zinc-100">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1 h-8 text-zinc-700 hover:bg-zinc-100 gap-1"
+                      onClick={() => openEditDialog(p)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> تعديل
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1 flex-1" onClick={() => copyLink(getProductUrl(p))}>
-                      <Copy className="h-3 w-3" /> نسخ الرابط
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-zinc-700 hover:bg-zinc-100"
+                      onClick={() => copyLink(getProductUrl(p))}
+                      title="نسخ الرابط"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1" onClick={() => shareWhatsApp(p)}>
-                      <Share2 className="h-3 w-3" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-zinc-700 hover:bg-zinc-100"
+                      onClick={() => shareWhatsApp(p)}
+                      title="مشاركة واتساب"
+                    >
+                      <Share2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="destructive" size="sm" className="gap-1" onClick={() => deleteProduct(p.id)}>
-                      <Trash2 className="h-3 w-3" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-600 hover:bg-red-50"
+                      onClick={() => setProductToDelete(p)}
+                      title="حذف"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
       )}
+
+      <AlertDialog open={!!productToDelete} onOpenChange={(v) => !v && setProductToDelete(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>هل تريد حذف هذا المنتج نهائياً؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف المنتج "{productToDelete?.name}" وجميع صوره من التخزين. لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : <Trash2 className="h-4 w-4 ml-2" />}
+              نعم، احذف نهائياً
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
