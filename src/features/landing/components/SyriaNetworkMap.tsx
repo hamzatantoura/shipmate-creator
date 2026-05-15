@@ -110,35 +110,19 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-xl"
-      style={{
-        height,
-        background: "hsl(222 47% 6%)",
-      }}
+      className="relative w-full"
+      style={{ height }}
     >
-      {/* Subtle grid */}
-      <svg
-        className="absolute inset-0 w-full h-full opacity-[0.05]"
-        aria-hidden
-      >
-        <defs>
-          <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-            <path d="M 32 0 L 0 0 0 32" fill="none" stroke="hsl(210 40% 70%)" strokeWidth="0.5" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-
       <svg
         viewBox={`0 0 ${VB_W} ${VB_H}`}
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
       >
         <defs>
-          <linearGradient id="arcGrad" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="hsl(28 100% 60%)" stopOpacity="0" />
-            <stop offset="50%" stopColor="hsl(28 100% 65%)" stopOpacity="1" />
-            <stop offset="100%" stopColor="hsl(28 100% 60%)" stopOpacity="0" />
+          <linearGradient id="terrain" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#e8e0c8" />
+            <stop offset="60%" stopColor="#dccfa8" />
+            <stop offset="100%" stopColor="#c9b889" />
           </linearGradient>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="2" result="b" />
@@ -147,18 +131,21 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <filter id="mapShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.35" />
+          </filter>
         </defs>
 
-        {/* Syria solid fill */}
-        <path d={path} fill="hsl(217 33% 14%)" />
-        {/* Syria outline (clean & crisp) */}
+        {/* Syria — natural terrain fill */}
+        <path d={path} fill="url(#terrain)" filter="url(#mapShadow)" />
+        {/* Subtle inner border */}
         <path
           d={path}
           fill="none"
-          stroke="hsl(28 100% 55%)"
-          strokeWidth="1.6"
+          stroke="#8a7a52"
+          strokeWidth="1.2"
           strokeLinejoin="round"
-          opacity="1"
+          opacity="0.7"
         />
 
         {/* Animated shipment arcs */}
@@ -167,12 +154,12 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
             <path
               d={arc.d}
               fill="none"
-              stroke="hsl(28 100% 60%)"
-              strokeWidth="1.2"
-              strokeOpacity="0.25"
-              strokeDasharray="2 4"
+              stroke="hsl(28 100% 45%)"
+              strokeWidth="1.4"
+              strokeOpacity="0.5"
+              strokeDasharray="3 4"
             />
-            <circle r="3.5" fill="hsl(28 100% 70%)" filter="url(#glow)">
+            <circle r="4" fill="hsl(28 100% 50%)" stroke="white" strokeWidth="1.5" filter="url(#glow)">
               <animateMotion dur="2.4s" repeatCount="1" path={arc.d} />
               <animate
                 attributeName="opacity"
@@ -198,16 +185,16 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
               style={{ cursor: "pointer" }}
             >
               {/* Pulse ring */}
-              <circle r="4" fill="none" stroke="hsl(28 100% 60%)" strokeWidth="1.5" opacity="0.7">
+              <circle r="4" fill="none" stroke="hsl(28 100% 45%)" strokeWidth="2" opacity="0.8">
                 <animate attributeName="r" values="4;18;4" dur="2.6s" repeatCount="indefinite" />
                 <animate attributeName="opacity" values="0.8;0;0.8" dur="2.6s" repeatCount="indefinite" />
               </circle>
               {/* Outer halo on hover */}
               {active && (
-                <circle r="14" fill="hsl(28 100% 60% / 0.25)" />
+                <circle r="14" fill="hsl(28 100% 45% / 0.3)" />
               )}
-              {/* Core dot */}
-              <circle r={active ? 5 : 3.5} fill="hsl(28 100% 65%)" filter="url(#glow)" />
+              {/* Core dot — high contrast on light terrain */}
+              <circle r={active ? 6 : 4.5} fill="hsl(28 100% 45%)" stroke="white" strokeWidth="1.5" />
               <circle r="1.5" fill="white" />
             </g>
           );
@@ -237,7 +224,7 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
       })()}
 
       {/* Legend / live indicator */}
-      <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-background/60 backdrop-blur-sm border border-border/60 rounded-full px-3 py-1.5 text-xs">
+      <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-card/80 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 text-xs shadow-md">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
