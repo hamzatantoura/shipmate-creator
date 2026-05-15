@@ -60,16 +60,16 @@ export function CoverageMapSection() {
     }));
 
   return (
-    <section className="py-20 bg-gradient-to-b from-background to-card/30" dir="rtl">
+    <section className="py-20 bg-[#fdfaf3]" dir="rtl">
       <div className="container mx-auto px-4">
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-bold">
             <MapPin className="h-3.5 w-3.5" /> تغطية ذكية
           </span>
-          <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground">
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-[#2a1f10]">
             شبكتنا تنمو في كل حي
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-[#5a4a32]">
             نظام التوجيه الذكي يربط كل تاجر بأقرب فرع شحن حسب موقعه الجغرافي — توصيل أسرع وكلفة أقل.
           </p>
         </div>
