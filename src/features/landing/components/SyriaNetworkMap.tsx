@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import syriaBoundary from "@/data/syria-boundary.json";
+import provincesData from "@/data/syria-provinces.json";
 
 export interface NetworkBranch {
   id: string;
@@ -14,7 +14,7 @@ interface Props {
   height?: number;
 }
 
-// Syria bounding box (slightly padded)
+// Syria bounding box
 const BBOX = { minLng: 35.5, maxLng: 42.5, minLat: 32.2, maxLat: 37.5 };
 const VB_W = 1000;
 const VB_H = 800;
@@ -25,20 +25,52 @@ function project(lng: number, lat: number): [number, number] {
   return [x, y];
 }
 
-function syriaPath(): string {
-  const geom: any = (syriaBoundary as any).geometry;
-  const rings: number[][][] =
-    geom.type === "Polygon" ? geom.coordinates : geom.coordinates.flat();
-  return rings
-    .map((ring) =>
-      ring
-        .map(([lng, lat], i) => {
-          const [x, y] = project(lng, lat);
-          return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-        })
-        .join(" ") + " Z"
-    )
+function ringToPath(ring: number[][]): string {
+  return (
+    ring
+      .map(([lng, lat], i) => {
+        const [x, y] = project(lng, lat);
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ") + " Z"
+  );
+}
+
+function geomToPath(geom: any): string {
+  if (geom.type === "Polygon") {
+    return geom.coordinates.map(ringToPath).join(" ");
+  }
+  // MultiPolygon
+  return geom.coordinates
+    .map((poly: number[][][]) => poly.map(ringToPath).join(" "))
     .join(" ");
+}
+
+function centroid(geom: any): [number, number] {
+  // Use centroid of largest ring (good enough for label placement)
+  let pts: number[][] = [];
+  if (geom.type === "Polygon") {
+    pts = geom.coordinates[0];
+  } else if (geom.type === "MultiPolygon") {
+    let best: number[][] = geom.coordinates[0][0];
+    for (const poly of geom.coordinates) {
+      if (poly[0].length > best.length) best = poly[0];
+    }
+    pts = best;
+  }
+  let sx = 0,
+    sy = 0;
+  for (const [lng, lat] of pts) {
+    sx += lng;
+    sy += lat;
+  }
+  return project(sx / pts.length, sy / pts.length);
+}
+
+interface Province {
+  name: string;
+  d: string;
+  labelXY: [number, number];
 }
 
 function arcPath(a: [number, number], b: [number, number]): string {
@@ -49,24 +81,26 @@ function arcPath(a: [number, number], b: [number, number]): string {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const dist = Math.hypot(dx, dy);
-  // Perpendicular offset for curve height (always upward bow)
-  const nx = -dy / (dist || 1);
-  const ny = dx / (dist || 1);
-  const lift = Math.min(dist * 0.3, 120);
-  const cx = mx + nx * lift * (y2 < y1 ? 1 : -1) * Math.sign(dx || 1);
-  const cy = my + ny * lift * (y2 < y1 ? 1 : -1) * Math.sign(dx || 1) - 30;
+  const lift = Math.min(dist * 0.25, 100);
+  const cx = mx + (-dy / (dist || 1)) * lift;
+  const cy = my + (dx / (dist || 1)) * lift - 20;
   return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
 }
 
 interface FlyingArc {
   id: number;
-  from: NetworkBranch;
-  to: NetworkBranch;
   d: string;
 }
 
 export function SyriaNetworkMap({ branches, height = 500 }: Props) {
-  const path = useMemo(() => syriaPath(), []);
+  const provinces: Province[] = useMemo(() => {
+    return (provincesData as any).features.map((f: any) => ({
+      name: f.properties.name as string,
+      d: geomToPath(f.geometry),
+      labelXY: centroid(f.geometry),
+    }));
+  }, []);
+
   const projected = useMemo(
     () =>
       branches.map((b) => ({
@@ -76,11 +110,11 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
     [branches]
   );
 
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [hoveredProvince, setHoveredProvince] = useState<string | null>(null);
+  const [hoveredBranch, setHoveredBranch] = useState<string | null>(null);
   const [arcs, setArcs] = useState<FlyingArc[]>([]);
   const seqRef = useRef(0);
 
-  // Spawn animated arcs periodically between random branches
   useEffect(() => {
     if (projected.length < 2) return;
     let timer: any;
@@ -88,20 +122,13 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
       const i = Math.floor(Math.random() * projected.length);
       let j = Math.floor(Math.random() * projected.length);
       if (j === i) j = (j + 1) % projected.length;
-      const from = projected[i];
-      const to = projected[j];
       const id = ++seqRef.current;
       const arc: FlyingArc = {
         id,
-        from,
-        to,
-        d: arcPath(from.xy, to.xy),
+        d: arcPath(projected[i].xy, projected[j].xy),
       };
       setArcs((a) => [...a, arc]);
-      // Remove after animation completes
-      setTimeout(() => {
-        setArcs((a) => a.filter((x) => x.id !== id));
-      }, 2600);
+      setTimeout(() => setArcs((a) => a.filter((x) => x.id !== id)), 2600);
       timer = setTimeout(spawn, 700 + Math.random() * 900);
     };
     timer = setTimeout(spawn, 400);
@@ -109,44 +136,98 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
   }, [projected]);
 
   return (
-    <div
-      className="relative w-full"
-      style={{ height }}
-    >
+    <div className="relative w-full" style={{ height }}>
       <svg
         viewBox={`0 0 ${VB_W} ${VB_H}`}
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
       >
         <defs>
-          <linearGradient id="terrain" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#e8e0c8" />
-            <stop offset="60%" stopColor="#dccfa8" />
-            <stop offset="100%" stopColor="#c9b889" />
-          </linearGradient>
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="mapShadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.35" />
+          {/* Sea hatching pattern */}
+          <pattern
+            id="seaPattern"
+            width="14"
+            height="14"
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <rect width="14" height="14" fill="#cfe4f2" />
+            <line x1="0" y1="0" x2="0" y2="14" stroke="#a9cde2" strokeWidth="0.6" />
+          </pattern>
+          <filter id="dot" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="1" stdDeviation="1.2" floodColor="#000" floodOpacity="0.35" />
           </filter>
         </defs>
 
-        {/* Syria — natural terrain fill */}
-        <path d={path} fill="url(#terrain)" filter="url(#mapShadow)" />
-        {/* Subtle inner border */}
-        <path
-          d={path}
-          fill="none"
-          stroke="#8a7a52"
-          strokeWidth="1.2"
-          strokeLinejoin="round"
-          opacity="0.7"
-        />
+        {/* Sea background (Mediterranean to the west) */}
+        <rect x="0" y="0" width={VB_W} height={VB_H} fill="url(#seaPattern)" />
+
+        {/* Land halo behind Syria */}
+        {provinces.map((p, i) => (
+          <path
+            key={`halo-${i}`}
+            d={p.d}
+            fill="#e8d9b0"
+            stroke="#000"
+            strokeOpacity="0"
+          />
+        ))}
+
+        {/* Provinces */}
+        {provinces.map((p, i) => {
+          const active = hoveredProvince === p.name;
+          return (
+            <path
+              key={p.name + i}
+              d={p.d}
+              fill={active ? "#f3e6c0" : "#ede1bd"}
+              stroke="#9b8455"
+              strokeWidth="0.9"
+              strokeLinejoin="round"
+              style={{ cursor: "pointer", transition: "fill 0.2s" }}
+              onMouseEnter={() => setHoveredProvince(p.name)}
+              onMouseLeave={() => setHoveredProvince(null)}
+            />
+          );
+        })}
+
+        {/* External thick border for Syria */}
+        {provinces.map((p, i) => (
+          <path
+            key={`outer-${i}`}
+            d={p.d}
+            fill="none"
+            stroke="#5a4a2e"
+            strokeWidth="0.5"
+            strokeLinejoin="round"
+            pointerEvents="none"
+          />
+        ))}
+
+        {/* Province labels */}
+        {provinces.map((p) => {
+          const [x, y] = p.labelXY;
+          return (
+            <g key={`lbl-${p.name}`} pointerEvents="none">
+              <text
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontFamily="Readex Pro, system-ui, sans-serif"
+                fontSize="13"
+                fontWeight="600"
+                fill="#3d2f1a"
+                stroke="#fff8e1"
+                strokeWidth="3"
+                paintOrder="stroke"
+                style={{ direction: "rtl" }}
+              >
+                {p.name}
+              </text>
+            </g>
+          );
+        })}
 
         {/* Animated shipment arcs */}
         {arcs.map((arc) => (
@@ -156,10 +237,10 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
               fill="none"
               stroke="hsl(28 100% 45%)"
               strokeWidth="1.4"
-              strokeOpacity="0.5"
+              strokeOpacity="0.55"
               strokeDasharray="3 4"
             />
-            <circle r="4" fill="hsl(28 100% 50%)" stroke="white" strokeWidth="1.5" filter="url(#glow)">
+            <circle r="4.5" fill="hsl(28 100% 50%)" stroke="white" strokeWidth="1.5">
               <animateMotion dur="2.4s" repeatCount="1" path={arc.d} />
               <animate
                 attributeName="opacity"
@@ -175,43 +256,51 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
         {/* Branches */}
         {projected.map((b) => {
           const [x, y] = b.xy;
-          const active = hovered === b.id;
+          const active = hoveredBranch === b.id;
           return (
             <g
               key={b.id}
               transform={`translate(${x},${y})`}
-              onMouseEnter={() => setHovered(b.id)}
-              onMouseLeave={() => setHovered(null)}
+              onMouseEnter={() => setHoveredBranch(b.id)}
+              onMouseLeave={() => setHoveredBranch(null)}
               style={{ cursor: "pointer" }}
             >
-              {/* Pulse ring */}
-              <circle r="4" fill="none" stroke="hsl(28 100% 45%)" strokeWidth="2" opacity="0.8">
-                <animate attributeName="r" values="4;18;4" dur="2.6s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.8;0;0.8" dur="2.6s" repeatCount="indefinite" />
+              <circle
+                r="4"
+                fill="none"
+                stroke="hsl(28 100% 45%)"
+                strokeWidth="2"
+                opacity="0.85"
+              >
+                <animate attributeName="r" values="4;16;4" dur="2.6s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.9;0;0.9" dur="2.6s" repeatCount="indefinite" />
               </circle>
-              {/* Outer halo on hover */}
-              {active && (
-                <circle r="14" fill="hsl(28 100% 45% / 0.3)" />
-              )}
-              {/* Core dot — high contrast on light terrain */}
-              <circle r={active ? 6 : 4.5} fill="hsl(28 100% 45%)" stroke="white" strokeWidth="1.5" />
-              <circle r="1.5" fill="white" />
+              {active && <circle r="13" fill="hsl(28 100% 45% / 0.3)" />}
+              <circle
+                r={active ? 6 : 4.5}
+                fill="hsl(28 100% 45%)"
+                stroke="white"
+                strokeWidth="1.8"
+                filter="url(#dot)"
+              />
+              <circle r="1.6" fill="white" />
             </g>
           );
         })}
       </svg>
 
-      {/* Hover tooltip (HTML overlay for crisp text) */}
-      {hovered && (() => {
-        const b = projected.find((p) => p.id === hovered);
+      {/* Branch tooltip */}
+      {hoveredBranch && (() => {
+        const b = projected.find((p) => p.id === hoveredBranch);
         if (!b) return null;
         const [x, y] = b.xy;
-        const leftPct = (x / VB_W) * 100;
-        const topPct = (y / VB_H) * 100;
         return (
           <div
             className="absolute pointer-events-none z-10 -translate-x-1/2 -translate-y-full"
-            style={{ left: `${leftPct}%`, top: `calc(${topPct}% - 14px)` }}
+            style={{
+              left: `${(x / VB_W) * 100}%`,
+              top: `calc(${(y / VB_H) * 100}% - 14px)`,
+            }}
           >
             <div className="bg-card/95 backdrop-blur-sm border border-primary/40 rounded-lg px-3 py-2 shadow-xl min-w-[140px] text-right">
               <p className="text-sm font-bold text-foreground">{b.name}</p>
@@ -223,8 +312,8 @@ export function SyriaNetworkMap({ branches, height = 500 }: Props) {
         );
       })()}
 
-      {/* Legend / live indicator */}
-      <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-card/80 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 text-xs shadow-md">
+      {/* Live legend */}
+      <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-card/90 backdrop-blur-sm border border-border rounded-full px-3 py-1.5 text-xs shadow-md">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
