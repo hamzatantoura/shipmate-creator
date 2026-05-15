@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, ArrowRight, Mail, Sparkles } from "lucide-react";
+import { Loader2, ArrowRight, Mail, Sparkles, Home } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -174,6 +174,16 @@ export default function Login() {
               سجّل كتاجر
             </Link>
           </p>
+
+          <div className="mt-4 text-center">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Home className="h-3.5 w-3.5" />
+              العودة إلى الصفحة الرئيسية
+            </Link>
+          </div>
         </motion.div>
       </AnimatePresence>
     </AuthCard>
