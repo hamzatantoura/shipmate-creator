@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON, Polyline, CircleMarker } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import syriaBoundary from "@/data/syria-boundary.json";
@@ -12,38 +12,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-/**
- * Pin-shaped colored SVG marker. Used for branches (red/orange/grey) and the
- * customer / district pin (blue). Crisp at any zoom — no raster icons.
- */
-export function brandIcon(color: string = "#ef4444", size: number = 32) {
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 32 44">
-      <defs>
-        <filter id="s" x="-30%" y="-20%" width="160%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.35"/>
-        </filter>
-      </defs>
-      <path filter="url(#s)" d="M16 1 C7.7 1 1 7.7 1 16 c0 11 15 27 15 27 s15-16 15-27 C31 7.7 24.3 1 16 1 z"
-            fill="${color}" stroke="#ffffff" stroke-width="2"/>
-      <circle cx="16" cy="16" r="5.5" fill="#ffffff"/>
-    </svg>`;
+// Branded colored DivIcon (uses Tailwind color tokens via inline style)
+export function brandIcon(color: string = "hsl(28, 100%, 50%)", size: number = 28) {
   return L.divIcon({
     className: "sila-marker",
-    html: svg,
-    iconSize: [size, size * 1.375],
-    iconAnchor: [size / 2, size * 1.375],
-    popupAnchor: [0, -size * 1.2],
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;
+      background:${color};transform:rotate(-45deg);
+      border:2px solid white;box-shadow:0 4px 12px rgba(0,0,0,0.4);
+      display:flex;align-items:center;justify-content:center;
+    "><div style="
+      width:${size / 2.5}px;height:${size / 2.5}px;border-radius:50%;
+      background:white;transform:rotate(45deg);
+    "></div></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size],
+    popupAnchor: [0, -size],
   });
 }
-
-// Convenience presets
-export const MARKER_COLORS = {
-  branch: "#dc2626",          // red — courier branches
-  branchInactive: "#9ca3af",  // grey — inactive branches
-  customer: "#2563eb",        // blue — customer / district
-  warehouse: "#f97316",       // orange — merchant warehouse
-} as const;
 
 export interface SilaMarker {
   id: string;
@@ -63,16 +49,6 @@ interface SilaMapProps {
   onMapClick?: (lat: number, lng: number) => void;
   className?: string;
   restrictToSyria?: boolean;
-  /** Tile style — defaults to CartoDB Positron for a clean SaaS look. */
-  tileStyle?: "positron" | "positron-dark" | "osm";
-  /** Customer (or selected district) location — rendered as a blue pin. */
-  customerLocation?: { lat: number; lng: number; label?: string };
-  /** Branch id to draw a dashed line to from the customer location. */
-  nearestBranchId?: string;
-  /** Edit mode — show a draggable pin for capturing precise coordinates. */
-  editMode?: boolean;
-  editPosition?: { lat: number; lng: number };
-  onPositionChange?: (lat: number, lng: number) => void;
 }
 
 function FitBounds({ markers }: { markers: SilaMarker[] }) {
@@ -131,32 +107,6 @@ function ClickCapture({ onMapClick }: { onMapClick: (lat: number, lng: number) =
   return null;
 }
 
-/** Haversine distance in km. */
-export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const s = Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
-const TILE_URLS = {
-  positron: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  "positron-dark": {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  osm: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  },
-};
-
 /**
  * Unified Sila map wrapper. Defaults centered on Syria.
  * Read-only by default — pass onMapClick to capture clicks.
@@ -170,27 +120,7 @@ export function SilaMap({
   onMapClick,
   className = "",
   restrictToSyria = false,
-  tileStyle = "positron",
-  customerLocation,
-  nearestBranchId,
-  editMode = false,
-  editPosition,
-  onPositionChange,
 }: SilaMapProps) {
-  const tile = TILE_URLS[tileStyle];
-
-  // Resolve nearest branch coordinates for the connecting polyline
-  const lineEnds = useMemo(() => {
-    if (!customerLocation || !nearestBranchId) return null;
-    const target = markers.find(m => m.id === nearestBranchId);
-    if (!target) return null;
-    return {
-      from: [customerLocation.lat, customerLocation.lng] as [number, number],
-      to: [target.lat, target.lng] as [number, number],
-      km: distanceKm(customerLocation, { lat: target.lat, lng: target.lng }),
-    };
-  }, [customerLocation, nearestBranchId, markers]);
-
   return (
     <div
       className={`relative rounded-xl overflow-hidden border border-border shadow-lg ${className}`}
@@ -248,9 +178,8 @@ export function SilaMap({
       >
         {!restrictToSyria && (
           <TileLayer
-            attribution={tile.attribution}
-            url={tile.url}
-            subdomains={tileStyle === "osm" ? "abc" : "abcd"}
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
         )}
         {restrictToSyria && (
@@ -293,71 +222,7 @@ export function SilaMap({
           </>
         )}
         {fitToMarkers && !restrictToSyria && markers.length > 0 && <FitBounds markers={markers} />}
-        {(onMapClick || (editMode && onPositionChange)) && (
-          <ClickCapture onMapClick={(lat, lng) => {
-            if (editMode && onPositionChange) onPositionChange(lat, lng);
-            if (onMapClick) onMapClick(lat, lng);
-          }} />
-        )}
-
-        {/* Customer / selected district pin */}
-        {customerLocation && (
-          <Marker
-            position={[customerLocation.lat, customerLocation.lng]}
-            icon={brandIcon(MARKER_COLORS.customer)}
-          >
-            {customerLocation.label && <Popup>{customerLocation.label}</Popup>}
-          </Marker>
-        )}
-
-        {/* Distance line: customer → nearest branch */}
-        {lineEnds && (
-          <>
-            <Polyline
-              positions={[lineEnds.from, lineEnds.to]}
-              pathOptions={{ color: MARKER_COLORS.customer, weight: 3, opacity: 0.7, dashArray: "8 6" }}
-            />
-            <CircleMarker
-              center={[
-                (lineEnds.from[0] + lineEnds.to[0]) / 2,
-                (lineEnds.from[1] + lineEnds.to[1]) / 2,
-              ]}
-              radius={0}
-              pathOptions={{ opacity: 0, fillOpacity: 0 }}
-            >
-              <Popup>
-                <div className="text-right text-xs font-medium">
-                  المسافة: {lineEnds.km.toFixed(1)} كم
-                </div>
-              </Popup>
-            </CircleMarker>
-          </>
-        )}
-
-        {/* Edit-mode draggable pin */}
-        {editMode && editPosition && (
-          <Marker
-            position={[editPosition.lat, editPosition.lng]}
-            icon={brandIcon(MARKER_COLORS.warehouse, 36)}
-            draggable={true}
-            eventHandlers={{
-              dragend: (e) => {
-                const { lat, lng } = (e.target as L.Marker).getLatLng();
-                onPositionChange?.(lat, lng);
-              },
-            }}
-          >
-            <Popup>
-              <div className="text-right text-xs space-y-1">
-                <p className="font-bold">اسحب الدبوس لتحديد الموقع بدقة</p>
-                <p dir="ltr" className="text-zinc-500">
-                  {editPosition.lat.toFixed(5)}, {editPosition.lng.toFixed(5)}
-                </p>
-              </div>
-            </Popup>
-          </Marker>
-        )}
-
+        {onMapClick && <ClickCapture onMapClick={onMapClick} />}
         {markers.map((m) => (
           <Marker
             key={m.id}
