@@ -96,7 +96,7 @@ export function CoverageMapSection() {
                   />
                 }
               >
-                <SilaMap markers={all} height={500} />
+                <SilaMap markers={all} height={500} restrictToSyria />
               </Suspense>
             ) : (
               <div
