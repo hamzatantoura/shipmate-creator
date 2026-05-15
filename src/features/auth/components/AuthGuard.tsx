@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth, type UserRole } from "@/features/auth/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import RequirePasswordGate from "@/features/auth/components/RequirePasswordGate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,7 +105,7 @@ export default function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
 
   return (
     <>
-      {children}
+      <RequirePasswordGate>{children}</RequirePasswordGate>
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
