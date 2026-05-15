@@ -150,3 +150,8 @@ html[dir="rtl"] .rtl-flip { transform: scaleX(-1); }
     50% { box-shadow: 0 8px 28px -3px hsl(217 91% 60% / 0.55); }
   }
 }
+
+/* Syria outline glow on landing coverage map */
+.sila-syria-outline {
+  filter: drop-shadow(0 0 6px hsla(28, 100%, 50%, 0.45));
+}
