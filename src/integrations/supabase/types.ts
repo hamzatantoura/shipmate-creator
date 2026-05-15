@@ -1575,6 +1575,45 @@ export type Database = {
       }
     }
     Views: {
+      courier_branches_public: {
+        Row: {
+          courier_id: string | null
+          id: string | null
+          lat: number | null
+          lng: number | null
+          name: string | null
+        }
+        Insert: {
+          courier_id?: string | null
+          id?: string | null
+          lat?: number | null
+          lng?: number | null
+          name?: string | null
+        }
+        Update: {
+          courier_id?: string | null
+          id?: string | null
+          lat?: number | null
+          lng?: number | null
+          name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_branches_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_branches_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       couriers_public: {
         Row: {
           city: string | null
