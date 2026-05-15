@@ -54,6 +54,7 @@ export default function MerchantProducts() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [storeSlug, setStoreSlug] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
@@ -76,6 +77,12 @@ export default function MerchantProducts() {
   }, [user]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("store_slug").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => { if (data?.store_slug) setStoreSlug(data.store_slug); });
+  }, [user]);
 
   const resetForm = () => {
     setForm({ name: "", price: "", stock: "0", description: "", weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0" });
@@ -213,7 +220,9 @@ export default function MerchantProducts() {
   };
 
   const getProductUrl = (p: Product) => `${window.location.origin}/product/${p.slug || p.id}`;
-  const getStoreUrl = () => `${window.location.origin}/store/${user?.id}`;
+  const getStoreUrl = () => storeSlug
+    ? `${window.location.origin}/s/${storeSlug}`
+    : `${window.location.origin}/store/${user?.id}`;
   const copyLink = (url: string) => { navigator.clipboard.writeText(url); toast.success("تم نسخ الرابط"); };
 
   const shareWhatsApp = (p: Product) => {
