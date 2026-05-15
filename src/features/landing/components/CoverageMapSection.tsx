@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
 
 const SyriaNetworkMap = lazy(() =>
@@ -75,13 +74,12 @@ export function CoverageMapSection() {
           </p>
         </div>
 
-        <Card className="p-3 bg-card/40 backdrop-blur border-border/60 overflow-hidden">
-          <div ref={mapHostRef} style={{ minHeight: 500 }}>
+        <div ref={mapHostRef} style={{ minHeight: 500 }}>
             {mapVisible ? (
               <Suspense
                 fallback={
                   <div
-                    className="rounded-xl bg-muted/40 animate-pulse"
+                    className="bg-muted/20 animate-pulse"
                     style={{ height: 500 }}
                   />
                 }
@@ -90,13 +88,12 @@ export function CoverageMapSection() {
               </Suspense>
             ) : (
               <div
-                className="rounded-xl bg-muted/40"
+                className="bg-muted/20"
                 style={{ height: 500 }}
                 aria-hidden
               />
             )}
-          </div>
-        </Card>
+        </div>
       </div>
     </section>
   );
