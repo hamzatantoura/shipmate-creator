@@ -1188,15 +1188,16 @@ export default function CourierOrders() {
               <EmptyState hasSearch={!!search || tab !== "all"} totalOrders={orders.length} />
             ) : (
               <>
-              {/* Mobile: simple stacked cards (avoids wide overflow-x table rendering glitches on Chrome Android) */}
-              <div className="md:hidden divide-y divide-border">
+              {/* Mobile: plain block list — no table, no portals, no animated overlays */}
+              <div className="md:hidden divide-y divide-border bg-card">
                 {filtered.map((o) => {
                   const cod = o.final_sale_price ?? o.total_amount;
                   const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
                   const meta = getOrderStatusMeta(o.status);
                   const Icon = meta.icon;
+                  const nextStatuses = NEXT_STATUS_MAP[o.status] || [];
                   return (
-                    <div key={o.id} className="p-3 space-y-2">
+                    <article key={o.id} className="p-3 space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="font-medium text-sm truncate">{o.receiver_name}</div>
@@ -1207,33 +1208,43 @@ export default function CourierOrders() {
                           {meta.label}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
-                        <div className="text-muted-foreground">الهاتف</div>
-                        <div dir="ltr" className="text-right">{o.phone_number}</div>
-                        <div className="text-muted-foreground">المدينة</div>
-                        <div>{o.districts?.name || o.city}</div>
-                        <div className="text-muted-foreground">العنوان</div>
-                        <div className="truncate" title={o.detailed_address}>{o.detailed_address || "—"}</div>
-                        <div className="text-muted-foreground">التحصيل</div>
-                        <div className="tabular-nums font-semibold">{fmtSYP(Number(cod))}</div>
-                        <div className="text-muted-foreground">رسوم التوصيل</div>
-                        <div className="tabular-nums">{fmtSYP(Number(o.delivery_fee ?? 0))}</div>
-                        <div className="text-muted-foreground">التاريخ</div>
-                        <div className="tabular-nums">{new Date(o.created_at).toLocaleDateString("en-GB")}</div>
+                       <div className="space-y-1 text-[12px]">
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">الهاتف</span>
+                          <span dir="ltr" className="text-right">{o.phone_number}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">المدينة</span>
+                          <span className="text-right">{o.districts?.name || o.city}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">التحصيل</span>
+                          <span className="tabular-nums font-semibold">{fmtSYP(Number(cod))}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">التاريخ</span>
+                          <span className="tabular-nums">{new Date(o.created_at).toLocaleDateString("en-GB")}</span>
+                        </div>
+                        <p className="pt-1 text-muted-foreground leading-5 break-words">{o.detailed_address || "—"}</p>
                       </div>
-                      {!isFinal && (
-                        <Select value="" onValueChange={(v) => updateStatus(o.id, v)} disabled={updatingId === o.id}>
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue placeholder="تحديث الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(NEXT_STATUS_MAP[o.status] || []).map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      {!isFinal && nextStatuses.length > 0 && (
+                        <select
+                          value=""
+                          disabled={updatingId === o.id}
+                          onChange={(event) => {
+                            const value = event.currentTarget.value;
+                            if (value) updateStatus(o.id, value);
+                            event.currentTarget.value = "";
+                          }}
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground disabled:opacity-50"
+                        >
+                          <option value="">تحديث الحالة</option>
+                          {nextStatuses.map((s) => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                          ))}
+                        </select>
                       )}
-                    </div>
+                    </article>
                   );
                 })}
               </div>
