@@ -1129,8 +1129,20 @@ export default function CourierOrders() {
               </div>
             </div>
 
+            <div className="sm:hidden">
+              <select
+                value={tab}
+                onChange={(event) => setTab(event.currentTarget.value as TabKey)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              >
+                {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
+                  <option key={k} value={k}>{TAB_LABELS[k]} ({tabCounts[k]})</option>
+                ))}
+              </select>
+            </div>
+
             <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-              <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full gap-1 h-auto p-1 md:w-auto md:inline-grid">
+              <TabsList className="hidden sm:grid sm:grid-cols-5 w-full gap-1 h-auto p-1 md:w-auto md:inline-grid">
                 {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
                   <TabsTrigger
                     key={k}
