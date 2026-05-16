@@ -224,7 +224,7 @@ export default function CourierDashboard() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background [transform:translateZ(0)] [will-change:transform]">
+      <header className="border-b border-border/60 bg-background">
         <div className="flex items-center justify-between gap-3 px-3 md:px-6 h-14">
           <div className="flex items-center gap-2 min-w-0">
             <Sheet>
@@ -276,7 +276,7 @@ export default function CourierDashboard() {
         </nav>
       </header>
 
-      <main className="px-3 md:px-6 py-4 md:py-6 pb-24 md:pb-6 space-y-4 md:space-y-6 max-w-screen-2xl mx-auto isolate">
+      <main className="px-3 md:px-6 py-4 md:py-6 pb-24 md:pb-6 space-y-4 md:space-y-6 max-w-screen-2xl mx-auto">
         {isLoading || !data ? (
           <DashboardSkeleton />
         ) : (
@@ -301,7 +301,7 @@ export default function CourierDashboard() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border/60 bg-background [transform:translateZ(0)]">
+      <nav className="md:hidden border-t border-border/60 bg-background">
         <div className="grid grid-cols-3">
           {navItems.map((it) => (
             <Link
