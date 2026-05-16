@@ -215,7 +215,7 @@ function FloatingActions() {
       </button>
 
       <a
-        href="/track"
+        href={`/track?from=${encodeURIComponent(`/store/${merchantId}`)}`}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="تتبع شحنتك"
