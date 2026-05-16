@@ -896,7 +896,7 @@ export default function CourierOrders() {
             )}
           </div>
           <Badge variant="outline" className="self-start sm:self-auto gap-1.5 px-3 py-1.5 text-xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             مُحدّث لحظياً
           </Badge>
         </div>
@@ -1023,37 +1023,27 @@ export default function CourierOrders() {
             {loading ? (
               <Skeleton className="h-[240px] w-full" />
             ) : (
-              <div className="h-[240px] w-full rounded-lg border border-border/60 bg-card px-3 py-4">
-                <div className="flex h-full items-end justify-between gap-2 border-b border-border/70 pb-6">
-                  {chartData.map((day) => {
-                    const maxValue = Math.max(1, ...chartData.flatMap((item) => [item.delivered, item.returned]));
-                    const deliveredHeight = Math.max(4, Math.round((day.delivered / maxValue) * 150));
-                    const returnedHeight = Math.max(4, Math.round((day.returned / maxValue) * 150));
-                    return (
-                      <div key={day.key} className="relative flex h-full flex-1 flex-col items-center justify-end gap-2">
-                        <div className="flex h-[160px] items-end justify-center gap-1.5">
-                          <div
-                            className="w-3 rounded-t-sm bg-primary"
-                            style={{ height: day.delivered ? deliveredHeight : 4 }}
-                            title={`تم التسليم: ${day.delivered}`}
-                          />
-                          <div
-                            className="w-3 rounded-t-sm bg-destructive"
-                            style={{ height: day.returned ? returnedHeight : 4 }}
-                            title={`مرتجع: ${day.returned}`}
-                          />
-                        </div>
-                        <span className="absolute -bottom-5 text-[10px] text-muted-foreground whitespace-nowrap">
-                          {day.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" />تم التسليم</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-destructive" />مرتجع</span>
-                </div>
+              <div className="overflow-x-auto rounded-lg border border-border/60">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40">
+                    <tr className="text-xs text-muted-foreground">
+                      <th className="text-right px-3 py-2 font-medium">اليوم</th>
+                      <th className="text-right px-3 py-2 font-medium">تم التسليم</th>
+                      <th className="text-right px-3 py-2 font-medium">مرتجع</th>
+                      <th className="text-right px-3 py-2 font-medium">الإجمالي</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chartData.map((day) => (
+                      <tr key={day.key} className="border-t border-border/40">
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{day.label}</td>
+                        <td className="px-3 py-2 tabular-nums font-medium text-primary">{day.delivered}</td>
+                        <td className="px-3 py-2 tabular-nums font-medium text-destructive">{day.returned}</td>
+                        <td className="px-3 py-2 tabular-nums">{day.delivered + day.returned}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
@@ -1184,7 +1174,7 @@ export default function CourierOrders() {
             </Tabs>
 
             {selectedIds.length > 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 animate-in fade-in slide-in-from-top-1">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="inline-flex items-center justify-center h-6 min-w-6 rounded-full bg-primary text-primary-foreground text-xs font-bold px-1.5">
                     {selectedIds.length}
@@ -1680,11 +1670,8 @@ function KpiCard({
 function EmptyState({ hasSearch, totalOrders }: { hasSearch: boolean; totalOrders: number }) {
   return (
     <div className="py-16 px-6 flex flex-col items-center text-center">
-      <div className="relative mb-4">
-        <div className="absolute inset-0 bg-primary/10 blur-2xl rounded-full" />
-        <div className="relative h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/20 flex items-center justify-center">
-          <PackageOpen className="h-9 w-9 text-primary" />
-        </div>
+      <div className="mb-4 h-20 w-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+        <PackageOpen className="h-9 w-9 text-primary" />
       </div>
       <h3 className="text-base font-semibold">
         {hasSearch ? "لا توجد نتائج مطابقة" : "لا توجد طلبات مسندة بعد"}
