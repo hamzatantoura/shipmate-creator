@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Package, MapPin, Clock, Truck, ArrowRight, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Search, Package, MapPin, Clock, Truck, ArrowRight, Phone, AlertCircle, CheckCircle2, ShoppingBag, PackageCheck, Bike, Hourglass } from "lucide-react";
 import { normalizeSilaCode, validateSilaCode } from "@/features/shipments/lib/sila-code";
 
 const STATUS_AR: Record<string, string> = {
@@ -35,19 +35,21 @@ const CITY_AR: Record<string, string> = {
   Lattakia: "اللاذقية", Hama: "حماة", Tartous: "طرطوس",
 };
 
-// Public timeline (4 stages); 'returned' is shown as a terminal alt branch
+// Public timeline — 5 Trendyol-style stages. 'returned' is a terminal alt branch.
 const TIMELINE = [
-  { key: "new", label: "جديد" },
-  { key: "processing", label: "قيد المعالجة" },
-  { key: "out_for_delivery", label: "خرج للتوصيل" },
-  { key: "delivered", label: "تم التسليم" },
+  { key: "received", label: "تم استلام الطلب", icon: ShoppingBag },
+  { key: "confirmed", label: "تأكيد التاجر", icon: PackageCheck },
+  { key: "shipping", label: "مع شركة الشحن", icon: Truck },
+  { key: "out_for_delivery", label: "خرج للتوصيل", icon: Bike },
+  { key: "delivered", label: "تم التسليم", icon: CheckCircle2 },
 ];
 
 const STAGE_INDEX: Record<string, number> = {
-  new: 0, pending: 0,
-  processing: 1, assigned: 1, picked_up: 1,
-  out_for_delivery: 2, in_transit: 2,
-  delivered: 3,
+  new: 0, pending: 0, draft: 0,
+  processing: 1, assigned: 1, picked_up: 1, received_by_courier: 1, pending_pickup: 1,
+  shipped: 2, in_transit: 2, at_warehouse: 2, in_transit_intercity: 2, with_distributor: 2,
+  out_for_delivery: 3,
+  delivered: 4,
 };
 
 interface TrackResult {
@@ -59,6 +61,7 @@ interface TrackResult {
   created_at: string;
   updated_at: string;
   return_reason: string | null;
+  has_shipment?: boolean;
 }
 
 export default function TrackOrderPage() {
@@ -122,6 +125,7 @@ export default function TrackOrderPage() {
   const isReturned = data?.status === "returned";
   const isFailed = data?.status === "failed" || data?.status === "cancelled";
   const currentStage = data ? (STAGE_INDEX[data.status] ?? 0) : 0;
+  const awaitingMerchant = data && !isReturned && !isFailed && currentStage === 0;
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -154,7 +158,7 @@ export default function TrackOrderPage() {
         {/* Search */}
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Input
-            placeholder="SL-XXXXXXXX-X"
+          placeholder="رمز الطلب (مثال: 1A2B3C4D)"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             className="flex-1 font-mono text-center tracking-wider uppercase"
@@ -205,27 +209,39 @@ export default function TrackOrderPage() {
               <div className="p-5 space-y-6">
                 {/* Timeline / Stepper */}
                 {!isReturned && !isFailed && (
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-4">
+                    {awaitingMerchant && (
+                      <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3">
+                        <Hourglass className="h-5 w-5 text-warning shrink-0 mt-0.5 animate-pulse" />
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-bold text-foreground">طلبك في انتظار تأكيد التاجر</p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            سيتم تأكيد طلبك وتجهيزه قريباً من قِبَل التاجر، ثم سيُسلَّم إلى شركة الشحن. تابع هذه الصفحة لرؤية التحديثات.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-start justify-between relative">
                       {/* Connector line behind dots */}
-                      <div className="absolute top-4 right-0 left-0 h-0.5 bg-border mx-8" />
+                      <div className="absolute top-5 right-0 left-0 h-0.5 bg-border mx-6" />
                       <div
-                        className="absolute top-4 right-8 h-0.5 bg-primary transition-all"
-                        style={{ width: `calc((100% - 4rem) * ${currentStage / (TIMELINE.length - 1)})` }}
+                        className="absolute top-5 right-6 h-0.5 bg-primary transition-all"
+                        style={{ width: `calc((100% - 3rem) * ${currentStage / (TIMELINE.length - 1)})` }}
                       />
                       {TIMELINE.map((stage, i) => {
+                        const Icon = stage.icon;
                         const isDone = i < currentStage;
                         const isCurrent = i === currentStage;
                         return (
-                          <div key={stage.key} className="flex flex-col items-center gap-2 relative z-10 flex-1">
-                            <div className={`h-8 w-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                          <div key={stage.key} className="flex flex-col items-center gap-1.5 relative z-10 flex-1">
+                            <div className={`h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all ${
                               isDone ? "bg-primary border-primary text-primary-foreground" :
                               isCurrent ? "bg-primary border-primary text-primary-foreground scale-110 shadow-lg shadow-primary/30 animate-pulse" :
                               "bg-card border-border text-muted-foreground"
                             }`}>
-                              {isDone ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">{i + 1}</span>}
+                              {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                             </div>
-                            <span className={`text-[10px] text-center leading-tight ${
+                            <span className={`text-[10px] text-center leading-tight px-0.5 ${
                               isCurrent ? "text-primary font-bold" :
                               isDone ? "text-foreground" :
                               "text-muted-foreground"
