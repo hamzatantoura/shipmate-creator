@@ -68,6 +68,7 @@ export default function TrackOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialCode = searchParams.get("code") || "";
+  const fromParam = searchParams.get("from") || "";
   const [code, setCode] = useState(initialCode);
   const [data, setData] = useState<TrackResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +137,8 @@ export default function TrackOrderPage() {
             variant="ghost"
             size="icon"
             onClick={() => {
-              if (window.history.length > 1) window.history.back();
+              if (fromParam && fromParam.startsWith("/")) navigate(fromParam);
+              else if (window.history.length > 1) window.history.back();
               else navigate("/");
             }}
             className="shrink-0"
