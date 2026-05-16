@@ -31,6 +31,15 @@ export default function StoreHero(props: Props) {
     }
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("تم نسخ رابط المتجر");
+    } catch {
+      toast.error("تعذّر نسخ الرابط");
+    }
+  };
+
   return (
     <header className="relative">
       {/* Banner */}
