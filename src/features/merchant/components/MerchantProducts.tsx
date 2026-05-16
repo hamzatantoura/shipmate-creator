@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil } from "lucide-react";
+import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil, X, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { compressImage } from "@/shared/lib/image-compress";
 import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
@@ -19,6 +21,7 @@ interface Product {
   price: number; stock: number; is_active: boolean; created_at: string;
   weight_kg: number; slug: string | null;
   length_cm: number; width_cm: number; height_cm: number;
+  original_price: number | null; in_stock: boolean; category: string | null;
 }
 
 interface ProductImage {
@@ -38,7 +41,11 @@ export default function MerchantProducts() {
   const [productImages, setProductImages] = useState<Record<string, ProductImage[]>>({});
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "0", description: "", weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0" });
+  const [form, setForm] = useState({
+    name: "", price: "", original_price: "", stock: "0", description: "",
+    weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0",
+    category: "", in_stock: true,
+  });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [variants, setVariants] = useState<VariantEntry[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -66,7 +73,11 @@ export default function MerchantProducts() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const resetForm = () => {
-    setForm({ name: "", price: "", stock: "0", description: "", weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0" });
+    setForm({
+      name: "", price: "", original_price: "", stock: "0", description: "",
+      weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0",
+      category: "", in_stock: true,
+    });
     setImageFiles([]); setVariants([]); setEditingProduct(null);
   };
 
@@ -75,9 +86,12 @@ export default function MerchantProducts() {
   const openEditDialog = (p: Product) => {
     setEditingProduct(p);
     setForm({
-      name: p.name, price: String(p.price), stock: String(p.stock),
+      name: p.name, price: String(p.price),
+      original_price: p.original_price ? String(p.original_price) : "",
+      stock: String(p.stock),
       description: p.description || "", weight_kg: String(p.weight_kg),
       length_cm: String(p.length_cm || 0), width_cm: String(p.width_cm || 0), height_cm: String(p.height_cm || 0),
+      category: p.category || "", in_stock: p.in_stock,
     });
     setImageFiles([]); setVariants([]); setOpen(true);
   };
@@ -92,6 +106,9 @@ export default function MerchantProducts() {
         name: form.name.trim(),
         description: form.description.trim() || null,
         price: parseFloat(form.price) || 0,
+        original_price: form.original_price.trim() ? parseFloat(form.original_price) : null,
+        category: form.category.trim() || null,
+        in_stock: form.in_stock,
         stock: parseInt(form.stock) || 0,
         weight_kg: parseFloat(form.weight_kg) || 1,
         length_cm: parseFloat(form.length_cm) || 0,
@@ -114,8 +131,18 @@ export default function MerchantProducts() {
           image_url = pub.publicUrl;
         }
 
-        const { error } = await supabase.from("products").update({ ...productData, image_url }).eq("id", editingProduct.id);
+        const { error } = await supabase.from("products").update({ ...productData, image_url } as any).eq("id", editingProduct.id);
         if (error) { toast.error(error.message); setLoading(false); return; }
+
+        // Replace variants when editing
+        await supabase.from("product_variants" as any).delete().eq("product_id", editingProduct.id);
+        if (variants.length > 0) {
+          const rows = variants.map(v => ({
+            product_id: editingProduct.id, variant_type: v.variant_type,
+            variant_value: v.variant_value, price_adjustment: v.price_adjustment, stock: v.stock,
+          }));
+          await supabase.from("product_variants" as any).insert(rows as any);
+        }
         toast.success("تم تعديل المنتج بنجاح!");
       } else {
         let image_url: string | null = null;
@@ -245,7 +272,7 @@ export default function MerchantProducts() {
                   </div>
                 </div>
 
-                {!editingProduct && <ProductVariantsForm variants={variants} onChange={setVariants} />}
+                <ProductVariantsForm variants={variants} onChange={setVariants} />
                 <div className="space-y-2">
                   <Label>{editingProduct ? "تغيير صورة المنتج (اختياري)" : "صور المنتج (يمكنك اختيار عدة صور)"}</Label>
                   <Input type="file" accept="image/*" multiple={!editingProduct} onChange={e => {
@@ -257,7 +284,23 @@ export default function MerchantProducts() {
                       setImageFiles(files);
                     }
                   }} />
-                  {imageFiles.length > 0 && <p className="text-xs text-muted-foreground">{imageFiles.length} / {maxImages} صورة محددة</p>}
+                  {imageFiles.length > 0 && (
+                    <>
+                      <p className="text-xs text-muted-foreground">{imageFiles.length} / {maxImages} صورة محددة</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {imageFiles.map((f, i) => (
+                          <div key={i} className="relative group aspect-square rounded-md overflow-hidden border border-border">
+                            <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                            <button type="button"
+                              onClick={() => setImageFiles(imageFiles.filter((_, j) => j !== i))}
+                              className="absolute top-1 end-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <Button type="submit" disabled={loading} className="w-full glow-btn">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : editingProduct ? <Pencil className="h-4 w-4 ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
