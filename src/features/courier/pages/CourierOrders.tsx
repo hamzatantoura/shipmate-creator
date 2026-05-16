@@ -920,7 +920,7 @@ export default function CourierOrders() {
 
           <TabsContent value="orders" className="space-y-4 sm:space-y-6 mt-0">
         {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
-        <Card className="border-primary/30 shadow-sm bg-card">
+        <Card className="hidden sm:block border-primary/30 shadow-sm bg-card">
           <CardContent className="p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 shrink-0">
@@ -970,8 +970,19 @@ export default function CourierOrders() {
           </CardContent>
         </Card>
 
+        <div className="sm:hidden rounded-lg border border-border bg-card divide-y divide-border">
+          <div className="grid grid-cols-2 divide-x divide-x-reverse divide-border">
+            <MobileMetric label="المسندة" value={kpis.total} loading={loading} />
+            <MobileMetric label="تم اليوم" value={kpis.deliveredToday} loading={loading} />
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-x-reverse divide-border">
+            <MobileMetric label="قيد التوصيل" value={kpis.outForDelivery} loading={loading} />
+            <MobileMetric label="مرتجع" value={kpis.returned} loading={loading} />
+          </div>
+        </div>
+
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <KpiCard
             loading={loading}
             icon={<Package className="h-4 w-4" />}
