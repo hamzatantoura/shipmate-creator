@@ -902,16 +902,16 @@ export default function CourierOrders() {
 
         {/* Top-level sections: simple buttons on mobile to avoid tab compositing glitches */}
         <div className="space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 rounded-lg bg-muted p-1 text-muted-foreground">
-            <button type="button" onClick={() => setMainTab("orders")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-sm px-2 text-xs sm:text-sm font-medium", mainTab === "orders" && "bg-card text-foreground")}>
+          <div className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid min-h-11 rounded-lg bg-muted p-1 text-muted-foreground">
+            <button type="button" onClick={() => setMainTab("orders")} className={cn("inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1.5 py-2 text-[11px] sm:px-2 sm:text-sm font-medium leading-tight", mainTab === "orders" && "bg-card text-foreground")}>
               <Package className="h-3.5 w-3.5" />
               الطلبات
             </button>
-            <button type="button" onClick={() => setMainTab("scanner")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-sm px-2 text-xs sm:text-sm font-medium", mainTab === "scanner" && "bg-card text-foreground")}>
+            <button type="button" onClick={() => setMainTab("scanner")} className={cn("inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1.5 py-2 text-[11px] sm:px-2 sm:text-sm font-medium leading-tight", mainTab === "scanner" && "bg-card text-foreground")}>
               <ScanLine className="h-3.5 w-3.5" />
-              الماسح الضوئي
+              الماسح
             </button>
-            <button type="button" onClick={() => setMainTab("wallet")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-sm px-2 text-xs sm:text-sm font-medium", mainTab === "wallet" && "bg-card text-foreground")}>
+            <button type="button" onClick={() => setMainTab("wallet")} className={cn("inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1.5 py-2 text-[11px] sm:px-2 sm:text-sm font-medium leading-tight", mainTab === "wallet" && "bg-card text-foreground")}>
               <Wallet className="h-3.5 w-3.5" />
               المحفظة
             </button>
