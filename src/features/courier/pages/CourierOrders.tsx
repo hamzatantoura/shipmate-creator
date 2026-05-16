@@ -1458,10 +1458,10 @@ export default function CourierOrders() {
             </div>
           </div>
         )}
-          </TabsContent>
+          </div>}
 
           {/* SCANNER TAB */}
-          <TabsContent value="scanner" className="mt-0">
+          {mainTab === "scanner" && <div>
             <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -1476,13 +1476,13 @@ export default function CourierOrders() {
                 <BarcodeScanner />
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>}
 
           {/* WALLET TAB */}
-          <TabsContent value="wallet" className="mt-0">
+          {mainTab === "wallet" && <div>
             <CourierWalletPanel />
-          </TabsContent>
-        </Tabs>
+          </div>}
+        </div>
       </main>
 
       {/* Return reason dialog */}
