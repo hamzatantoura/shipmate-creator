@@ -1038,8 +1038,18 @@ export default function CourierOrders() {
                     className="pr-9 h-9 text-sm"
                   />
                 </div>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.currentTarget.value)}
+                  className="sm:hidden h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                >
+                  <option value="all">كل الحالات</option>
+                  {availableStatuses.map((s) => (
+                    <option key={s} value={s}>{getOrderStatusMeta(s).label}</option>
+                  ))}
+                </select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-9 text-sm w-full sm:w-44">
+                  <SelectTrigger className="hidden sm:flex h-9 text-sm w-full sm:w-44">
                     <SelectValue placeholder="تصفية الحالة" />
                   </SelectTrigger>
                   <SelectContent>
