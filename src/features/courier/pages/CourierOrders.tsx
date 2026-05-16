@@ -1004,51 +1004,6 @@ export default function CourierOrders() {
           />
         </div>
 
-        {/* Chart */}
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  أداء آخر 7 أيام
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  مقارنة بين الطلبات المُسلَّمة والمرتجعة
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-[240px] w-full" />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-border/60">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr className="text-xs text-muted-foreground">
-                      <th className="text-right px-3 py-2 font-medium">اليوم</th>
-                      <th className="text-right px-3 py-2 font-medium">تم التسليم</th>
-                      <th className="text-right px-3 py-2 font-medium">مرتجع</th>
-                      <th className="text-right px-3 py-2 font-medium">الإجمالي</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {chartData.map((day) => (
-                      <tr key={day.key} className="border-t border-border/40">
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{day.label}</td>
-                        <td className="px-3 py-2 tabular-nums font-medium text-primary">{day.delivered}</td>
-                        <td className="px-3 py-2 tabular-nums font-medium text-destructive">{day.returned}</td>
-                        <td className="px-3 py-2 tabular-nums">{day.delivered + day.returned}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Orders Table */}
         <Card className="border-border/60 shadow-sm overflow-hidden">
           <CardHeader className="pb-3 gap-3">
