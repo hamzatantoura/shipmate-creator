@@ -7,6 +7,10 @@ import { Seo } from "@/shared/seo/Seo";
 import StoreHero from "../components/StoreHero";
 import CategoryFilter from "../components/CategoryFilter";
 import StorefrontProductCard from "../components/StorefrontProductCard";
+import { CartProvider, useCart } from "../cart/CartContext";
+import CartDrawer from "../cart/CartDrawer";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart } from "lucide-react";
 
 interface Product {
   id: string; name: string; image_url: string | null;
@@ -117,6 +121,7 @@ export default function Storefront() {
   };
 
   return (
+    <CartProvider merchantId={merchantId!}>
     <div className="min-h-screen bg-background" dir="rtl">
       <Seo
         title={seoTitle}
@@ -125,6 +130,7 @@ export default function Storefront() {
         type="website"
         jsonLd={jsonLd}
       />
+      <FloatingCartButton />
       {merchant && (
         <StoreHero
           merchantId={merchantId!}
@@ -156,6 +162,27 @@ export default function Storefront() {
           </div>
         )}
       </main>
+      <CartDrawer merchantId={merchantId!} />
     </div>
+    </CartProvider>
+  );
+}
+
+function FloatingCartButton() {
+  const cart = useCart();
+  return (
+    <Button
+      onClick={cart.openCart}
+      size="icon"
+      className="fixed top-4 left-4 z-40 h-12 w-12 rounded-full shadow-lg relative"
+      aria-label="فتح سلة المشتريات"
+    >
+      <ShoppingCart className="h-5 w-5" />
+      {cart.count > 0 && (
+        <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center border-2 border-background">
+          {cart.count}
+        </span>
+      )}
+    </Button>
   );
 }
