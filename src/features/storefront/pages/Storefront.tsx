@@ -174,6 +174,7 @@ export default function Storefront() {
 }
 
 function FloatingActions() {
+  const { merchantId } = useParams();
   const cart = useCart();
   const wish = useWishlist();
   const [bump, setBump] = useState(false);
@@ -215,7 +216,7 @@ function FloatingActions() {
       </button>
 
       <a
-        href="/track"
+        href={`/track?from=${encodeURIComponent(`/store/${merchantId}`)}`}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="تتبع شحنتك"
