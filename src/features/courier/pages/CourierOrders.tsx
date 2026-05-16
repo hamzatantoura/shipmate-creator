@@ -852,7 +852,7 @@ export default function CourierOrders() {
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
       {/* Header */}
-      <header className="border-b border-border bg-card/95 backdrop-blur sticky top-0 z-20">
+      <header className="border-b border-border bg-card sticky top-0 z-20 [transform:translateZ(0)] [will-change:transform]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/courier/orders" className="flex items-center gap-2.5">
             <img src={silaLogo} alt="Sila" className="h-8 w-8" />
