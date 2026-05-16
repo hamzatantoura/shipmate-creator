@@ -1004,51 +1004,6 @@ export default function CourierOrders() {
           />
         </div>
 
-        {/* Chart */}
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  أداء آخر 7 أيام
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  مقارنة بين الطلبات المُسلَّمة والمرتجعة
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-[240px] w-full" />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-border/60">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr className="text-xs text-muted-foreground">
-                      <th className="text-right px-3 py-2 font-medium">اليوم</th>
-                      <th className="text-right px-3 py-2 font-medium">تم التسليم</th>
-                      <th className="text-right px-3 py-2 font-medium">مرتجع</th>
-                      <th className="text-right px-3 py-2 font-medium">الإجمالي</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {chartData.map((day) => (
-                      <tr key={day.key} className="border-t border-border/40">
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{day.label}</td>
-                        <td className="px-3 py-2 tabular-nums font-medium text-primary">{day.delivered}</td>
-                        <td className="px-3 py-2 tabular-nums font-medium text-destructive">{day.returned}</td>
-                        <td className="px-3 py-2 tabular-nums">{day.delivered + day.returned}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Orders Table */}
         <Card className="border-border/60 shadow-sm overflow-hidden">
           <CardHeader className="pb-3 gap-3">
@@ -1221,7 +1176,59 @@ export default function CourierOrders() {
             ) : filtered.length === 0 ? (
               <EmptyState hasSearch={!!search || tab !== "all"} totalOrders={orders.length} />
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Mobile: simple stacked cards (avoids wide overflow-x table rendering glitches on Chrome Android) */}
+              <div className="md:hidden divide-y divide-border">
+                {filtered.map((o) => {
+                  const cod = o.final_sale_price ?? o.total_amount;
+                  const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
+                  const meta = getOrderStatusMeta(o.status);
+                  const Icon = meta.icon;
+                  return (
+                    <div key={o.id} className="p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">{o.receiver_name}</div>
+                          <div className="font-mono text-[11px] text-muted-foreground">{silaCodeOf(o.id)}</div>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium shrink-0 ${meta.className}`}>
+                          <Icon className="h-3 w-3" />
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
+                        <div className="text-muted-foreground">الهاتف</div>
+                        <div dir="ltr" className="text-right">{o.phone_number}</div>
+                        <div className="text-muted-foreground">المدينة</div>
+                        <div>{o.districts?.name || o.city}</div>
+                        <div className="text-muted-foreground">العنوان</div>
+                        <div className="truncate" title={o.detailed_address}>{o.detailed_address || "—"}</div>
+                        <div className="text-muted-foreground">التحصيل</div>
+                        <div className="tabular-nums font-semibold">{fmtSYP(Number(cod))}</div>
+                        <div className="text-muted-foreground">رسوم التوصيل</div>
+                        <div className="tabular-nums">{fmtSYP(Number(o.delivery_fee ?? 0))}</div>
+                        <div className="text-muted-foreground">التاريخ</div>
+                        <div className="tabular-nums">{new Date(o.created_at).toLocaleDateString("en-GB")}</div>
+                      </div>
+                      {!isFinal && (
+                        <Select value="" onValueChange={(v) => updateStatus(o.id, v)} disabled={updatingId === o.id}>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="تحديث الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(NEXT_STATUS_MAP[o.status] || []).map(s => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop / tablet: full table */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -1369,6 +1376,7 @@ export default function CourierOrders() {
                   </TableBody>
                 </Table>
               </div>
+              </>
             )}
           </CardContent>
         </Card>
