@@ -1684,10 +1684,10 @@ export default function CourierOrders() {
 
 type Tone = "default" | "success" | "primary" | "destructive";
 const TONES: Record<Tone, { ring: string; iconBg: string; iconText: string }> = {
-  default:     { ring: "border-border/60",                iconBg: "bg-muted",              iconText: "text-foreground" },
-  primary:     { ring: "border-primary/20",               iconBg: "bg-primary/10",         iconText: "text-primary" },
-  success:     { ring: "border-emerald-500/20",           iconBg: "bg-emerald-500/10",     iconText: "text-emerald-600 dark:text-emerald-400" },
-  destructive: { ring: "border-destructive/20",           iconBg: "bg-destructive/10",     iconText: "text-destructive" },
+  default:     { ring: "border-border",       iconBg: "bg-muted", iconText: "text-foreground" },
+  primary:     { ring: "border-border",       iconBg: "bg-muted", iconText: "text-primary" },
+  success:     { ring: "border-border",       iconBg: "bg-muted", iconText: "text-emerald-600 dark:text-emerald-400" },
+  destructive: { ring: "border-border",       iconBg: "bg-muted", iconText: "text-destructive" },
 };
 
 function KpiCard({
@@ -1695,8 +1695,7 @@ function KpiCard({
 }: { icon: React.ReactNode; label: string; value: number; sub?: string; tone?: Tone; loading?: boolean; }) {
   const t = TONES[tone];
   return (
-    <Card className={`shadow-sm ${t.ring}`}>
-      <CardContent className="p-4 sm:p-5">
+    <div className={`rounded-lg border bg-card p-4 sm:p-5 ${t.ring}`}>
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 min-w-0">
             <div className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">{label}</div>
@@ -1713,8 +1712,7 @@ function KpiCard({
             {icon}
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
