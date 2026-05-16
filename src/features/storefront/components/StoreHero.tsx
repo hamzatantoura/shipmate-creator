@@ -83,6 +83,9 @@ export default function StoreHero(props: Props) {
               socialLinks={props.socialLinks}
               websiteUrl={props.websiteUrl}
             />
+            <Button size="sm" variant="outline" className="gap-1.5 rounded-full" onClick={handleCopy}>
+              <Link2 className="h-3.5 w-3.5" /> نسخ الرابط
+            </Button>
             <Button size="sm" variant="default" className="gap-1.5 rounded-full" onClick={handleShare}>
               <Share2 className="h-3.5 w-3.5" /> مشاركة
             </Button>
