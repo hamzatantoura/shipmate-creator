@@ -235,8 +235,16 @@ export default function MerchantProducts() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="font-display font-semibold text-lg text-foreground">المنتجات</h2>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => window.open(getStoreUrl(), "_blank", "noopener,noreferrer")}
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> فتح المتجر
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => copyLink(getStoreUrl())}>
-            <ExternalLink className="h-3.5 w-3.5" /> رابط المتجر
+            <Copy className="h-3.5 w-3.5" /> نسخ الرابط
           </Button>
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
             <DialogTrigger asChild>
