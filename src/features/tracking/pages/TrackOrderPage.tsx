@@ -132,7 +132,16 @@ export default function TrackOrderPage() {
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (window.history.length > 1) window.history.back();
+              else navigate("/");
+            }}
+            className="shrink-0"
+            aria-label="رجوع"
+          >
             <ArrowRight className="h-5 w-5" />
           </Button>
           <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shadow-md">
