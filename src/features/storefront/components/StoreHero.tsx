@@ -1,4 +1,4 @@
-import { Store, Share2 } from "lucide-react";
+import { Store, Share2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StoreInfoDialog from "./StoreInfoDialog";
 import { toast } from "sonner";
