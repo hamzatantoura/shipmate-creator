@@ -1644,7 +1644,7 @@ function KpiCard({
 }: { icon: React.ReactNode; label: string; value: number; sub?: string; tone?: Tone; loading?: boolean; }) {
   const t = TONES[tone];
   return (
-    <Card className={`shadow-sm transition hover:shadow-md ${t.ring}`}>
+    <Card className={`shadow-sm ${t.ring}`}>
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 min-w-0">
