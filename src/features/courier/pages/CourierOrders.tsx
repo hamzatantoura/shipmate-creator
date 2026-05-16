@@ -1686,6 +1686,19 @@ function KpiCard({
   );
 }
 
+function MobileMetric({ label, value, loading }: { label: string; value: number; loading?: boolean }) {
+  return (
+    <div className="p-3">
+      <div className="text-[11px] text-muted-foreground mb-1">{label}</div>
+      {loading ? (
+        <Skeleton className="h-6 w-14" />
+      ) : (
+        <div className="text-xl font-bold tabular-nums leading-none">{value.toLocaleString("ar-SY")}</div>
+      )}
+    </div>
+  );
+}
+
 function EmptyState({ hasSearch, totalOrders }: { hasSearch: boolean; totalOrders: number }) {
   return (
     <div className="py-16 px-6 flex flex-col items-center text-center">
