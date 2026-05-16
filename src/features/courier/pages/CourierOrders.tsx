@@ -919,11 +919,10 @@ export default function CourierOrders() {
 
           {mainTab === "orders" && <div className="space-y-4 sm:space-y-6">
         {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
-        <Card className="hidden sm:block border-primary/30 shadow-sm bg-card">
-          <CardContent className="p-3 sm:p-4">
+        <div className="hidden sm:block rounded-lg border border-border bg-card p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 shrink-0">
-                <div className="h-9 w-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center">
+                <div className="h-9 w-9 rounded-lg bg-muted text-primary flex items-center justify-center">
                   <Zap className="h-4 w-4" />
                 </div>
                 <div className="leading-tight">
@@ -941,7 +940,7 @@ export default function CourierOrders() {
                   value={scanInput}
                   onChange={(e) => setScanInput(e.target.value)}
                   placeholder="امسح أو اكتب رمز الطلب (SL-XXXXXX) ثم اضغط Enter"
-                  className="pr-9 h-10 text-sm font-mono border-primary/40 focus-visible:ring-primary"
+                  className="pr-9 h-10 text-sm font-mono"
                   dir="ltr"
                 />
               </form>
@@ -966,8 +965,7 @@ export default function CourierOrders() {
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </div>
 
         <div className="sm:hidden rounded-lg border border-border bg-card divide-y divide-border">
           <div className="grid grid-cols-2 divide-x divide-x-reverse divide-border">
@@ -1015,7 +1013,7 @@ export default function CourierOrders() {
         </div>
 
         {/* Orders Table */}
-        <Card className="border-border/60 shadow-none sm:shadow-sm sm:overflow-hidden">
+        <Card className="border-border shadow-none">
           <CardHeader className="pb-3 gap-3 p-3 sm:p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
@@ -1686,10 +1684,10 @@ export default function CourierOrders() {
 
 type Tone = "default" | "success" | "primary" | "destructive";
 const TONES: Record<Tone, { ring: string; iconBg: string; iconText: string }> = {
-  default:     { ring: "border-border/60",                iconBg: "bg-muted",              iconText: "text-foreground" },
-  primary:     { ring: "border-primary/20",               iconBg: "bg-primary/10",         iconText: "text-primary" },
-  success:     { ring: "border-emerald-500/20",           iconBg: "bg-emerald-500/10",     iconText: "text-emerald-600 dark:text-emerald-400" },
-  destructive: { ring: "border-destructive/20",           iconBg: "bg-destructive/10",     iconText: "text-destructive" },
+  default:     { ring: "border-border",       iconBg: "bg-muted", iconText: "text-foreground" },
+  primary:     { ring: "border-border",       iconBg: "bg-muted", iconText: "text-primary" },
+  success:     { ring: "border-border",       iconBg: "bg-muted", iconText: "text-emerald-600 dark:text-emerald-400" },
+  destructive: { ring: "border-border",       iconBg: "bg-muted", iconText: "text-destructive" },
 };
 
 function KpiCard({
@@ -1697,8 +1695,7 @@ function KpiCard({
 }: { icon: React.ReactNode; label: string; value: number; sub?: string; tone?: Tone; loading?: boolean; }) {
   const t = TONES[tone];
   return (
-    <Card className={`shadow-sm ${t.ring}`}>
-      <CardContent className="p-4 sm:p-5">
+    <div className={`rounded-lg border bg-card p-4 sm:p-5 ${t.ring}`}>
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 min-w-0">
             <div className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">{label}</div>
@@ -1715,8 +1712,7 @@ function KpiCard({
             {icon}
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
