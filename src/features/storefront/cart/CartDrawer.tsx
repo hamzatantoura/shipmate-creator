@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Minus, Plus, Trash2, ShoppingBag, Loader2, Check, Package } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useCart } from "./CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,6 +16,8 @@ import { SyrianPhoneInput } from "@/shared/components/inputs/SyrianPhoneInput";
 import { isValidSyrianPhone } from "@/shared/lib/syrian-phone";
 
 interface Props { merchantId: string; }
+
+const FREE_SHIPPING_THRESHOLD = 100000; // ل.س
 
 interface District {
   id: string; name: string; province_ar: string | null;
@@ -131,6 +134,22 @@ export default function CartDrawer({ merchantId }: Props) {
 
           {cart.items.length > 0 && (
             <div className="border-t border-border p-4 space-y-3 bg-card">
+              {(() => {
+                const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - cart.total);
+                const pct = Math.min(100, (cart.total / FREE_SHIPPING_THRESHOLD) * 100);
+                return (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground text-center">
+                      {remaining > 0 ? (
+                        <>أضف <span className="font-bold text-primary">{remaining.toLocaleString()} ل.س</span> للحصول على شحن مجاني! 🚚</>
+                      ) : (
+                        <span className="font-bold text-primary">🎉 مبروك! حصلت على شحن مجاني</span>
+                      )}
+                    </p>
+                    <Progress value={pct} className="h-2" />
+                  </div>
+                );
+              })()}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">الإجمالي (دون الشحن)</span>
                 <span className="font-display font-bold text-lg text-primary">{cart.total.toLocaleString()} ل.س</span>
