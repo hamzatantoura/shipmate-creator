@@ -51,7 +51,6 @@ export function CartProvider({ merchantId, children }: { merchantId: string; chi
         if (existing) return prev.map(p => p.id === item.id ? { ...p, quantity: p.quantity + qty } : p);
         return [...prev, { ...item, quantity: qty }];
       });
-      setIsOpen(true);
     },
     remove: (id) => setItems(prev => prev.filter(p => p.id !== id)),
     setQty: (id, qty) => setItems(prev => qty <= 0 ? prev.filter(p => p.id !== id) : prev.map(p => p.id === id ? { ...p, quantity: qty } : p)),
