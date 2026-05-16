@@ -36,9 +36,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import {
-  ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip as RTooltip, Legend,
-} from "recharts";
 import silaLogo from "@/assets/sila-logo.png";
 import BarcodeScanner from "@/features/courier/components/BarcodeScanner";
 import WalletTransactionsLog from "@/features/wallet/components/WalletTransactionsLog";
@@ -850,9 +847,9 @@ export default function CourierOrders() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30" dir="rtl">
+    <div className="min-h-screen bg-background" dir="rtl">
       {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-20 [transform:translateZ(0)] [will-change:transform]">
+      <header className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/courier/orders" className="flex items-center gap-2.5">
             <img src={silaLogo} alt="Sila" className="h-8 w-8" />
@@ -923,7 +920,7 @@ export default function CourierOrders() {
 
           <TabsContent value="orders" className="space-y-6 mt-0">
         {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
-        <Card className="border-primary/30 shadow-sm bg-gradient-to-l from-primary/5 to-transparent">
+        <Card className="border-primary/30 shadow-sm bg-card">
           <CardContent className="p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 shrink-0">
@@ -1026,36 +1023,37 @@ export default function CourierOrders() {
             {loading ? (
               <Skeleton className="h-[240px] w-full" />
             ) : (
-              <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 12, left: -8, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gDelivered" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.45} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="gReturned" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} width={28} />
-                    <RTooltip
-                      contentStyle={{
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                      labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
-                    />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Area type="monotone" dataKey="delivered" name="تم التسليم" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#gDelivered)" />
-                    <Area type="monotone" dataKey="returned" name="مرتجع" stroke="hsl(var(--destructive))" strokeWidth={2} fill="url(#gReturned)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="h-[240px] w-full rounded-lg border border-border/60 bg-card px-3 py-4">
+                <div className="flex h-full items-end justify-between gap-2 border-b border-border/70 pb-6">
+                  {chartData.map((day) => {
+                    const maxValue = Math.max(1, ...chartData.flatMap((item) => [item.delivered, item.returned]));
+                    const deliveredHeight = Math.max(4, Math.round((day.delivered / maxValue) * 150));
+                    const returnedHeight = Math.max(4, Math.round((day.returned / maxValue) * 150));
+                    return (
+                      <div key={day.key} className="relative flex h-full flex-1 flex-col items-center justify-end gap-2">
+                        <div className="flex h-[160px] items-end justify-center gap-1.5">
+                          <div
+                            className="w-3 rounded-t-sm bg-primary"
+                            style={{ height: day.delivered ? deliveredHeight : 4 }}
+                            title={`تم التسليم: ${day.delivered}`}
+                          />
+                          <div
+                            className="w-3 rounded-t-sm bg-destructive"
+                            style={{ height: day.returned ? returnedHeight : 4 }}
+                            title={`مرتجع: ${day.returned}`}
+                          />
+                        </div>
+                        <span className="absolute -bottom-5 text-[10px] text-muted-foreground whitespace-nowrap">
+                          {day.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" />تم التسليم</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-destructive" />مرتجع</span>
+                </div>
               </div>
             )}
           </CardContent>
