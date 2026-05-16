@@ -871,7 +871,7 @@ export default function CourierOrders() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Greeting */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
@@ -902,23 +902,23 @@ export default function CourierOrders() {
         </div>
 
         {/* Top-level tabs: Orders / Scanner / Wallet */}
-        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as typeof mainTab)} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 p-1">
-            <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as typeof mainTab)} className="space-y-4 sm:space-y-6">
+          <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 p-1 rounded-lg">
+            <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card transition-none">
               <Package className="h-3.5 w-3.5" />
               الطلبات
             </TabsTrigger>
-            <TabsTrigger value="scanner" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+            <TabsTrigger value="scanner" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card transition-none">
               <ScanLine className="h-3.5 w-3.5" />
               الماسح الضوئي
             </TabsTrigger>
-            <TabsTrigger value="wallet" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+            <TabsTrigger value="wallet" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card transition-none">
               <Wallet className="h-3.5 w-3.5" />
               المحفظة
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="orders" className="space-y-6 mt-0">
+          <TabsContent value="orders" className="space-y-4 sm:space-y-6 mt-0">
         {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
         <Card className="border-primary/30 shadow-sm bg-card">
           <CardContent className="p-3 sm:p-4">
