@@ -240,17 +240,51 @@ export default function MerchantProducts() {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
-                    <Label>السعر (ل.س)</Label>
+                    <Label>سعر البيع (ل.س)</Label>
                     <Input type="number" min="0" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required />
                   </div>
                   <div className="space-y-2">
-                    <Label>المخزون</Label>
-                    <Input type="number" min="0" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+                    <Label>السعر الأصلي <span className="text-muted-foreground text-[10px]">(اختياري)</span></Label>
+                    <Input type="number" min="0" value={form.original_price}
+                      onChange={e => setForm({...form, original_price: e.target.value})}
+                      placeholder="قبل الخصم" />
                   </div>
                   <div className="space-y-2">
                     <Label>الوزن (كغ)</Label>
                     <Input type="number" min="0.1" step="0.1" value={form.weight_kg} onChange={e => setForm({...form, weight_kg: e.target.value})} required />
                   </div>
+                </div>
+
+                {form.original_price && parseFloat(form.original_price) > parseFloat(form.price || "0") && parseFloat(form.price || "0") > 0 && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs px-3 py-1.5 font-semibold">
+                    خصم {Math.round(((parseFloat(form.original_price) - parseFloat(form.price)) / parseFloat(form.original_price)) * 100)}% — سيظهر شارة تخفيض على البطاقة
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>التصنيف</Label>
+                    <Input value={form.category}
+                      onChange={e => setForm({...form, category: e.target.value})}
+                      placeholder="ملابس، إلكترونيات..." list="merchant-categories" />
+                    <datalist id="merchant-categories">
+                      {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(c => (
+                        <option key={c as string} value={c as string} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>المخزون</Label>
+                    <Input type="number" min="0" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border border-border bg-card/40 px-3 py-2">
+                  <div>
+                    <Label className="text-sm">الحالة: {form.in_stock ? "متوفر" : "غير متوفر"}</Label>
+                    <p className="text-[11px] text-muted-foreground">عند الإيقاف يظهر "غير متوفر" على البطاقة.</p>
+                  </div>
+                  <Switch checked={form.in_stock} onCheckedChange={(v) => setForm({...form, in_stock: v})} />
                 </div>
 
                 {/* Dimensions for volumetric weight */}
