@@ -1,52 +1,72 @@
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Store, Package, ShieldAlert } from "lucide-react";
+import { Package, ShieldAlert } from "lucide-react";
 import { Seo } from "@/shared/seo/Seo";
+import StoreHero from "../components/StoreHero";
+import CategoryFilter from "../components/CategoryFilter";
+import StorefrontProductCard from "../components/StorefrontProductCard";
 
 interface Product {
-  id: string; name: string; description: string | null; image_url: string | null;
-  price: number; slug: string | null; size_category: string;
+  id: string; name: string; image_url: string | null;
+  price: number; original_price: number | null; slug: string | null;
+  in_stock: boolean; category: string | null;
 }
 
-interface MerchantProfile {
-  store_name: string | null; city: string | null; phone: string | null;
+interface MerchantInfo {
+  store_name: string; city: string | null;
+  logo_url: string | null; banner_url: string | null;
+  bio: string | null; operating_hours: string | null;
+  whatsapp_number: string | null;
 }
-
-const SIZE_LABELS: Record<string, string> = { small: "صغير", medium: "متوسط", large: "كبير" };
 
 export default function Storefront() {
   const { merchantId } = useParams();
   const [products, setProducts] = useState<Product[]>([]);
-  const [merchant, setMerchant] = useState<MerchantProfile | null>(null);
+  const [merchant, setMerchant] = useState<MerchantInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [merchantBlocked, setMerchantBlocked] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (!merchantId) return;
-    // Use secure RPC function — returns only safe public fields (no phone, no balance, no docs)
     supabase.rpc("get_public_merchant_info", { p_merchant_user_id: merchantId }).then(({ data: m, error }) => {
-      if (error || !m) {
-        setMerchantBlocked(true);
-        setLoading(false);
-        return;
+      if (error || !m) { setMerchantBlocked(true); setLoading(false); return; }
+      const info = m as any;
+      if (!info.is_active || info.verification_status !== "verified") {
+        setMerchantBlocked(true); setLoading(false); return;
       }
-      const merchant = m as any;
-      if (!merchant.is_active || merchant.verification_status !== "verified") {
-        setMerchantBlocked(true);
-        setLoading(false);
-        return;
-      }
-      setMerchant({ store_name: merchant.store_name, city: merchant.city, phone: null });
-      supabase.from("products").select("*").eq("merchant_id", merchantId).eq("is_active", true)
-        .order("created_at", { ascending: false }).then(({ data: prods }) => {
+      setMerchant({
+        store_name: info.store_name || "متجر",
+        city: info.city,
+        logo_url: info.logo_url,
+        banner_url: info.banner_url,
+        bio: info.bio,
+        operating_hours: info.operating_hours,
+        whatsapp_number: info.whatsapp_number,
+      });
+      supabase.from("products")
+        .select("id, name, image_url, price, original_price, slug, in_stock, category")
+        .eq("merchant_id", merchantId).eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .then(({ data: prods }) => {
           if (prods) setProducts(prods as any);
           setLoading(false);
         });
     });
   }, [merchantId]);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    products.forEach(p => { if (p.category && p.category.trim()) set.add(p.category.trim()); });
+    return Array.from(set);
+  }, [products]);
+
+  const visibleProducts = useMemo(
+    () => activeCategory ? products.filter(p => p.category === activeCategory) : products,
+    [products, activeCategory],
+  );
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">جاري التحميل...</div>;
 
@@ -70,7 +90,7 @@ export default function Storefront() {
   const storeName = merchant?.store_name || "متجر";
   const seoTitle = `${storeName} | صلة`;
   const seoDesc = `تسوّق منتجات ${storeName}${merchant?.city ? ` في ${merchant.city}` : ""} مع شحن سريع وموثوق عبر منصة صلة.`;
-  const firstImage = products.find((p) => p.image_url)?.image_url || undefined;
+  const firstImage = merchant?.banner_url || merchant?.logo_url || products.find((p) => p.image_url)?.image_url || undefined;
   const storeUrl = typeof window !== "undefined" ? window.location.href : `https://sila-sy.com/store/${merchantId}`;
   const jsonLd = {
     "@context": "https://schema.org",
@@ -101,49 +121,31 @@ export default function Storefront() {
         type="website"
         jsonLd={jsonLd}
       />
-      <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Store className="h-5 w-5 text-primary" />
-            <span className="font-display font-bold text-lg text-foreground">{merchant?.store_name || "متجر"}</span>
-          </div>
-          {merchant?.city && <span className="text-sm text-muted-foreground">{merchant.city}</span>}
-        </div>
-      </header>
+      {merchant && (
+        <StoreHero
+          merchantId={merchantId!}
+          storeName={merchant.store_name}
+          bio={merchant.bio}
+          city={merchant.city}
+          bannerUrl={merchant.banner_url}
+          logoUrl={merchant.logo_url}
+          operatingHours={merchant.operating_hours}
+          whatsappNumber={merchant.whatsapp_number}
+        />
+      )}
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {products.length === 0 ? (
+      <main className="max-w-5xl mx-auto px-4 pb-12">
+        <CategoryFilter categories={categories} active={activeCategory} onChange={setActiveCategory} />
+
+        {visibleProducts.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground">
             <Package className="h-16 w-16 mx-auto mb-4 opacity-30" />
             <p className="text-lg">لا توجد منتجات متاحة حالياً</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {products.map((p, idx) => (
-              <Link key={p.id} to={`/product/${p.slug || p.id}`}>
-                <Card className="border-border hover:border-primary/30 transition-all overflow-hidden group cursor-pointer h-full">
-                  <div className="aspect-square bg-muted/30 flex items-center justify-center overflow-hidden">
-                    {p.image_url ? (
-                      <img
-                        src={p.image_url}
-                        alt={p.name}
-                        loading={idx < 4 ? "eager" : "lazy"}
-                        decoding="async"
-                        fetchPriority={idx === 0 ? "high" : "auto"}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    ) : (
-                      <Package className="h-10 w-10 text-muted-foreground/30" />
-                    )}
-                  </div>
-                  <CardContent className="p-3">
-                    <h3 className="font-semibold text-sm text-foreground line-clamp-1">{p.name}</h3>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-primary font-display font-bold text-sm">{Number(p.price).toLocaleString()} ل.س</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 mt-6">
+            {visibleProducts.map((p, idx) => (
+              <StorefrontProductCard key={p.id} product={p} eager={idx < 4} />
             ))}
           </div>
         )}

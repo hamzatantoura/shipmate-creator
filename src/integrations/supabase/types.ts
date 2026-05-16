@@ -534,8 +534,46 @@ export type Database = {
         }
         Relationships: []
       }
+      merchant_branches: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          merchant_id: string
+          name: string
+          phone: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          merchant_id: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          merchant_id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       merchants: {
         Row: {
+          banner_url: string | null
+          bio: string | null
           city: string | null
           contact_person: string | null
           created_at: string
@@ -548,6 +586,7 @@ export type Database = {
           id_image_url: string | null
           is_active: boolean
           logo_url: string | null
+          operating_hours: string | null
           phone: string | null
           phone_verified: boolean
           platform_fee_rate: number
@@ -565,6 +604,8 @@ export type Database = {
           whatsapp_number: string | null
         }
         Insert: {
+          banner_url?: string | null
+          bio?: string | null
           city?: string | null
           contact_person?: string | null
           created_at?: string
@@ -577,6 +618,7 @@ export type Database = {
           id_image_url?: string | null
           is_active?: boolean
           logo_url?: string | null
+          operating_hours?: string | null
           phone?: string | null
           phone_verified?: boolean
           platform_fee_rate?: number
@@ -594,6 +636,8 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Update: {
+          banner_url?: string | null
+          bio?: string | null
           city?: string | null
           contact_person?: string | null
           created_at?: string
@@ -606,6 +650,7 @@ export type Database = {
           id_image_url?: string | null
           is_active?: boolean
           logo_url?: string | null
+          operating_hours?: string | null
           phone?: string | null
           phone_verified?: boolean
           platform_fee_rate?: number
@@ -985,16 +1030,19 @@ export type Database = {
       }
       products: {
         Row: {
+          category: string | null
           created_at: string
           deleted_at: string | null
           description: string | null
           height_cm: number | null
           id: string
           image_url: string | null
+          in_stock: boolean
           is_active: boolean
           length_cm: number | null
           merchant_id: string
           name: string
+          original_price: number | null
           price: number
           slug: string | null
           stock: number
@@ -1003,16 +1051,19 @@ export type Database = {
           width_cm: number | null
         }
         Insert: {
+          category?: string | null
           created_at?: string
           deleted_at?: string | null
           description?: string | null
           height_cm?: number | null
           id?: string
           image_url?: string | null
+          in_stock?: boolean
           is_active?: boolean
           length_cm?: number | null
           merchant_id: string
           name: string
+          original_price?: number | null
           price?: number
           slug?: string | null
           stock?: number
@@ -1021,16 +1072,19 @@ export type Database = {
           width_cm?: number | null
         }
         Update: {
+          category?: string | null
           created_at?: string
           deleted_at?: string | null
           description?: string | null
           height_cm?: number | null
           id?: string
           image_url?: string | null
+          in_stock?: boolean
           is_active?: boolean
           length_cm?: number | null
           merchant_id?: string
           name?: string
+          original_price?: number | null
           price?: number
           slug?: string | null
           stock?: number
@@ -1668,6 +1722,18 @@ export type Database = {
           return_fee_percentage?: number | null
           return_fee_type?: string | null
           services?: string[] | null
+        }
+        Relationships: []
+      }
+      merchant_branches_public: {
+        Row: {
+          address: string | null
+          id: string | null
+          is_primary: boolean | null
+          merchant_id: string | null
+          name: string | null
+          phone: string | null
+          whatsapp: string | null
         }
         Relationships: []
       }

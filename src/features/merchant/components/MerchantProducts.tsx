@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil } from "lucide-react";
+import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil, X, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { compressImage } from "@/shared/lib/image-compress";
 import ProductVariantsForm, { VariantEntry } from "./ProductVariantsForm";
@@ -19,6 +21,7 @@ interface Product {
   price: number; stock: number; is_active: boolean; created_at: string;
   weight_kg: number; slug: string | null;
   length_cm: number; width_cm: number; height_cm: number;
+  original_price: number | null; in_stock: boolean; category: string | null;
 }
 
 interface ProductImage {
@@ -38,7 +41,11 @@ export default function MerchantProducts() {
   const [productImages, setProductImages] = useState<Record<string, ProductImage[]>>({});
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", price: "", stock: "0", description: "", weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0" });
+  const [form, setForm] = useState({
+    name: "", price: "", original_price: "", stock: "0", description: "",
+    weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0",
+    category: "", in_stock: true,
+  });
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [variants, setVariants] = useState<VariantEntry[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -66,7 +73,11 @@ export default function MerchantProducts() {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const resetForm = () => {
-    setForm({ name: "", price: "", stock: "0", description: "", weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0" });
+    setForm({
+      name: "", price: "", original_price: "", stock: "0", description: "",
+      weight_kg: "1", length_cm: "0", width_cm: "0", height_cm: "0",
+      category: "", in_stock: true,
+    });
     setImageFiles([]); setVariants([]); setEditingProduct(null);
   };
 
@@ -75,9 +86,12 @@ export default function MerchantProducts() {
   const openEditDialog = (p: Product) => {
     setEditingProduct(p);
     setForm({
-      name: p.name, price: String(p.price), stock: String(p.stock),
+      name: p.name, price: String(p.price),
+      original_price: p.original_price ? String(p.original_price) : "",
+      stock: String(p.stock),
       description: p.description || "", weight_kg: String(p.weight_kg),
       length_cm: String(p.length_cm || 0), width_cm: String(p.width_cm || 0), height_cm: String(p.height_cm || 0),
+      category: p.category || "", in_stock: p.in_stock,
     });
     setImageFiles([]); setVariants([]); setOpen(true);
   };
@@ -92,6 +106,9 @@ export default function MerchantProducts() {
         name: form.name.trim(),
         description: form.description.trim() || null,
         price: parseFloat(form.price) || 0,
+        original_price: form.original_price.trim() ? parseFloat(form.original_price) : null,
+        category: form.category.trim() || null,
+        in_stock: form.in_stock,
         stock: parseInt(form.stock) || 0,
         weight_kg: parseFloat(form.weight_kg) || 1,
         length_cm: parseFloat(form.length_cm) || 0,
@@ -114,8 +131,18 @@ export default function MerchantProducts() {
           image_url = pub.publicUrl;
         }
 
-        const { error } = await supabase.from("products").update({ ...productData, image_url }).eq("id", editingProduct.id);
+        const { error } = await supabase.from("products").update({ ...productData, image_url } as any).eq("id", editingProduct.id);
         if (error) { toast.error(error.message); setLoading(false); return; }
+
+        // Replace variants when editing
+        await supabase.from("product_variants" as any).delete().eq("product_id", editingProduct.id);
+        if (variants.length > 0) {
+          const rows = variants.map(v => ({
+            product_id: editingProduct.id, variant_type: v.variant_type,
+            variant_value: v.variant_value, price_adjustment: v.price_adjustment, stock: v.stock,
+          }));
+          await supabase.from("product_variants" as any).insert(rows as any);
+        }
         toast.success("تم تعديل المنتج بنجاح!");
       } else {
         let image_url: string | null = null;
@@ -173,6 +200,15 @@ export default function MerchantProducts() {
     else { toast.success("تم حذف المنتج"); fetchProducts(); }
   };
 
+  const toggleVisibility = async (p: Product) => {
+    const { error } = await supabase.from("products").update({ is_active: !p.is_active } as any).eq("id", p.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(!p.is_active ? "تم إظهار المنتج" : "تم إخفاء المنتج");
+      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !p.is_active } : x));
+    }
+  };
+
   const getProductUrl = (p: Product) => `${window.location.origin}/product/${p.slug || p.id}`;
   const getStoreUrl = () => `${window.location.origin}/store/${user?.id}`;
   const copyLink = (url: string) => { navigator.clipboard.writeText(url); toast.success("تم نسخ الرابط"); };
@@ -213,17 +249,51 @@ export default function MerchantProducts() {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
-                    <Label>السعر (ل.س)</Label>
+                    <Label>سعر البيع (ل.س)</Label>
                     <Input type="number" min="0" value={form.price} onChange={e => setForm({...form, price: e.target.value})} required />
                   </div>
                   <div className="space-y-2">
-                    <Label>المخزون</Label>
-                    <Input type="number" min="0" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+                    <Label>السعر الأصلي <span className="text-muted-foreground text-[10px]">(اختياري)</span></Label>
+                    <Input type="number" min="0" value={form.original_price}
+                      onChange={e => setForm({...form, original_price: e.target.value})}
+                      placeholder="قبل الخصم" />
                   </div>
                   <div className="space-y-2">
                     <Label>الوزن (كغ)</Label>
                     <Input type="number" min="0.1" step="0.1" value={form.weight_kg} onChange={e => setForm({...form, weight_kg: e.target.value})} required />
                   </div>
+                </div>
+
+                {form.original_price && parseFloat(form.original_price) > parseFloat(form.price || "0") && parseFloat(form.price || "0") > 0 && (
+                  <div className="rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs px-3 py-1.5 font-semibold">
+                    خصم {Math.round(((parseFloat(form.original_price) - parseFloat(form.price)) / parseFloat(form.original_price)) * 100)}% — سيظهر شارة تخفيض على البطاقة
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>التصنيف</Label>
+                    <Input value={form.category}
+                      onChange={e => setForm({...form, category: e.target.value})}
+                      placeholder="ملابس، إلكترونيات..." list="merchant-categories" />
+                    <datalist id="merchant-categories">
+                      {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(c => (
+                        <option key={c as string} value={c as string} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>المخزون</Label>
+                    <Input type="number" min="0" value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border border-border bg-card/40 px-3 py-2">
+                  <div>
+                    <Label className="text-sm">الحالة: {form.in_stock ? "متوفر" : "غير متوفر"}</Label>
+                    <p className="text-[11px] text-muted-foreground">عند الإيقاف يظهر "غير متوفر" على البطاقة.</p>
+                  </div>
+                  <Switch checked={form.in_stock} onCheckedChange={(v) => setForm({...form, in_stock: v})} />
                 </div>
 
                 {/* Dimensions for volumetric weight */}
@@ -245,7 +315,7 @@ export default function MerchantProducts() {
                   </div>
                 </div>
 
-                {!editingProduct && <ProductVariantsForm variants={variants} onChange={setVariants} />}
+                <ProductVariantsForm variants={variants} onChange={setVariants} />
                 <div className="space-y-2">
                   <Label>{editingProduct ? "تغيير صورة المنتج (اختياري)" : "صور المنتج (يمكنك اختيار عدة صور)"}</Label>
                   <Input type="file" accept="image/*" multiple={!editingProduct} onChange={e => {
@@ -257,7 +327,23 @@ export default function MerchantProducts() {
                       setImageFiles(files);
                     }
                   }} />
-                  {imageFiles.length > 0 && <p className="text-xs text-muted-foreground">{imageFiles.length} / {maxImages} صورة محددة</p>}
+                  {imageFiles.length > 0 && (
+                    <>
+                      <p className="text-xs text-muted-foreground">{imageFiles.length} / {maxImages} صورة محددة</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {imageFiles.map((f, i) => (
+                          <div key={i} className="relative group aspect-square rounded-md overflow-hidden border border-border">
+                            <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                            <button type="button"
+                              onClick={() => setImageFiles(imageFiles.filter((_, j) => j !== i))}
+                              className="absolute top-1 end-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
                 <Button type="submit" disabled={loading} className="w-full glow-btn">
                   {loading ? <Loader2 className="h-4 w-4 animate-spin ml-2" /> : editingProduct ? <Pencil className="h-4 w-4 ml-2" /> : <Plus className="h-4 w-4 ml-2" />}
@@ -288,28 +374,59 @@ export default function MerchantProducts() {
           {products.map(p => {
             const images = productImages[p.id] || [];
             const displayImage = p.image_url || images[0]?.image_url;
+            const hasDiscount = p.original_price && p.original_price > p.price;
+            const discountPct = hasDiscount
+              ? Math.round(((Number(p.original_price) - Number(p.price)) / Number(p.original_price)) * 100)
+              : 0;
             return (
-              <Card key={p.id} className="bg-card border-border overflow-hidden">
+              <Card key={p.id} className={`bg-card border-border overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 duration-300 ${!p.is_active ? "opacity-60" : ""}`}>
                 <div className="aspect-video bg-muted/30 flex items-center justify-center overflow-hidden relative">
                   {displayImage ? (
                     <img src={displayImage} alt={p.name} className="w-full h-full object-cover" />
                   ) : (
                     <ImagePlus className="h-10 w-10 text-muted-foreground/30" />
                   )}
+                  {hasDiscount && (
+                    <span className="absolute top-2 start-2 bg-destructive text-destructive-foreground text-[11px] font-bold px-2 py-0.5 rounded-md shadow">
+                      %{discountPct}-
+                    </span>
+                  )}
+                  {!p.in_stock && (
+                    <span className="absolute top-2 end-2 bg-muted text-foreground text-[11px] font-semibold px-2 py-0.5 rounded-md border border-border">
+                      غير متوفر
+                    </span>
+                  )}
                   {images.length > 1 && (
                     <span className="absolute bottom-2 left-2 bg-foreground/70 text-background text-xs px-2 py-0.5 rounded-full">+{images.length - 1}</span>
                   )}
                 </div>
                 <CardContent className="p-4 space-y-2">
-                  <h3 className="font-semibold text-foreground">{p.name}</h3>
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
+                    {p.category && <Badge variant="outline" className="text-[10px] shrink-0">{p.category}</Badge>}
+                  </div>
                   {p.description && <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>}
                   <div className="flex items-center justify-between">
-                    <span className="text-primary font-display font-bold">{Number(p.price).toLocaleString()} ل.س</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-primary font-display font-bold">{Number(p.price).toLocaleString()} ل.س</span>
+                      {hasDiscount && (
+                        <span className="text-muted-foreground text-xs line-through">{Number(p.original_price).toLocaleString()}</span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{p.weight_kg} كغ</span>
                       <span>المخزون: {p.stock}</span>
                     </div>
                   </div>
+
+                  <div className="flex items-center justify-between rounded-md bg-muted/40 px-2 py-1.5">
+                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                      {p.is_active ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                      {p.is_active ? "ظاهر للزبائن" : "مخفي"}
+                    </span>
+                    <Switch checked={p.is_active} onCheckedChange={() => toggleVisibility(p)} />
+                  </div>
+
                   <div className="flex gap-1.5 pt-1">
                     <Button variant="outline" size="sm" className="gap-1" onClick={() => openEditDialog(p)}>
                       <Pencil className="h-3 w-3" /> تعديل
