@@ -1015,7 +1015,7 @@ export default function CourierOrders() {
         </div>
 
         {/* Orders Table */}
-        <Card className="border-border/60 shadow-sm sm:overflow-hidden">
+        <Card className="border-border/60 shadow-none sm:shadow-sm sm:overflow-hidden">
           <CardHeader className="pb-3 gap-3 p-3 sm:p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
@@ -1463,7 +1463,7 @@ export default function CourierOrders() {
 
           {/* SCANNER TAB */}
           {mainTab === "scanner" && <div>
-            <Card className="border-border/60 shadow-sm">
+            <Card className="border-border/60 shadow-none sm:shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <ScanLine className="h-4 w-4 text-primary" />
