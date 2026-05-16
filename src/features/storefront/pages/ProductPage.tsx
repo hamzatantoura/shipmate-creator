@@ -326,10 +326,17 @@ export default function ProductPage() {
               <p className="text-xs text-warning">رقم واتساب التاجر غير متوفر حالياً، سيتواصل معك التاجر مباشرةً.</p>
             )}
             {orderDetails && (
-              <a href={`/track/${orderDetails.orderId}`} className="block">
+              <a href={`/track?code=${encodeURIComponent(orderDetails.orderId)}`} className="block">
                 <Button variant="outline" className="w-full gap-2 h-11">
                   <Package className="h-4 w-4" />
                   تتبع حالة طلبك
+                </Button>
+              </a>
+            )}
+            {product?.merchant_id && (
+              <a href={`/store/${product.merchant_id}`} className="block">
+                <Button variant="ghost" className="w-full gap-2 h-11">
+                  العودة إلى المتجر
                 </Button>
               </a>
             )}
