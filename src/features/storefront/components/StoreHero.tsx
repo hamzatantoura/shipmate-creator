@@ -1,4 +1,4 @@
-import { Store, Share2 } from "lucide-react";
+import { Store, Share2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StoreInfoDialog from "./StoreInfoDialog";
 import { toast } from "sonner";
@@ -25,6 +25,15 @@ export default function StoreHero(props: Props) {
     }
     try {
       await navigator.clipboard.writeText(url);
+      toast.success("تم نسخ رابط المتجر");
+    } catch {
+      toast.error("تعذّر نسخ الرابط");
+    }
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
       toast.success("تم نسخ رابط المتجر");
     } catch {
       toast.error("تعذّر نسخ الرابط");
@@ -74,6 +83,9 @@ export default function StoreHero(props: Props) {
               socialLinks={props.socialLinks}
               websiteUrl={props.websiteUrl}
             />
+            <Button size="sm" variant="outline" className="gap-1.5 rounded-full" onClick={handleCopy}>
+              <Link2 className="h-3.5 w-3.5" /> نسخ الرابط
+            </Button>
             <Button size="sm" variant="default" className="gap-1.5 rounded-full" onClick={handleShare}>
               <Share2 className="h-3.5 w-3.5" /> مشاركة
             </Button>
