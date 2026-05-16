@@ -66,6 +66,7 @@ export default function ProductPage() {
   const [merchantBlocked, setMerchantBlocked] = useState(false);
 
   const [districts, setDistricts] = useState<District[]>([]);
+  const [rateMap, setRateMap] = useState<Record<string, number>>({});
   const [selectedProvinceId, setSelectedProvinceId] = useState("");
   const [selectedAreaId, setSelectedAreaId] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -148,6 +149,22 @@ export default function ProductPage() {
       .then(({ data }) => {
         if (data) setDistricts(data as any);
       });
+    // Fetch min courier delivery fee per district
+    supabase
+      .from("courier_district_rates")
+      .select("district_id, custom_delivery_fee")
+      .then(({ data }) => {
+        if (!data) return;
+        const map: Record<string, number> = {};
+        for (const r of data as any[]) {
+          const fee = Number(r.custom_delivery_fee);
+          if (fee <= 0) continue;
+          if (map[r.district_id] === undefined || fee < map[r.district_id]) {
+            map[r.district_id] = fee;
+          }
+        }
+        setRateMap(map);
+      });
   }, []);
 
   // Hierarchical districts: provinces are rows with parent_id=null,
@@ -161,8 +178,14 @@ export default function ProductPage() {
   const finalDistrictId = selectedAreaId || selectedProvinceId;
   const finalDistrictObj = districts.find(d => d.id === finalDistrictId);
   const provinceObj = districts.find(d => d.id === selectedProvinceId);
+  // Resolve fee: courier rate for the area, else courier rate for the province,
+  // else fall back to district.delivery_fee (legacy column).
   const rawDeliveryFee = Number(
-    finalDistrictObj?.delivery_fee || provinceObj?.delivery_fee || 0
+    (finalDistrictId && rateMap[finalDistrictId]) ||
+    (selectedProvinceId && rateMap[selectedProvinceId]) ||
+    finalDistrictObj?.delivery_fee ||
+    provinceObj?.delivery_fee ||
+    0
   );
 
   const qty = parseInt(form.quantity) || 1;
