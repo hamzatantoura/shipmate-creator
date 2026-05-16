@@ -9,8 +9,10 @@ import CategoryFilter from "../components/CategoryFilter";
 import StorefrontProductCard from "../components/StorefrontProductCard";
 import { CartProvider, useCart } from "../cart/CartContext";
 import CartDrawer from "../cart/CartDrawer";
+import { WishlistProvider, useWishlist } from "../wishlist/WishlistContext";
+import WishlistDrawer from "../wishlist/WishlistDrawer";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Heart } from "lucide-react";
 
 interface Product {
   id: string; name: string; image_url: string | null;
@@ -122,6 +124,7 @@ export default function Storefront() {
 
   return (
     <CartProvider merchantId={merchantId!}>
+    <WishlistProvider>
     <div className="min-h-screen bg-background" dir="rtl">
       <Seo
         title={seoTitle}
@@ -130,7 +133,7 @@ export default function Storefront() {
         type="website"
         jsonLd={jsonLd}
       />
-      <FloatingCartButton />
+      <FloatingActions />
       {merchant && (
         <StoreHero
           merchantId={merchantId!}
@@ -163,13 +166,16 @@ export default function Storefront() {
         )}
       </main>
       <CartDrawer merchantId={merchantId!} />
+      <WishlistDrawer />
     </div>
+    </WishlistProvider>
     </CartProvider>
   );
 }
 
-function FloatingCartButton() {
+function FloatingActions() {
   const cart = useCart();
+  const wish = useWishlist();
   const [bump, setBump] = useState(false);
   useEffect(() => {
     if (cart.count === 0) return;
@@ -178,21 +184,35 @@ function FloatingCartButton() {
     return () => clearTimeout(t);
   }, [cart.count]);
   return (
-    <button
-      onClick={cart.openCart}
-      aria-label="فتح سلة المشتريات"
-      className="fixed top-4 right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-4px_hsl(var(--primary)/0.6)] hover:shadow-[0_10px_40px_-2px_hsl(var(--primary)/0.8)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center ring-1 ring-primary/40"
-    >
-      <ShoppingCart className="h-6 w-6" />
-      {cart.count > 0 && (
-        <span
-          key={cart.count}
-          className={`absolute -top-1 -left-1 h-6 min-w-6 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center border-2 border-background shadow-[0_0_12px_hsl(var(--destructive)/0.8)] animate-scale-in ${bump ? "animate-bounce" : ""}`}
-        >
-          {cart.count}
-        </span>
-      )}
-      <span className="absolute inset-0 rounded-full bg-primary/30 animate-ping opacity-0 [animation-iteration-count:1]" />
-    </button>
+    <div className="fixed top-4 right-4 z-50 flex flex-col gap-3">
+      <button
+        onClick={cart.openCart}
+        aria-label="فتح سلة المشتريات"
+        className="relative h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-[0_8px_30px_-4px_hsl(var(--primary)/0.6)] hover:shadow-[0_10px_40px_-2px_hsl(var(--primary)/0.8)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center ring-1 ring-primary/40"
+      >
+        <ShoppingCart className="h-6 w-6" />
+        {cart.count > 0 && (
+          <span
+            key={cart.count}
+            className={`absolute -top-1 -left-1 h-6 min-w-6 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center border-2 border-background shadow-[0_0_12px_hsl(var(--destructive)/0.8)] animate-scale-in ${bump ? "animate-bounce" : ""}`}
+          >
+            {cart.count}
+          </span>
+        )}
+      </button>
+
+      <button
+        onClick={wish.open}
+        aria-label="فتح المفضّلة"
+        className="relative h-12 w-12 rounded-full bg-card text-foreground border border-border shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+      >
+        <Heart className={`h-5 w-5 transition-colors ${wish.count > 0 ? "fill-destructive text-destructive" : ""}`} />
+        {wish.count > 0 && (
+          <span className="absolute -top-1 -left-1 h-5 min-w-5 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center border-2 border-background">
+            {wish.count}
+          </span>
+        )}
+      </button>
+    </div>
   );
 }
