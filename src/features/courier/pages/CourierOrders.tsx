@@ -901,24 +901,24 @@ export default function CourierOrders() {
           </Badge>
         </div>
 
-        {/* Top-level tabs: Orders / Scanner / Wallet */}
-        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as typeof mainTab)} className="space-y-4 sm:space-y-6">
-          <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 p-1 rounded-lg">
-            <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card transition-none">
+        {/* Top-level sections: simple buttons on mobile to avoid tab compositing glitches */}
+        <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 rounded-lg bg-muted p-1 text-muted-foreground">
+            <button type="button" onClick={() => setMainTab("orders")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-sm px-2 text-xs sm:text-sm font-medium", mainTab === "orders" && "bg-card text-foreground")}>
               <Package className="h-3.5 w-3.5" />
               الطلبات
-            </TabsTrigger>
-            <TabsTrigger value="scanner" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card transition-none">
+            </button>
+            <button type="button" onClick={() => setMainTab("scanner")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-sm px-2 text-xs sm:text-sm font-medium", mainTab === "scanner" && "bg-card text-foreground")}>
               <ScanLine className="h-3.5 w-3.5" />
               الماسح الضوئي
-            </TabsTrigger>
-            <TabsTrigger value="wallet" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card transition-none">
+            </button>
+            <button type="button" onClick={() => setMainTab("wallet")} className={cn("inline-flex items-center justify-center gap-1.5 rounded-sm px-2 text-xs sm:text-sm font-medium", mainTab === "wallet" && "bg-card text-foreground")}>
               <Wallet className="h-3.5 w-3.5" />
               المحفظة
-            </TabsTrigger>
-          </TabsList>
+            </button>
+          </div>
 
-          <TabsContent value="orders" className="space-y-4 sm:space-y-6 mt-0">
+          {mainTab === "orders" && <div className="space-y-4 sm:space-y-6">
         {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
         <Card className="hidden sm:block border-primary/30 shadow-sm bg-card">
           <CardContent className="p-3 sm:p-4">
