@@ -8,7 +8,7 @@ interface Props { balance: number; earningsMonth: number; }
 
 export function WalletCard({ balance, earningsMonth }: Props) {
   return (
-    <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card">
+    <Card className="border-primary/30 bg-card">
       <CardContent className="p-5 md:p-6 space-y-4">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
