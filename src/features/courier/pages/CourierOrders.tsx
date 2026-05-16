@@ -1141,13 +1141,16 @@ export default function CourierOrders() {
               </select>
             </div>
 
-            <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-              <TabsList className="hidden sm:grid sm:grid-cols-5 w-full gap-1 h-auto p-1 md:w-auto md:inline-grid">
+            <div className="hidden sm:grid sm:grid-cols-5 w-full gap-1 h-auto rounded-md bg-muted p-1 text-muted-foreground md:w-auto md:inline-grid">
                 {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
-                  <TabsTrigger
+                  <button
+                    type="button"
                     key={k}
-                    value={k}
-                    className="flex items-center justify-center gap-1.5 px-2 py-2 h-auto min-h-10 text-[11px] leading-tight whitespace-normal text-center transition-none md:flex-row md:gap-1.5 md:text-xs md:min-h-0 md:py-1.5"
+                    onClick={() => setTab(k)}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 rounded-sm px-2 py-2 h-auto min-h-10 text-[11px] font-medium leading-tight whitespace-normal text-center md:flex-row md:gap-1.5 md:text-xs md:min-h-0 md:py-1.5",
+                      tab === k && "bg-background text-foreground"
+                    )}
                   >
                     <Badge
                       variant={tab === k ? "default" : "secondary"}
@@ -1156,10 +1159,9 @@ export default function CourierOrders() {
                       {tabCounts[k]}
                     </Badge>
                     <span className="block">{TAB_LABELS[k]}</span>
-                  </TabsTrigger>
+                  </button>
                 ))}
-              </TabsList>
-            </Tabs>
+            </div>
 
             {selectedIds.length > 0 && (
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
