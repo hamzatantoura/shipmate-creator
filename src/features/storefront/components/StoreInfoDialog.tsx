@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Info, MapPin, Phone, MessageCircle, Clock, Star } from "lucide-react";
+import { Info, MapPin, Phone, MessageCircle, Clock, Star, Facebook, Instagram, Globe, Send } from "lucide-react";
 
 interface Branch {
   id: string; name: string; address: string;
@@ -14,9 +14,11 @@ interface Props {
   storeName: string;
   operatingHours: string | null;
   whatsappNumber: string | null;
+  socialLinks?: Record<string, string> | null;
+  websiteUrl?: string | null;
 }
 
-export default function StoreInfoDialog({ merchantId, storeName, operatingHours, whatsappNumber }: Props) {
+export default function StoreInfoDialog({ merchantId, storeName, operatingHours, whatsappNumber, socialLinks, websiteUrl }: Props) {
   const [open, setOpen] = useState(false);
   const [branches, setBranches] = useState<Branch[]>([]);
 
@@ -58,6 +60,41 @@ export default function StoreInfoDialog({ merchantId, storeName, operatingHours,
               <span>تواصل عبر واتساب</span>
             </a>
           )}
+
+          {(socialLinks && Object.keys(socialLinks).length > 0) || websiteUrl ? (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {socialLinks?.facebook && (
+                <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs rounded-full border border-border px-3 py-1 hover:bg-accent">
+                  <Facebook className="h-3.5 w-3.5" /> فيسبوك
+                </a>
+              )}
+              {socialLinks?.instagram && (
+                <a href={socialLinks.instagram} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs rounded-full border border-border px-3 py-1 hover:bg-accent">
+                  <Instagram className="h-3.5 w-3.5" /> إنستغرام
+                </a>
+              )}
+              {socialLinks?.tiktok && (
+                <a href={socialLinks.tiktok} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs rounded-full border border-border px-3 py-1 hover:bg-accent">
+                  تيك توك
+                </a>
+              )}
+              {socialLinks?.telegram && (
+                <a href={socialLinks.telegram} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs rounded-full border border-border px-3 py-1 hover:bg-accent">
+                  <Send className="h-3.5 w-3.5" /> تيليغرام
+                </a>
+              )}
+              {websiteUrl && (
+                <a href={websiteUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs rounded-full border border-border px-3 py-1 hover:bg-accent">
+                  <Globe className="h-3.5 w-3.5" /> الموقع
+                </a>
+              )}
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <div className="font-semibold text-foreground flex items-center gap-2">

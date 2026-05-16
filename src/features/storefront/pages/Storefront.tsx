@@ -19,6 +19,8 @@ interface MerchantInfo {
   logo_url: string | null; banner_url: string | null;
   bio: string | null; operating_hours: string | null;
   whatsapp_number: string | null;
+  social_links: Record<string, string> | null;
+  external_website_url: string | null;
 }
 
 export default function Storefront() {
@@ -45,6 +47,8 @@ export default function Storefront() {
         bio: info.bio,
         operating_hours: info.operating_hours,
         whatsapp_number: info.whatsapp_number,
+        social_links: info.social_links || null,
+        external_website_url: info.external_website_url || null,
       });
       supabase.from("products")
         .select("id, name, image_url, price, original_price, slug, in_stock, category")
@@ -131,6 +135,8 @@ export default function Storefront() {
           logoUrl={merchant.logo_url}
           operatingHours={merchant.operating_hours}
           whatsappNumber={merchant.whatsapp_number}
+          socialLinks={merchant.social_links}
+          websiteUrl={merchant.external_website_url}
         />
       )}
 

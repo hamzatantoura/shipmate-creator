@@ -592,6 +592,7 @@ export type Database = {
           platform_fee_rate: number
           province_id: string | null
           shipping_policy: string
+          social_links: Json
           store_name: string
           updated_at: string
           user_id: string
@@ -624,6 +625,7 @@ export type Database = {
           platform_fee_rate?: number
           province_id?: string | null
           shipping_policy?: string
+          social_links?: Json
           store_name?: string
           updated_at?: string
           user_id: string
@@ -656,6 +658,7 @@ export type Database = {
           platform_fee_rate?: number
           province_id?: string | null
           shipping_policy?: string
+          social_links?: Json
           store_name?: string
           updated_at?: string
           user_id?: string

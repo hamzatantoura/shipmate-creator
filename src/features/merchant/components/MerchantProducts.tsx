@@ -8,6 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Package, Loader2, ImagePlus, Trash2, Copy, Share2, ExternalLink, Pencil, X, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -49,6 +59,7 @@ export default function MerchantProducts() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [variants, setVariants] = useState<VariantEntry[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!user) return;
@@ -437,7 +448,7 @@ export default function MerchantProducts() {
                     <Button variant="outline" size="sm" className="gap-1" onClick={() => shareWhatsApp(p)}>
                       <Share2 className="h-3 w-3" />
                     </Button>
-                    <Button variant="destructive" size="sm" className="gap-1" onClick={() => deleteProduct(p.id)}>
+                    <Button variant="destructive" size="sm" className="gap-1" onClick={() => setConfirmDelete(p)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -447,6 +458,29 @@ export default function MerchantProducts() {
           })}
         </div>
       )}
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(v) => !v && setConfirmDelete(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد حذف المنتج</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف "{confirmDelete?.name}"؟ لن يظهر بعد ذلك في متجرك.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (confirmDelete) await deleteProduct(confirmDelete.id);
+                setConfirmDelete(null);
+              }}
+            >
+              حذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
