@@ -23,6 +23,10 @@ html[data-lang="tr"] body {
  * already handle this; this is a defensive fallback for legacy classes. */
 html[dir="rtl"] .rtl-flip { transform: scaleX(-1); }
 
+/* Hide scrollbars (used for horizontal category chips) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 @layer base {
   :root {
     --background: 0 0% 99%;
