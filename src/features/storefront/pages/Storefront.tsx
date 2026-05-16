@@ -12,7 +12,7 @@ import CartDrawer from "../cart/CartDrawer";
 import { WishlistProvider, useWishlist } from "../wishlist/WishlistContext";
 import WishlistDrawer from "../wishlist/WishlistDrawer";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Heart } from "lucide-react";
+import { ShoppingCart, Heart, PackageSearch } from "lucide-react";
 
 interface Product {
   id: string; name: string; image_url: string | null;
@@ -213,6 +213,17 @@ function FloatingActions() {
           </span>
         )}
       </button>
+
+      <a
+        href="/track"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="تتبع شحنتك"
+        title="تتبع شحنتك برقم الطلب"
+        className="relative h-12 w-12 rounded-full bg-card text-foreground border border-border shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+      >
+        <PackageSearch className="h-5 w-5 text-primary" />
+      </a>
     </div>
   );
 }
