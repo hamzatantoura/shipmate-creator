@@ -174,6 +174,7 @@ export default function Storefront() {
 }
 
 function FloatingActions() {
+  const { merchantId } = useParams();
   const cart = useCart();
   const wish = useWishlist();
   const [bump, setBump] = useState(false);
