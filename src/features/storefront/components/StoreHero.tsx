@@ -12,6 +12,8 @@ interface Props {
   logoUrl: string | null;
   operatingHours: string | null;
   whatsappNumber: string | null;
+  socialLinks?: Record<string, string> | null;
+  websiteUrl?: string | null;
 }
 
 export default function StoreHero(props: Props) {
@@ -69,6 +71,8 @@ export default function StoreHero(props: Props) {
               storeName={props.storeName}
               operatingHours={props.operatingHours}
               whatsappNumber={props.whatsappNumber}
+              socialLinks={props.socialLinks}
+              websiteUrl={props.websiteUrl}
             />
             <Button size="sm" variant="default" className="gap-1.5 rounded-full" onClick={handleShare}>
               <Share2 className="h-3.5 w-3.5" /> مشاركة
