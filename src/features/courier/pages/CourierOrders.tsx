@@ -1176,7 +1176,59 @@ export default function CourierOrders() {
             ) : filtered.length === 0 ? (
               <EmptyState hasSearch={!!search || tab !== "all"} totalOrders={orders.length} />
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              {/* Mobile: simple stacked cards (avoids wide overflow-x table rendering glitches on Chrome Android) */}
+              <div className="md:hidden divide-y divide-border">
+                {filtered.map((o) => {
+                  const cod = o.final_sale_price ?? o.total_amount;
+                  const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
+                  const meta = getOrderStatusMeta(o.status);
+                  const Icon = meta.icon;
+                  return (
+                    <div key={o.id} className="p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm truncate">{o.receiver_name}</div>
+                          <div className="font-mono text-[11px] text-muted-foreground">{silaCodeOf(o.id)}</div>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium shrink-0 ${meta.className}`}>
+                          <Icon className="h-3 w-3" />
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
+                        <div className="text-muted-foreground">الهاتف</div>
+                        <div dir="ltr" className="text-right">{o.phone_number}</div>
+                        <div className="text-muted-foreground">المدينة</div>
+                        <div>{o.districts?.name || o.city}</div>
+                        <div className="text-muted-foreground">العنوان</div>
+                        <div className="truncate" title={o.detailed_address}>{o.detailed_address || "—"}</div>
+                        <div className="text-muted-foreground">التحصيل</div>
+                        <div className="tabular-nums font-semibold">{fmtSYP(Number(cod))}</div>
+                        <div className="text-muted-foreground">رسوم التوصيل</div>
+                        <div className="tabular-nums">{fmtSYP(Number(o.delivery_fee ?? 0))}</div>
+                        <div className="text-muted-foreground">التاريخ</div>
+                        <div className="tabular-nums">{new Date(o.created_at).toLocaleDateString("en-GB")}</div>
+                      </div>
+                      {!isFinal && (
+                        <Select value="" onValueChange={(v) => updateStatus(o.id, v)} disabled={updatingId === o.id}>
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="تحديث الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(NEXT_STATUS_MAP[o.status] || []).map(s => (
+                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop / tablet: full table */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 hover:bg-muted/40">
