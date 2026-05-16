@@ -12,7 +12,6 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -871,7 +870,7 @@ export default function CourierOrders() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Greeting */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
@@ -901,26 +900,26 @@ export default function CourierOrders() {
           </Badge>
         </div>
 
-        {/* Top-level tabs: Orders / Scanner / Wallet */}
-        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as typeof mainTab)} className="space-y-6">
-          <TabsList className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid h-11 p-1">
-            <TabsTrigger value="orders" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+        {/* Top-level sections: simple buttons on mobile to avoid tab compositing glitches */}
+        <div className="space-y-4 sm:space-y-6">
+          <div className="grid grid-cols-3 w-full sm:w-auto sm:inline-grid min-h-11 rounded-lg bg-muted p-1 text-muted-foreground">
+            <button type="button" onClick={() => setMainTab("orders")} className={cn("inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1.5 py-2 text-[11px] sm:px-2 sm:text-sm font-medium leading-tight", mainTab === "orders" && "bg-card text-foreground")}>
               <Package className="h-3.5 w-3.5" />
               الطلبات
-            </TabsTrigger>
-            <TabsTrigger value="scanner" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+            </button>
+            <button type="button" onClick={() => setMainTab("scanner")} className={cn("inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1.5 py-2 text-[11px] sm:px-2 sm:text-sm font-medium leading-tight", mainTab === "scanner" && "bg-card text-foreground")}>
               <ScanLine className="h-3.5 w-3.5" />
-              الماسح الضوئي
-            </TabsTrigger>
-            <TabsTrigger value="wallet" className="gap-1.5 text-xs sm:text-sm data-[state=active]:bg-card">
+              الماسح
+            </button>
+            <button type="button" onClick={() => setMainTab("wallet")} className={cn("inline-flex min-w-0 items-center justify-center gap-1 rounded-sm px-1.5 py-2 text-[11px] sm:px-2 sm:text-sm font-medium leading-tight", mainTab === "wallet" && "bg-card text-foreground")}>
               <Wallet className="h-3.5 w-3.5" />
               المحفظة
-            </TabsTrigger>
-          </TabsList>
+            </button>
+          </div>
 
-          <TabsContent value="orders" className="space-y-6 mt-0">
+          {mainTab === "orders" && <div className="space-y-4 sm:space-y-6">
         {/* === SMART SCANNER BAR (Scan-to-Sort) === */}
-        <Card className="border-primary/30 shadow-sm bg-card">
+        <Card className="hidden sm:block border-primary/30 shadow-sm bg-card">
           <CardContent className="p-3 sm:p-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 shrink-0">
@@ -970,8 +969,19 @@ export default function CourierOrders() {
           </CardContent>
         </Card>
 
+        <div className="sm:hidden rounded-lg border border-border bg-card divide-y divide-border">
+          <div className="grid grid-cols-2 divide-x divide-x-reverse divide-border">
+            <MobileMetric label="المسندة" value={kpis.total} loading={loading} />
+            <MobileMetric label="تم اليوم" value={kpis.deliveredToday} loading={loading} />
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-x-reverse divide-border">
+            <MobileMetric label="قيد التوصيل" value={kpis.outForDelivery} loading={loading} />
+            <MobileMetric label="مرتجع" value={kpis.returned} loading={loading} />
+          </div>
+        </div>
+
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <KpiCard
             loading={loading}
             icon={<Package className="h-4 w-4" />}
@@ -1005,8 +1015,8 @@ export default function CourierOrders() {
         </div>
 
         {/* Orders Table */}
-        <Card className="border-border/60 shadow-sm overflow-hidden">
-          <CardHeader className="pb-3 gap-3">
+        <Card className="border-border/60 shadow-none sm:shadow-sm sm:overflow-hidden">
+          <CardHeader className="pb-3 gap-3 p-3 sm:p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <CardTitle className="text-base flex items-center gap-2">
@@ -1019,7 +1029,7 @@ export default function CourierOrders() {
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                 <div className="relative w-full sm:w-72">
-                  <Search className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" />
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -1027,8 +1037,18 @@ export default function CourierOrders() {
                     className="pr-9 h-9 text-sm"
                   />
                 </div>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.currentTarget.value)}
+                  className="sm:hidden h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                >
+                  <option value="all">كل الحالات</option>
+                  {availableStatuses.map((s) => (
+                    <option key={s} value={s}>{getOrderStatusMeta(s).label}</option>
+                  ))}
+                </select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-9 text-sm w-full sm:w-44">
+                  <SelectTrigger className="hidden sm:flex h-9 text-sm w-full sm:w-44">
                     <SelectValue placeholder="تصفية الحالة" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1108,13 +1128,28 @@ export default function CourierOrders() {
               </div>
             </div>
 
-            <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-              <TabsList className="grid grid-cols-5 w-full gap-1 h-auto p-1 md:w-auto md:inline-grid">
+            <div className="sm:hidden">
+              <select
+                value={tab}
+                onChange={(event) => setTab(event.currentTarget.value as TabKey)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+              >
                 {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
-                  <TabsTrigger
+                  <option key={k} value={k}>{TAB_LABELS[k]} ({tabCounts[k]})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="hidden sm:grid sm:grid-cols-5 w-full gap-1 h-auto rounded-md bg-muted p-1 text-muted-foreground md:w-auto md:inline-grid">
+                {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
+                  <button
+                    type="button"
                     key={k}
-                    value={k}
-                    className="flex flex-col items-center justify-center gap-1 px-1 py-2 h-auto min-h-14 text-[11px] leading-tight whitespace-normal text-center md:flex-row md:gap-1.5 md:text-xs md:min-h-0 md:py-1.5"
+                    onClick={() => setTab(k)}
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 rounded-sm px-2 py-2 h-auto min-h-10 text-[11px] font-medium leading-tight whitespace-normal text-center md:flex-row md:gap-1.5 md:text-xs md:min-h-0 md:py-1.5",
+                      tab === k && "bg-background text-foreground"
+                    )}
                   >
                     <Badge
                       variant={tab === k ? "default" : "secondary"}
@@ -1123,10 +1158,9 @@ export default function CourierOrders() {
                       {tabCounts[k]}
                     </Badge>
                     <span className="block">{TAB_LABELS[k]}</span>
-                  </TabsTrigger>
+                  </button>
                 ))}
-              </TabsList>
-            </Tabs>
+            </div>
 
             {selectedIds.length > 0 && (
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
@@ -1177,15 +1211,16 @@ export default function CourierOrders() {
               <EmptyState hasSearch={!!search || tab !== "all"} totalOrders={orders.length} />
             ) : (
               <>
-              {/* Mobile: simple stacked cards (avoids wide overflow-x table rendering glitches on Chrome Android) */}
-              <div className="md:hidden divide-y divide-border">
+              {/* Mobile: plain block list — no table, no portals, no animated overlays */}
+              <div className="md:hidden divide-y divide-border bg-card">
                 {filtered.map((o) => {
                   const cod = o.final_sale_price ?? o.total_amount;
                   const isFinal = ["delivered", "returned", "cancelled"].includes(o.status);
                   const meta = getOrderStatusMeta(o.status);
                   const Icon = meta.icon;
+                  const nextStatuses = NEXT_STATUS_MAP[o.status] || [];
                   return (
-                    <div key={o.id} className="p-3 space-y-2">
+                    <article key={o.id} className="p-3 space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="font-medium text-sm truncate">{o.receiver_name}</div>
@@ -1196,33 +1231,43 @@ export default function CourierOrders() {
                           {meta.label}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
-                        <div className="text-muted-foreground">الهاتف</div>
-                        <div dir="ltr" className="text-right">{o.phone_number}</div>
-                        <div className="text-muted-foreground">المدينة</div>
-                        <div>{o.districts?.name || o.city}</div>
-                        <div className="text-muted-foreground">العنوان</div>
-                        <div className="truncate" title={o.detailed_address}>{o.detailed_address || "—"}</div>
-                        <div className="text-muted-foreground">التحصيل</div>
-                        <div className="tabular-nums font-semibold">{fmtSYP(Number(cod))}</div>
-                        <div className="text-muted-foreground">رسوم التوصيل</div>
-                        <div className="tabular-nums">{fmtSYP(Number(o.delivery_fee ?? 0))}</div>
-                        <div className="text-muted-foreground">التاريخ</div>
-                        <div className="tabular-nums">{new Date(o.created_at).toLocaleDateString("en-GB")}</div>
+                       <div className="space-y-1 text-[12px]">
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">الهاتف</span>
+                          <span dir="ltr" className="text-right">{o.phone_number}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">المدينة</span>
+                          <span className="text-right">{o.districts?.name || o.city}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">التحصيل</span>
+                          <span className="tabular-nums font-semibold">{fmtSYP(Number(cod))}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-muted-foreground">التاريخ</span>
+                          <span className="tabular-nums">{new Date(o.created_at).toLocaleDateString("en-GB")}</span>
+                        </div>
+                        <p className="pt-1 text-muted-foreground leading-5 break-words">{o.detailed_address || "—"}</p>
                       </div>
-                      {!isFinal && (
-                        <Select value="" onValueChange={(v) => updateStatus(o.id, v)} disabled={updatingId === o.id}>
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue placeholder="تحديث الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(NEXT_STATUS_MAP[o.status] || []).map(s => (
-                              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      {!isFinal && nextStatuses.length > 0 && (
+                        <select
+                          value=""
+                          disabled={updatingId === o.id}
+                          onChange={(event) => {
+                            const value = event.currentTarget.value;
+                            if (value) updateStatus(o.id, value);
+                            event.currentTarget.value = "";
+                          }}
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs text-foreground disabled:opacity-50"
+                        >
+                          <option value="">تحديث الحالة</option>
+                          {nextStatuses.map((s) => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                          ))}
+                        </select>
                       )}
-                    </div>
+                    </article>
                   );
                 })}
               </div>
@@ -1414,11 +1459,11 @@ export default function CourierOrders() {
             </div>
           </div>
         )}
-          </TabsContent>
+          </div>}
 
           {/* SCANNER TAB */}
-          <TabsContent value="scanner" className="mt-0">
-            <Card className="border-border/60 shadow-sm">
+          {mainTab === "scanner" && <div>
+            <Card className="border-border/60 shadow-none sm:shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <ScanLine className="h-4 w-4 text-primary" />
@@ -1432,13 +1477,13 @@ export default function CourierOrders() {
                 <BarcodeScanner />
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>}
 
           {/* WALLET TAB */}
-          <TabsContent value="wallet" className="mt-0">
+          {mainTab === "wallet" && <div>
             <CourierWalletPanel />
-          </TabsContent>
-        </Tabs>
+          </div>}
+        </div>
       </main>
 
       {/* Return reason dialog */}
@@ -1672,6 +1717,19 @@ function KpiCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function MobileMetric({ label, value, loading }: { label: string; value: number; loading?: boolean }) {
+  return (
+    <div className="p-3">
+      <div className="text-[11px] text-muted-foreground mb-1">{label}</div>
+      {loading ? (
+        <Skeleton className="h-6 w-14" />
+      ) : (
+        <div className="text-xl font-bold tabular-nums leading-none">{value.toLocaleString("ar-SY")}</div>
+      )}
+    </div>
   );
 }
 
