@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, ShoppingCart, Check, Heart, Share2 } from "lucide-react";
 import { useCart } from "../cart/CartContext";
-import { useEffect, useState } from "react";
+import { useWishlist } from "../wishlist/WishlistContext";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface Product {
@@ -15,25 +16,17 @@ interface Product {
 export default function StorefrontProductCard({ product, eager }: { product: Product; eager?: boolean }) {
   const p = product;
   const cart = useCart();
+  const wish = useWishlist();
   const [justAdded, setJustAdded] = useState(false);
-  const wishKey = "sila_wishlist";
-  const [fav, setFav] = useState(false);
-  useEffect(() => {
-    try {
-      const list: string[] = JSON.parse(localStorage.getItem(wishKey) || "[]");
-      setFav(list.includes(p.id));
-    } catch { /* ignore */ }
-  }, [p.id]);
+  const fav = wish.has(p.id);
 
   const toggleFav = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
-    try {
-      const list: string[] = JSON.parse(localStorage.getItem(wishKey) || "[]");
-      const next = list.includes(p.id) ? list.filter(x => x !== p.id) : [...list, p.id];
-      localStorage.setItem(wishKey, JSON.stringify(next));
-      setFav(!fav);
-      toast.success(!fav ? "أُضيف إلى المفضلة" : "أُزيل من المفضلة");
-    } catch { /* ignore */ }
+    const added = wish.toggle({
+      id: p.id, name: p.name, price: Number(p.price),
+      image_url: p.image_url, slug: p.slug,
+    });
+    toast.success(added ? "أُضيف إلى المفضّلة ❤️" : "أُزيل من المفضّلة");
   };
 
   const share = async (e: React.MouseEvent) => {
