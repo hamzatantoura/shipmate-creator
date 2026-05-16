@@ -1016,8 +1016,8 @@ export default function CourierOrders() {
         </div>
 
         {/* Orders Table */}
-        <Card className="border-border/60 shadow-sm overflow-hidden">
-          <CardHeader className="pb-3 gap-3">
+        <Card className="border-border/60 shadow-sm sm:overflow-hidden">
+          <CardHeader className="pb-3 gap-3 p-3 sm:p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <CardTitle className="text-base flex items-center gap-2">
@@ -1030,7 +1030,7 @@ export default function CourierOrders() {
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                 <div className="relative w-full sm:w-72">
-                  <Search className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="h-4 w-4 absolute right-3 top-2.5 text-muted-foreground" />
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -1120,12 +1120,12 @@ export default function CourierOrders() {
             </div>
 
             <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-              <TabsList className="grid grid-cols-5 w-full gap-1 h-auto p-1 md:w-auto md:inline-grid">
+              <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full gap-1 h-auto p-1 md:w-auto md:inline-grid">
                 {(["all", "pending", "active", "delivered", "returned"] as TabKey[]).map((k) => (
                   <TabsTrigger
                     key={k}
                     value={k}
-                    className="flex flex-col items-center justify-center gap-1 px-1 py-2 h-auto min-h-14 text-[11px] leading-tight whitespace-normal text-center md:flex-row md:gap-1.5 md:text-xs md:min-h-0 md:py-1.5"
+                    className="flex items-center justify-center gap-1.5 px-2 py-2 h-auto min-h-10 text-[11px] leading-tight whitespace-normal text-center transition-none md:flex-row md:gap-1.5 md:text-xs md:min-h-0 md:py-1.5"
                   >
                     <Badge
                       variant={tab === k ? "default" : "secondary"}
