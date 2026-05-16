@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Package, ShoppingCart, Check } from "lucide-react";
+import { useCart } from "../cart/CartContext";
+import { useState } from "react";
 
 interface Product {
   id: string; name: string; image_url: string | null;
@@ -10,10 +13,26 @@ interface Product {
 
 export default function StorefrontProductCard({ product, eager }: { product: Product; eager?: boolean }) {
   const p = product;
+  const cart = useCart();
+  const [justAdded, setJustAdded] = useState(false);
   const hasDiscount = p.original_price && p.original_price > p.price;
   const discountPct = hasDiscount
     ? Math.round(((Number(p.original_price) - Number(p.price)) / Number(p.original_price)) * 100)
     : 0;
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cart.add({
+      id: p.id,
+      name: p.name,
+      price: Number(p.price),
+      image_url: p.image_url,
+      slug: p.slug,
+    });
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 1200);
+  };
 
   return (
     <Link to={`/product/${p.slug || p.id}`} className="block group animate-fade-in">
@@ -60,6 +79,16 @@ export default function StorefrontProductCard({ product, eager }: { product: Pro
               </span>
             )}
           </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!p.in_stock}
+            onClick={handleAdd}
+            className="w-full h-9 mt-1 gap-1.5 text-xs"
+            variant={justAdded ? "secondary" : "default"}
+          >
+            {justAdded ? <><Check className="h-3.5 w-3.5" /> أُضيف</> : <><ShoppingCart className="h-3.5 w-3.5" /> إضافة للسلة</>}
+          </Button>
         </div>
       </Card>
     </Link>
