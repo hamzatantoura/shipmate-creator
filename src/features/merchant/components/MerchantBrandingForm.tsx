@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { toast } from "sonner";
 import { Loader2, Store, MessageCircle, Facebook, Instagram, Globe, Camera, Pencil, Send } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -13,6 +15,7 @@ import { compressImage } from "@/shared/lib/image-compress";
 
 export default function MerchantBrandingForm() {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -107,6 +110,104 @@ export default function MerchantBrandingForm() {
 
   const waHref = whatsapp ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}` : null;
 
+  const formBody = (
+    <div className="space-y-5">
+      {/* Banner preview + input */}
+      <div className="space-y-2">
+        <Label>غلاف المتجر</Label>
+        <div
+          onClick={() => bannerInputRef.current?.click()}
+          className="group relative aspect-[16/6] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer"
+        >
+          {bannerUrl
+            ? <img src={bannerUrl} alt="" className="w-full h-full object-cover" />
+            : <div className="absolute inset-0 flex items-center justify-center text-muted-foreground"><Camera className="h-8 w-8" /></div>}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm gap-1.5">
+            <Camera className="h-4 w-4" /> تغيير الغلاف
+          </div>
+        </div>
+        <input ref={bannerInputRef} type="file" accept="image/*" className="hidden"
+          onChange={e => e.target.files?.[0] && handleBanner(e.target.files[0])} />
+      </div>
+
+      {/* Logo */}
+      <div className="space-y-2">
+        <Label>شعار المتجر</Label>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => logoInputRef.current?.click()}
+            className="group relative h-20 w-20 rounded-full overflow-hidden border border-border bg-muted/30 flex items-center justify-center shrink-0">
+            {logoUrl
+              ? <img src={logoUrl} alt="" className="w-full h-full object-cover" />
+              : <Store className="h-7 w-7 text-muted-foreground" />}
+            <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Camera className="h-4 w-4 text-white" />
+            </span>
+          </button>
+          <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
+            <Camera className="h-4 w-4 ml-1" /> رفع شعار
+          </Button>
+          <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
+            onChange={e => e.target.files?.[0] && handleLogo(e.target.files[0])} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>اسم المتجر</Label>
+        <Input value={storeName} onChange={e => setStoreName(e.target.value)} placeholder="مثال: متجر النور" maxLength={80} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>نبذة</Label>
+        <Textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} placeholder="عرّف زبائنك بمتجرك..." maxLength={300} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>ساعات العمل</Label>
+        <Textarea rows={2} value={hours} onChange={e => setHours(e.target.value)} placeholder="مثال: السبت – الخميس 9ص – 10م" maxLength={200} />
+      </div>
+
+      <div className="border-t border-border pt-4 space-y-3">
+        <div className="text-sm font-semibold">وسائل التواصل</div>
+        <div className="space-y-2">
+          <Label className="flex items-center gap-1.5"><MessageCircle className="h-3.5 w-3.5 text-primary" /> واتساب</Label>
+          <Input dir="ltr" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+9639xxxxxxxx" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5"><Facebook className="h-3.5 w-3.5 text-primary" /> فيسبوك</Label>
+            <Input dir="ltr" value={facebook} onChange={e => setFacebook(e.target.value)} placeholder="https://facebook.com/..." />
+          </div>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5"><Instagram className="h-3.5 w-3.5 text-primary" /> إنستغرام</Label>
+            <Input dir="ltr" value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="https://instagram.com/..." />
+          </div>
+          <div className="space-y-2">
+            <Label>تيك توك</Label>
+            <Input dir="ltr" value={tiktok} onChange={e => setTiktok(e.target.value)} placeholder="https://tiktok.com/@..." />
+          </div>
+          <div className="space-y-2">
+            <Label>تيليغرام</Label>
+            <Input dir="ltr" value={telegram} onChange={e => setTelegram(e.target.value)} placeholder="https://t.me/..." />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-primary" /> الموقع</Label>
+            <Input dir="ltr" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const footerButtons = (
+    <>
+      <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>إلغاء</Button>
+      <Button onClick={save} disabled={saving}>
+        {saving && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+        حفظ
+      </Button>
+    </>
+  );
+
   return (
     <>
       {/* ===== VIEW MODE ===== */}
@@ -188,108 +289,34 @@ export default function MerchantBrandingForm() {
         </CardContent>
       </Card>
 
-      {/* ===== EDIT MODAL ===== */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>تعديل هوية المتجر</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-5">
-            {/* Banner preview + input */}
-            <div className="space-y-2">
-              <Label>غلاف المتجر</Label>
-              <div
-                onClick={() => bannerInputRef.current?.click()}
-                className="group relative aspect-[16/6] rounded-lg overflow-hidden border border-border bg-muted/30 cursor-pointer"
-              >
-                {bannerUrl
-                  ? <img src={bannerUrl} alt="" className="w-full h-full object-cover" />
-                  : <div className="absolute inset-0 flex items-center justify-center text-muted-foreground"><Camera className="h-8 w-8" /></div>}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm gap-1.5">
-                  <Camera className="h-4 w-4" /> تغيير الغلاف
-                </div>
-              </div>
-              <input ref={bannerInputRef} type="file" accept="image/*" className="hidden"
-                onChange={e => e.target.files?.[0] && handleBanner(e.target.files[0])} />
+      {/* ===== EDIT — Sheet on mobile, Dialog on desktop ===== */}
+      {isMobile ? (
+        <Sheet open={editOpen} onOpenChange={setEditOpen}>
+          <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl p-0 flex flex-col">
+            <SheetHeader className="px-5 pt-5 pb-3 border-b border-border text-right">
+              <SheetTitle>تعديل هوية المتجر</SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+              {formBody}
             </div>
-
-            {/* Logo */}
-            <div className="space-y-2">
-              <Label>شعار المتجر</Label>
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={() => logoInputRef.current?.click()}
-                  className="group relative h-20 w-20 rounded-full overflow-hidden border border-border bg-muted/30 flex items-center justify-center shrink-0">
-                  {logoUrl
-                    ? <img src={logoUrl} alt="" className="w-full h-full object-cover" />
-                    : <Store className="h-7 w-7 text-muted-foreground" />}
-                  <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="h-4 w-4 text-white" />
-                  </span>
-                </button>
-                <Button type="button" variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
-                  <Camera className="h-4 w-4 ml-1" /> رفع شعار
-                </Button>
-                <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
-                  onChange={e => e.target.files?.[0] && handleLogo(e.target.files[0])} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>اسم المتجر</Label>
-              <Input value={storeName} onChange={e => setStoreName(e.target.value)} placeholder="مثال: متجر النور" maxLength={80} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>نبذة</Label>
-              <Textarea rows={3} value={bio} onChange={e => setBio(e.target.value)} placeholder="عرّف زبائنك بمتجرك..." maxLength={300} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>ساعات العمل</Label>
-              <Textarea rows={2} value={hours} onChange={e => setHours(e.target.value)} placeholder="مثال: السبت – الخميس 9ص – 10م" maxLength={200} />
-            </div>
-
-            <div className="border-t border-border pt-4 space-y-3">
-              <div className="text-sm font-semibold">وسائل التواصل</div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5"><MessageCircle className="h-3.5 w-3.5 text-primary" /> واتساب</Label>
-                <Input dir="ltr" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+9639xxxxxxxx" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5"><Facebook className="h-3.5 w-3.5 text-primary" /> فيسبوك</Label>
-                  <Input dir="ltr" value={facebook} onChange={e => setFacebook(e.target.value)} placeholder="https://facebook.com/..." />
-                </div>
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5"><Instagram className="h-3.5 w-3.5 text-primary" /> إنستغرام</Label>
-                  <Input dir="ltr" value={instagram} onChange={e => setInstagram(e.target.value)} placeholder="https://instagram.com/..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>تيك توك</Label>
-                  <Input dir="ltr" value={tiktok} onChange={e => setTiktok(e.target.value)} placeholder="https://tiktok.com/@..." />
-                </div>
-                <div className="space-y-2">
-                  <Label>تيليغرام</Label>
-                  <Input dir="ltr" value={telegram} onChange={e => setTelegram(e.target.value)} placeholder="https://t.me/..." />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5 text-primary" /> الموقع</Label>
-                  <Input dir="ltr" value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://..." />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>إلغاء</Button>
-            <Button onClick={save} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-              حفظ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <SheetFooter className="px-5 py-3 border-t border-border gap-2 flex-row justify-end bg-background">
+              {footerButtons}
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>تعديل هوية المتجر</DialogTitle>
+            </DialogHeader>
+            {formBody}
+            <DialogFooter className="gap-2">
+              {footerButtons}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
