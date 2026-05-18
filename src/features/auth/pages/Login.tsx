@@ -45,7 +45,13 @@ export default function Login() {
       password: values.password,
     });
     if (error) {
-      toast.error(friendlyAuthError(error));
+      const isCourierLogin = loginEmail.endsWith("@courier.sila.local");
+      const msg = friendlyAuthError(error);
+      if (isCourierLogin && /بيانات الدخول غير صحيحة/.test(msg)) {
+        toast.error("اسم المستخدم أو كلمة المرور غير صحيحين لحساب شركة الشحن — راجع الإدارة لإعادة التعيين");
+      } else {
+        toast.error(msg);
+      }
       setSubmitting(false);
       return;
     }
