@@ -1567,7 +1567,19 @@ function ResetPasswordCard({
       }
       if (data?.error) throw new Error(data.error);
       const username = data?.username ?? "";
-      toast.success("تم إعادة تعيين كلمة المرور");
+      // Verify the new credentials actually work — guards against silent mismatches.
+      try {
+        const { data: vData } = await supabase.functions.invoke("verify-courier-login", {
+          body: { vendor_id: vendorId, password: newPassword.trim() },
+        });
+        if (vData?.valid) {
+          toast.success("تم إعادة تعيين كلمة المرور والتحقق من عملها");
+        } else {
+          toast.warning("تم حفظ كلمة المرور لكن لم نتمكن من التحقق من الدخول — جرّبها يدوياً");
+        }
+      } catch {
+        toast.success("تم إعادة تعيين كلمة المرور");
+      }
       onReset(username, newPassword.trim());
       setNewPassword("");
     } catch (e: any) {
@@ -1587,12 +1599,22 @@ function ResetPasswordCard({
         هذه الشركة لديها حساب دخول مرتبط بدور <code>vendor</code>. لأسباب أمنية، كلمة المرور لا تُخزَّن — إن نسيت الشركة كلمة المرور، عيّن كلمة جديدة من هنا.
       </p>
       <div className="flex items-center gap-2 bg-background border border-border rounded-md p-2">
-        <span className="text-xs text-muted-foreground w-24">معرّف المستخدم</span>
-        <code dir="ltr" className="flex-1 text-xs font-mono truncate">{vendorId}</code>
-        <Button variant="ghost" size="icon" onClick={() => copyVal(vendorId, "email")}>
+        <span className="text-xs text-muted-foreground w-24">اسم المستخدم الحالي</span>
+        <code dir="ltr" className="flex-1 text-sm font-mono truncate">
+          {loadingUsername ? "..." : (currentUsername || "—")}
+        </code>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={!currentUsername}
+          onClick={() => copyVal(currentUsername, "email")}
+        >
           {copied === "email" ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
         </Button>
       </div>
+      <p className="text-[11px] text-muted-foreground -mt-1">
+        هذا هو الاسم الذي تستخدمه الشركة في صفحة الدخول. كلمة المرور القديمة لا يمكن استرجاعها — استخدم آخر كلمة مرور تم تعيينها فقط.
+      </p>
 
       <div className="border-t border-border pt-3 space-y-2">
         <Label className="text-sm font-semibold flex items-center gap-1.5">
